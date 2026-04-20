@@ -11,7 +11,7 @@
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.x-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](#)
   [![Motion](https://img.shields.io/badge/Motion-12.x-0055FF?style=for-the-badge)](#)
   
-  [![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](./LICENSE)
+  [![License](https://img.shields.io/badge/License-Custom%20Restricted%20%F0%9F%94%92-ef4444?style=for-the-badge)](./LICENSE)
   [![Contributing](https://img.shields.io/badge/Contributing-Guidelines-f59e0b?style=for-the-badge)](./CONTRIBUTING.md)
   [![Code of Conduct](https://img.shields.io/badge/Code_of_Conduct-Policy-8b5cf6?style=for-the-badge)](./CODE_OF_CONDUCT.md)
   [![Security](https://img.shields.io/badge/Security-Policy-ef4444?style=for-the-badge)](./SECURITY.md)
