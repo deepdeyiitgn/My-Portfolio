@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+@theme {
+  /* Aesthetic: Dark-Amber */
+  --color-dark: #09090b; /* zinc-950 */
+  --color-primary: #f59e0b; /* amber-500 */
+  --color-primary-hover: #fbbf24; /* amber-400 */
+  --color-card: #18181b; /* zinc-900 */
+  --color-card-hover: #27272a; /* zinc-800 */
+
+  /* Typography */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-dark text-zinc-300 antialiased;
+    font-family: var(--font-sans);
+    
+    /* Hide scrollbars but keep functionality */
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  body::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+
+  /* Global Hide Scrollbar for all elements */
+  * {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Custom Selection: Amber Glow */
+  ::selection {
+    @apply bg-amber-500/30 text-amber-200;
+  }
+}
+
+/* Page Transition Helpers */
+.page-enter {
+  opacity: 0;
+}
+.page-enter-active {
+  opacity: 1;
+  transition: opacity 300ms ease-in;
+}
+.page-exit {
+  opacity: 1;
+}
+.page-exit-active {
+  opacity: 0;
+  transition: opacity 300ms ease-out;
+}
