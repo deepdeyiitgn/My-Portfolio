@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { name: 'About', path: '/about' },
   { name: 'Me', path: '/me' },
   { name: 'Projects', path: '/projects' },
+  { name: 'Portfolio', path: '/portfolio' },
   { name: 'Links', path: '/links' },
   { name: 'FAQ', path: '/faq' },
   { name: 'Contact', path: '/contact' },
