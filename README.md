@@ -6,10 +6,16 @@
   **Software Architect | AI Prompt Engineer | JEE 2027 Aspirant**
 
   [![Deploy to Vercel](https://img.shields.io/badge/Deployed_on-Vercel-black?style=for-the-badge&logo=vercel)](#)
-  [![React](https://img.shields.io/badge/React-18.x-61DAFB?style=for-the-badge&logo=react&logoColor=black)](#)
-  [![Vite](https://img.shields.io/badge/Vite-5.x-646CFF?style=for-the-badge&logo=vite&logoColor=white)](#)
-  [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.x-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](#)
-  [![Framer Motion](https://img.shields.io/badge/Framer_Motion-11.x-0055FF?style=for-the-badge&logo=framer&logoColor=white)](#)
+  [![React](https://img.shields.io/badge/React-19.x-61DAFB?style=for-the-badge&logo=react&logoColor=black)](#)
+  [![Vite](https://img.shields.io/badge/Vite-6.x-646CFF?style=for-the-badge&logo=vite&logoColor=white)](#)
+  [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.x-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](#)
+  [![Motion](https://img.shields.io/badge/Motion-12.x-0055FF?style=for-the-badge)](#)
+  
+  [![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](./LICENSE)
+  [![Contributing](https://img.shields.io/badge/Contributing-Guidelines-f59e0b?style=for-the-badge)](./CONTRIBUTING.md)
+  [![Code of Conduct](https://img.shields.io/badge/Code_of_Conduct-Policy-8b5cf6?style=for-the-badge)](./CODE_OF_CONDUCT.md)
+  [![Security](https://img.shields.io/badge/Security-Policy-ef4444?style=for-the-badge)](./SECURITY.md)
+  [![Support](https://img.shields.io/badge/Support-Guide-0ea5e9?style=for-the-badge)](./SUPPORT.md)
 
   > *"100% effort + extra 1% = Dream Achieved"*
 
@@ -23,6 +29,19 @@
 Welcome to the central repository of my digital identity. This is not just a standard web portfolio; it is a **High-Fidelity Architectural Dashboard** built from scratch. It perfectly balances my 3 years of experience as a self-taught AI developer and my current intense academic focus as a Class 12 student targeting **IIT Kharagpur CSE (JEE Advanced 2027)**.
 
 Designed with a custom **"Dark-Amber"** aesthetic (`zinc-950` backgrounds with `amber-500` glowing accents), this ecosystem is built for maximum performance, AAA-grade user experience, and future-proof scalability.
+
+---
+
+## 🎯 What This Project Is
+
+This repository contains the full source code of Deep Dey’s personal portfolio platform. It is designed as:
+
+- A **professional profile website** (About, Contact, Projects, FAQ, Legal pages).
+- A **showcase engine** for project work, architecture thinking, and technical writing.
+- A **smart routing hub** that guides different contact intents to the correct channel.
+- A **single deployable React + Vite app** with static hosting support through Vercel.
+
+In short: this project is a production portfolio + system-design themed personal brand platform.
 
 ---
 
@@ -58,11 +77,11 @@ The vertical timeline component is self-aware. It actively scans the current sys
 
 | Category | Technology | Purpose |
 | :--- | :--- | :--- |
-| **Core Engine** | `React 18` + `TypeScript` | Type-safe, component-driven UI architecture. |
+| **Core Engine** | `React 19` + `TypeScript` | Type-safe, component-driven UI architecture. |
 | **Build Tool** | `Vite` | Lightning-fast HMR and optimized production bundling. |
-| **Styling** | `Tailwind CSS v3` | Utility-first styling for the Dark-Amber glassmorphism aesthetic. |
-| **Animation** | `Framer Motion` | Physics-based animations, 3D flips, and scroll-triggered reveals. |
-| **Routing** | `React Router DOM v6` | Seamless SPA navigation with wildcard 404 handling. |
+| **Styling** | `Tailwind CSS v4` | Utility-first styling for the Dark-Amber glassmorphism aesthetic. |
+| **Animation** | `Motion` | Physics-based animations, 3D flips, and scroll-triggered reveals. |
+| **Routing** | `React Router DOM v7` | Seamless SPA navigation with wildcard 404 handling. |
 | **Document Processing**| `react-pdf` | Client-side rendering of the architectural blueprint PDF. |
 | **SEO & Meta** | `react-helmet-async` | Asynchronous head tag management for rich snippets. |
 | **Hosting & Edge** | `Vercel` | Global CDN, CI/CD pipelines, and `vercel.json` SPA rewrites/308 redirects. |
@@ -72,38 +91,82 @@ The vertical timeline component is self-aware. It actively scans the current sys
 ## 📂 Project Structure
 
 ```text
-📦 src
- ┣ 📂 components        # Reusable UI Blocks
- ┃ ┣ 📜 ContactForm.tsx # Legacy form (migrated)
- ┃ ┣ 📜 FAQ.tsx         # Searchable knowledge base
- ┃ ┣ 📜 Footer.tsx      # Dynamic temporal footer
- ┃ ┣ 📜 Header.tsx      # Mobile-responsive smart nav
- ┃ ┣ 📜 JourneyMarquee  # 120fps infinite film roll
- ┃ ┣ 📜 Layout.tsx      # App shell wrapper
- ┃ ┣ 📜 LoadingScreen   # AAA quote-rotating loader
- ┃ ┣ 📜 ProjectPlaceholder # CSS-only aesthetic fallback
- ┃ ┣ 📜 SEO.tsx         # Helmet meta-tag engine
- ┃ ┗ 📜 TechGalaxy.tsx  # Interactive floating SVG node ecosystem
- ┣ 📂 data              # JSON Architecture (Data-Driven Logic)
- ┃ ┣ 📜 faqData.ts      # 10+ Deep Q&A mapping
- ┃ ┣ 📜 linksData.ts    # Massive Linktree ecosystem
- ┃ ┣ 📜 projectsData.ts # Blueprint details (QuickLink, Transparent Clock)
- ┃ ┗ 📜 timelineData.ts # 2020-2035 self-updating milestones
- ┣ 📂 pages             # Application Routes
- ┃ ┣ 📜 About.tsx       # Cinematic Biography & Methodology
- ┃ ┣ 📜 Contact.tsx     # The Smart Intake Dashboard
- ┃ ┣ 📜 FAQ.tsx         # Advanced Search Page
- ┃ ┣ 📜 Home.tsx        # Hero, Marquee & Timeline
- ┃ ┣ 📜 Links.tsx       # The Custom qlynk.me Hub
- ┃ ┣ 📜 Me.tsx          # Photography & Personal Vision
- ┃ ┣ 📜 NotFound.tsx    # 404 System Error State
- ┃ ┣ 📜 Portfolio.tsx   # 3D Kinetic PDF Flipper
- ┃ ┣ 📜 ProjectDetail   # Deep-dive specs & Hiatus alerts
- ┃ ┗ 📜 Projects.tsx    # App Ecosystem Grid
- ┣ 📜 App.tsx           # Suspense/Lazy Loading Router
- ┣ 📜 index.css         # Global utilities & scrollbar hiding
- ┗ 📜 main.tsx          # React DOM entry & HelmetProvider
-````
+📦 My-Portfolio
+ ┣ 📜 README.md                 # Project overview and setup guide
+ ┣ 📜 LICENSE                   # MIT license text
+ ┣ 📜 SECURITY.md               # Vulnerability reporting policy
+ ┣ 📜 CONTRIBUTING.md           # Contribution guidelines
+ ┣ 📜 CONTRIBUTOR.md            # Contributor acknowledgement
+ ┣ 📜 CODE_OF_CONDUCT.md        # Community behavior policy
+ ┣ 📜 SUPPORT.md                # Help and support channels
+ ┣ 📜 package.json              # Scripts and dependency definitions
+ ┣ 📜 package-lock.json         # Locked dependency graph
+ ┣ 📜 tsconfig.json             # TypeScript compiler configuration
+ ┣ 📜 tailwind.config.js        # Tailwind customization
+ ┣ 📜 vite.config.ts            # Vite build/dev configuration
+ ┣ 📜 vercel.json               # Vercel routing and deploy config
+ ┣ 📜 metadata.json             # Project metadata
+ ┣ 📜 index.html                # Vite HTML entry template
+ ┣ 📂 public                    # Static assets served as-is
+ ┃ ┣ 📂 assets/docs             # Portfolio PDF/document assets
+ ┃ ┣ 📂 assets/images           # Static images
+ ┃ ┣ 📜 robots.txt              # Crawl directives
+ ┃ ┗ 📜 sitemap.xml             # Search engine sitemap
+ ┣ 📂 src
+ ┃ ┣ 📂 components              # Reusable UI blocks
+ ┃ ┃ ┣ 📜 ContactForm.tsx       # Contact form component
+ ┃ ┃ ┣ 📜 FAQ.tsx               # FAQ accordion/search UI
+ ┃ ┃ ┣ 📜 Footer.tsx            # Footer and legal quick links
+ ┃ ┃ ┣ 📜 Header.tsx            # Primary navigation/header
+ ┃ ┃ ┣ 📜 JourneyMarquee.tsx    # Animated timeline marquee
+ ┃ ┃ ┣ 📜 Layout.tsx            # Shared page layout wrapper
+ ┃ ┃ ┣ 📜 LoadingScreen.tsx     # Intro loading experience
+ ┃ ┃ ┣ 📜 ProjectPlaceholder.tsx# Placeholder/fallback project card
+ ┃ ┃ ┣ 📜 ScrollToTop.tsx       # Scroll reset on route change
+ ┃ ┃ ┣ 📜 SEO.tsx               # Meta and SEO tag manager
+ ┃ ┃ ┗ 📜 TechGalaxy.tsx        # Animated tech visual section
+ ┃ ┣ 📂 data                    # Static data models/content
+ ┃ ┃ ┣ 📜 faqData.ts            # FAQ dataset
+ ┃ ┃ ┣ 📜 linksData.ts          # Links page dataset
+ ┃ ┃ ┣ 📜 projectsData.ts       # Projects and details dataset
+ ┃ ┃ ┗ 📜 timelineData.ts       # Timeline milestones dataset
+ ┃ ┣ 📂 pages                   # Route-level pages
+ ┃ ┃ ┣ 📜 About.tsx             # About/profile page
+ ┃ ┃ ┣ 📜 Contact.tsx           # Contact and routing page
+ ┃ ┃ ┣ 📜 Copyright.tsx         # Copyright policy page
+ ┃ ┃ ┣ 📜 DMCA.tsx              # DMCA page
+ ┃ ┃ ┣ 📜 FAQ.tsx               # FAQ route page
+ ┃ ┃ ┣ 📜 Home.tsx              # Home/landing page
+ ┃ ┃ ┣ 📜 LegalHub.tsx          # Legal index page
+ ┃ ┃ ┣ 📜 Links.tsx             # Link hub page
+ ┃ ┃ ┣ 📜 Me.tsx                # Personal/creative page
+ ┃ ┃ ┣ 📜 NotFound.tsx          # 404 route page
+ ┃ ┃ ┣ 📜 Portfolio.tsx         # PDF portfolio viewer page
+ ┃ ┃ ┣ 📜 Privacy.tsx           # Privacy policy page
+ ┃ ┃ ┣ 📜 ProjectDetail.tsx     # Individual project page
+ ┃ ┃ ┣ 📜 Projects.tsx          # Projects listing page
+ ┃ ┃ ┗ 📜 Terms.tsx             # Terms and conditions page
+ ┃ ┣ 📜 App.tsx                 # Router + lazy loaded app shell
+ ┃ ┣ 📜 index.css               # Global styles
+ ┃ ┗ 📜 main.tsx                # React bootstrap entry
+ ┣ 📂 .github
+ ┃ ┣ 📂 ISSUE_TEMPLATE          # Structured issue templates
+ ┃ ┗ 📜 pull_request_template.md # Pull request template
+ ┗ 📂 dist                      # Production build output (generated)
+```
+
+---
+
+## 🧭 Key Routes & Purpose
+
+- `/` → Home + intro sections + timeline
+- `/about` → Background, philosophy, and approach
+- `/projects` and `/projects/:id` → Project list and deep-dive details
+- `/portfolio` → PDF-based visual portfolio
+- `/links` → Link-in-bio ecosystem
+- `/contact` → Contact routing by inquiry category
+- `/faq` → Frequently asked questions
+- `/legal`, `/privacy`, `/terms`, `/dmca`, `/copyright` → Legal information pages
 
 -----
 
@@ -113,7 +176,7 @@ To clone and run this architecture locally on your machine:
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/deepdeyiitgn/My-Portfolio.git](https://github.com/deepdeyiitgn/My-Portfolio.git)
+    git clone https://github.com/deepdeyiitgn/My-Portfolio.git
     ```
 2.  **Navigate into the directory:**
     ```bash
@@ -131,6 +194,10 @@ To clone and run this architecture locally on your machine:
     ```bash
     npm run build
     ```
+6. **Run type checks (lint script):**
+   ```bash
+   npm run lint
+   ```
 
 -----
 
