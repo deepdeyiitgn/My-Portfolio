@@ -90,7 +90,7 @@ export default function Footer() {
             <h4 className="text-xs font-mono text-zinc-300 uppercase tracking-[0.4em] font-black">Network Nodes</h4>
             <div className="grid grid-cols-2 gap-4">
               {[
-                { name: 'Insta', icon: <Instagram size={18} />, path: 'https://instagram.com/justdeepdey' },
+                { name: 'Insta', icon: <Instagram size={18} />, path: 'https://instagram.com/deepdey.official' },
                 { name: 'GitHub', icon: <Github size={18} />, path: 'https://github.com/deepdeyiitgn' },
                 { name: 'YouTube', icon: <Youtube size={18} />, path: 'https://youtube.com/@deepdeyiit' },
                 { name: 'Discord', icon: <MessageCircle size={18} />, path: 'https://discord.com/invite/t6ZKNw556n' },
