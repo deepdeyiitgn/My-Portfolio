@@ -107,16 +107,16 @@ export default function LegalHub() {
             </h2>
             <div className="space-y-6">
               <div className="p-6 bg-zinc-950/50 border-l-4 border-amber-500 rounded-r-3xl space-y-2">
-                <p className="text-white font-bold tracking-tight">Portfolio V1 Transition</p>
-                <p className="text-sm text-zinc-500">Legacy ecosystem preserved at <a href="https://qlynk.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:underline">qlynk.vercel.app</a>. [Discontinued Version]</p>
+                <p className="text-white font-bold tracking-tight">www.deepdeyiitk.com</p>
+                <p className="text-sm text-zinc-500">Legacy ecosystem preserved at <a href="https://deepdeyiit.odoo.com/" target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:underline">deepdeyiitk.com</a>. [Discontinued Version]</p>
               </div>
               <div className="p-6 bg-zinc-950/50 border-l-4 border-zinc-700 rounded-r-3xl space-y-2 opacity-80">
                 <p className="text-white font-bold tracking-tight">Store Node: Expired Domain</p>
                 <p className="text-sm text-zinc-500 italic">deepdeyiitk.com has been officially decommissioned following its maintenance expiration.</p>
               </div>
               <div className="p-6 bg-zinc-950/50 border-l-4 border-amber-500 rounded-r-3xl space-y-2">
-                <p className="text-white font-bold tracking-tight font-mono text-sm uppercase tracking-widest">Active Store Node: ODOO</p>
-                <p className="text-sm text-zinc-400">All commercial transactions migrated to <span className="text-amber-500 underline">https://deepdeyiit.odoo.com/</span> for increased enterprise stability.</p>
+                <p className="text-white font-bold tracking-tight font-mono text-sm uppercase tracking-widest">Active Project Node: QLYNK</p>
+                <p className="text-sm text-zinc-400">All commercial transactions migrated to <span className="text-amber-500 underline">https://qlynk.vercel.me/</span> for increased enterprise stability.</p>
               </div>
             </div>
           </div>
@@ -130,8 +130,8 @@ export default function LegalHub() {
             <div className="space-y-4">
               {[
                 { name: 'Transparent Clock', status: 'Ver. 4.2 Stable', color: 'bg-zinc-800' },
-                { name: 'QuickLink URL Suite', status: 'Active Service', color: 'bg-amber-500/10 text-amber-500' },
-                { name: 'DEQLYNK Core', status: 'Discontinued', color: 'bg-zinc-900 text-red-500/50' }
+                { name: 'Instagram / Youtube Still Running', status: 'Active Service', color: 'bg-amber-500/10 text-amber-500' },
+                { name: 'DEEPDEYIITK.COM', status: 'Discontinued', color: 'bg-zinc-900 text-red-500/50' }
               ].map(item => (
                 <div key={item.name} className="flex items-center justify-between p-5 bg-zinc-900/40 rounded-2xl border border-zinc-800">
                   <span className="text-zinc-300 font-medium">{item.name}</span>
@@ -143,7 +143,7 @@ export default function LegalHub() {
             </div>
 
             <div className="pt-6 border-t border-zinc-900 flex justify-center">
-              <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.4em]">Archived Effective Date: April 20, 2026</p>
+              <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.4em]">Archived Effective Date: April 20, 2026 | 11:02 Pm</p>
             </div>
           </div>
         </div>
