@@ -13,7 +13,7 @@
 
   > *"100% effort + extra 1% = Dream Achieved"*
 
-  [Live Production Build](https://justdeepdey.vercel.app) • [Contact Hub](https://justdeepdey.vercel.app/contact) • [My Link Ecosystem](https://justdeepdey.vercel.app/links)
+  [Live Production Build](https://deepdey.vercel.app) • [Contact Hub](https://deepdey.vercel.app/contact) • [My Link Ecosystem](https://deepdey.vercel.app/links)
 </div>
 
 ---
@@ -148,4 +148,4 @@ My bandwidth is now 100% reallocated towards academic preparation for the **Join
 **Designed & Architected by Deep Dey**
 © 2020 - 2026 Deep Dey | All Rights Reserved.
 
-The conceptual design, UI architecture, and custom components (like the Tech Galaxy and 3D Flipper) are the intellectual property of Deep Dey. Please reach out via the [Contact Hub](https://www.google.com/url?sa=E&source=gmail&q=https://justdeepdey.vercel.app/contact) for collaboration or architectural consultation post-2027.
+The conceptual design, UI architecture, and custom components (like the Tech Galaxy and 3D Flipper) are the intellectual property of Deep Dey. Please reach out via the [Contact Hub](https://www.google.com/url?sa=E&source=gmail&q=https://deepdey.vercel.app/contact) for collaboration or architectural consultation post-2027.
