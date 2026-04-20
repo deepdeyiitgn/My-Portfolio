@@ -145,7 +145,7 @@ export default function Me() {
           <div className="space-y-4">
             <h2 className="text-4xl md:text-6xl font-bold text-white tracking-tighter">Discipline & Minecraft.</h2>
             <p className="text-zinc-500 text-lg leading-relaxed font-light">
-              My technical journey didn't start with professional projects. It started with <span className="text-zinc-300">Minecraft Bedrock Servers</span>. Managing hardware, hosting local worlds for my family, and troubleshooting networking at age 12 shaped my systematic way of thinking.
+              My technical journey didn't start with professional projects. It started with <span className="text-zinc-300">Minecraft Bedrock Servers</span>. Managing hardware, hosting local worlds for my family, and troubleshooting networking at age 16 shaped my systematic way of thinking. And Also I started with an youtube channel and on 205 after 10th Board, I started making website on Google Sites then i come on Odoo.com then started making website and tools with the help of ai and code the website!
             </p>
           </div>
           
