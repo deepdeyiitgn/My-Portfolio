@@ -1,0 +1,22 @@
+# ===================================================================
+# Deep Dey Portfolio & Architecture Hub
+# Engine: Vite + React SPA
+# Target: IIT Kharagpur CSE (JEE Advanced 2027)
+# ===================================================================
+
+User-agent: *
+Allow: /
+
+# Prevent indexing of internal logic/API boundaries if added later
+Disallow: /api/
+Disallow: /private/
+Disallow: /admin/
+Disallow: /*?query=*
+
+# Ensure web crawlers process the Javascript properly
+Allow: /assets/
+Allow: /src/
+
+# Sitemaps for Dual-Domain Deployment
+Sitemap: https://just.qlynk.me/sitemap.xml
+Sitemap: https://justdeepdey.vercel.app/sitemap.xml
