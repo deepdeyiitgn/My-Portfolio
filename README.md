@@ -93,7 +93,7 @@ The vertical timeline component is self-aware. It actively scans the current sys
 ```text
 📦 My-Portfolio
  ┣ 📜 README.md                 # Project overview and setup guide
- ┣ 📜 LICENSE                   # MIT license text
+ ┣ 📜 LICENSE                   # Custom license text
  ┣ 📜 SECURITY.md               # Vulnerability reporting policy
  ┣ 📜 CONTRIBUTING.md           # Contribution guidelines
  ┣ 📜 CONTRIBUTOR.md            # Contributor acknowledgement
