@@ -20,7 +20,7 @@ export default function Projects() {
           "itemListElement": projectsData.map((p, index) => ({
             "@type": "ListItem",
             "position": index + 1,
-            "url": `https://justdeepdey.vercel.app/projects/${p.id}`,
+            "url": `https://deepdey.vercel.app/projects/${p.id}`,
             "name": p.title
           }))
         }}

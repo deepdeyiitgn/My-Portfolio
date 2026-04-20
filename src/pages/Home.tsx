@@ -32,8 +32,8 @@ export default function Home() {
           "@context": "https://schema.org",
           "@type": "Person",
           "name": "Deep Dey",
-          "url": "https://justdeepdey.vercel.app",
-          "image": "https://justdeepdey.vercel.app/assets/images/myphoto.png",
+          "url": "https://deepdey.vercel.app",
+          "image": "https://deepdey.vercel.app/assets/images/myphoto.png",
           "jobTitle": "Software Architect",
           "address": {
             "@type": "PostalAddress",

@@ -18,7 +18,7 @@ export default function SEO({
   schema, 
   image = '/assets/images/myphoto.png' 
 }: SEOProps) {
-  const baseUrl = 'https://justdeepdey.vercel.app';
+  const baseUrl = 'https://deepdey.vercel.app';
   const fullUrl = `${baseUrl}${route === '/' ? '' : route}`;
   const fullImage = `${baseUrl}${image}`;
 
