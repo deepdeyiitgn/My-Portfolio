@@ -75,7 +75,7 @@ export default function Home() {
             <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl flex items-center space-x-3">
               <Lightbulb className="text-amber-500" size={24} />
               <p className="text-xs text-zinc-400 max-w-[150px]">
-                "Learning by building tools that genuinely help people."
+                "100% effort + extra 1% = Dream Achieved."
               </p>
             </div>
           </div>
