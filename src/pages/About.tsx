@@ -98,7 +98,7 @@ export default function About() {
                 Currently, I am navigating the intense waters of <span className="text-amber-500 font-bold uppercase tracking-tight">JEE Advanced 2027</span>. My mission is singular: to enter the halls of <span className="text-zinc-200">IIT Kharagpur, Kanpur, or Gandhinagar</span>.
               </p>
               <p>
-                My lifestyle is defined by extreme discipline—starting every day at <span className="text-zinc-200">6:00 AM</span> and training under the <span className="italic">Physics Wallah "Arjuna" and "Manzil"</span> batches to reach the elite percentile.
+                My lifestyle is defined by extreme discipline—starting every day at <span className="text-zinc-200">6:00 AM</span> and training under the <span className="italic">Physics Wallah "Arjuna" and "Lakshya"</span> batches to reach the elite percentile.
               </p>
             </div>
 
