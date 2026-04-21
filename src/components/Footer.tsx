@@ -122,7 +122,7 @@ export default function Footer() {
         <div className="pt-12 border-t border-zinc-900 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="space-y-2 text-center md:text-left">
             <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">
-              © 2018 - {currentYear} Deep Dey Digital Infrastructure.
+              © 2020 - {currentYear} Deep Dey | All Right Reserved.
             </p>
             <p className="text-[10px] text-zinc-800 uppercase tracking-widest leading-relaxed">
               Architecting solutions across India & the Digital Frontier.
@@ -134,7 +134,7 @@ export default function Footer() {
                 <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest group-hover:text-amber-200 transition-colors">Core Systems Operational</span>
              </div>
              <div className="h-4 w-px bg-zinc-900"></div>
-             <p className="text-[10px] font-mono text-zinc-700 uppercase tracking-widest italic">Ver 2.0.4.RC</p>
+             <p className="text-[10px] font-mono text-zinc-700 uppercase tracking-widest italic">Ver 21.04.2026.AC</p>
           </div>
         </div>
       </div>
