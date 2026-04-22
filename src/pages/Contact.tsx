@@ -33,6 +33,9 @@ interface ContactFormData {
 }
 
 export default function Contact() {
+  const inputClassName =
+    'w-full bg-zinc-950/50 border border-zinc-800 rounded-2xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all';
+
   const [formData, setFormData] = useState<ContactFormData>({
     name: '',
     email: '',
@@ -223,16 +226,17 @@ export default function Contact() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest ml-1 flex items-center gap-2">
+              <label htmlFor="supportType" className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest ml-1 flex items-center gap-2">
                 <MessageSquare size={14} className="text-amber-500" />
                 Inquiry Classification *
               </label>
-              <select
-                required
-                value={formData.supportType}
-                onChange={(e) => setFormData({ ...formData, supportType: e.target.value as SupportType })}
-                className="w-full bg-zinc-950/50 border border-zinc-800 rounded-2xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all appearance-none cursor-pointer"
-              >
+                <select
+                  id="supportType"
+                  required
+                  value={formData.supportType}
+                  onChange={(e) => setFormData({ ...formData, supportType: e.target.value as SupportType })}
+                  className={`${inputClassName} appearance-none cursor-pointer`}
+                >
                 <optgroup label="Platform & Technical">
                   <option value="QuickLink / qlynk.me Support">QuickLink / qlynk.me Support</option>
                   <option value="Platform Bug Report">Platform Bug Report</option>
@@ -257,40 +261,40 @@ export default function Contact() {
 
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest ml-1">Architect Name *</label>
-                <input required type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full bg-zinc-950/50 border border-zinc-800 rounded-2xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all" />
+                <label htmlFor="name" className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest ml-1">Architect Name *</label>
+                <input id="name" required type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className={inputClassName} />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest ml-1">Email Address *</label>
-                <input required type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full bg-zinc-950/50 border border-zinc-800 rounded-2xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all" />
+                <label htmlFor="email" className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest ml-1">Email Address *</label>
+                <input id="email" required type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className={inputClassName} />
               </div>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest ml-1 flex items-center gap-2">
+                <label htmlFor="country" className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest ml-1 flex items-center gap-2">
                   <Globe size={14} className="text-zinc-600" />
                   Origin Country *
                 </label>
-                <input required type="text" value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} className="w-full bg-zinc-950/50 border border-zinc-800 rounded-2xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all" />
+                <input id="country" required type="text" value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} className={inputClassName} />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest ml-1 flex items-center gap-2">
+                <label htmlFor="whatsapp" className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest ml-1 flex items-center gap-2">
                   <Phone size={14} className="text-zinc-600" />
                   WhatsApp No
                 </label>
-                <input type="tel" value={formData.whatsapp} onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })} className="w-full bg-zinc-950/50 border border-zinc-800 rounded-2xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all" />
+                <input id="whatsapp" type="tel" value={formData.whatsapp} onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })} className={inputClassName} />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest ml-1">Transmission Subject *</label>
-              <input required type="text" value={formData.subject} onChange={(e) => setFormData({ ...formData, subject: e.target.value })} className="w-full bg-zinc-950/50 border border-zinc-800 rounded-2xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all" />
+              <label htmlFor="subject" className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest ml-1">Transmission Subject *</label>
+              <input id="subject" required type="text" value={formData.subject} onChange={(e) => setFormData({ ...formData, subject: e.target.value })} className={inputClassName} />
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest ml-1">Detailed Message *</label>
-              <textarea required rows={5} value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })} className="w-full bg-zinc-950/50 border border-zinc-800 rounded-2xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all resize-none" />
+              <label htmlFor="message" className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest ml-1">Detailed Message *</label>
+              <textarea id="message" required rows={5} value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })} className={`${inputClassName} resize-none`} />
             </div>
 
             <button

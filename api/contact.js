@@ -1,4 +1,5 @@
-const rateMap = new Map();
+const rateMap = globalThis.__ddRateMap || new Map();
+globalThis.__ddRateMap = rateMap;
 
 function json(res, status, payload) {
   res.statusCode = status;
@@ -31,7 +32,11 @@ module.exports = async (req, res) => {
     return json(res, 400, { ok: false, message: `Missing fields: ${missing.join(', ')}` });
   }
 
-  const ticketId = `DD-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(Math.random() * 9000 + 1000)}`;
+  const idPart =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID().slice(0, 8).toUpperCase()
+      : `${Date.now().toString(36).toUpperCase()}`;
+  const ticketId = `DD-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${idPart}`;
   const autoReply = {
     ticketId,
     routedTo: body.supportType,
