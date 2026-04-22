@@ -4,27 +4,42 @@ globalThis.__ddRateMap = rateMap;
 function json(res, status, payload) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.end(JSON.stringify(payload));
 }
 
 async function readBody(req) {
   if (req.body !== undefined && req.body !== null) {
-    if (typeof req.body === 'string') return JSON.parse(req.body || '{}');
-    if (Buffer.isBuffer(req.body)) return JSON.parse(req.body.toString('utf8') || '{}');
+    if (typeof req.body === 'string') {
+      try { return JSON.parse(req.body || '{}'); } catch { return {}; }
+    }
+    if (Buffer.isBuffer(req.body)) {
+      try { return JSON.parse(req.body.toString('utf8') || '{}'); } catch { return {}; }
+    }
     if (typeof req.body === 'object') return req.body;
   }
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     let raw = '';
     req.on('data', (chunk) => { raw += chunk.toString('utf8'); });
     req.on('end', () => {
       try { resolve(JSON.parse(raw || '{}')); } catch { resolve({}); }
     });
-    req.on('error', reject);
+    req.on('error', () => resolve({}));
   });
 }
 
 module.exports = async (req, res) => {
   try {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+
     if (req.method !== 'POST') {
       return json(res, 405, { ok: false, message: 'Method not allowed' });
     }
