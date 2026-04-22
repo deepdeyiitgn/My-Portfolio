@@ -8,6 +8,11 @@ export interface Project {
   githubUrl?: string;
   logoUrl: string;
   category: string;
+  problem: string;
+  solution: string;
+  impact: string;
+  metrics: Array<{ label: string; value: string }>;
+  architectureLayers: string[];
 }
 
 export const projectsData: Project[] = [
@@ -21,6 +26,15 @@ export const projectsData: Project[] = [
     githubUrl: 'https://github.com/deepdeyiitgn',
     logoUrl: 'https://qlynk.vercel.app/quicklink-logo.svg',
     category: 'SaaS / Productivity',
+    problem: 'Sharing long links and study resources across devices was slow and inconsistent.',
+    solution: 'Built a focused URL + QR workflow with clean UI and performance-first architecture.',
+    impact: 'Improved sharing speed and centralized digital productivity utilities in one node.',
+    metrics: [
+      { label: 'Core Features', value: '5+' },
+      { label: 'Latency Focus', value: '<300ms target' },
+      { label: 'UI Flow Steps', value: '2-step sharing' },
+    ],
+    architectureLayers: ['Frontend SPA', 'URL Processing', 'QR Utility', 'SEO Layer'],
   },
   {
     id: 'studybot',
@@ -32,6 +46,15 @@ export const projectsData: Project[] = [
     githubUrl: 'https://github.com/deepdeyiitgn',
     logoUrl: 'https://qlynk.vercel.app/quicklink-logo.svg',
     category: 'Automation / Discord',
+    problem: 'Student communities lacked consistent accountability and focus automation.',
+    solution: 'Implemented reminder, streak, and command-driven productivity workflows for Discord.',
+    impact: 'Enabled structured, gamified consistency inside student study groups.',
+    metrics: [
+      { label: 'Command Modes', value: 'Slash + Prefix' },
+      { label: 'Primary Modules', value: '4' },
+      { label: 'Community Fit', value: 'Student-first' },
+    ],
+    architectureLayers: ['Bot Commands', 'Task Scheduler', 'Reminder Engine', 'Community Layer'],
   },
   {
     id: 'transparent-clock',
@@ -43,6 +66,15 @@ export const projectsData: Project[] = [
     githubUrl: 'https://github.com/deepdeyiitgn/Clock-Overlays',
     logoUrl: 'https://clock.qlynk.me/assets/images/logo.png',
     category: 'Windows Utility',
+    problem: 'Students needed a non-distracting, always-visible focus utility with local privacy.',
+    solution: 'Created an offline-first Windows overlay with clock, pomodoro, and analytics.',
+    impact: 'Delivered a focused environment with transparent UI and local-first data control.',
+    metrics: [
+      { label: 'Data Policy', value: 'Local-first' },
+      { label: 'Platform', value: 'Windows native' },
+      { label: 'Core Utilities', value: '3+' },
+    ],
+    architectureLayers: ['WPF UI', 'Session Tracking', 'Local Storage', 'Utility Integrations'],
   },
   {
     id: 'qlynk-node-server',
@@ -54,5 +86,14 @@ export const projectsData: Project[] = [
     githubUrl: 'https://github.com/deepdeyiitgn/static-files',
     logoUrl: 'https://qlynk.vercel.app/quicklink-logo.svg',
     category: 'Cloud Storage / CDN',
+    problem: 'Required a resilient media-serving backend with security controls on constrained infra.',
+    solution: 'Built a FastAPI-based media vault with ingestion pipeline and tokenized access.',
+    impact: 'Established a private serving architecture with secure access patterns and automation.',
+    metrics: [
+      { label: 'Runtime', value: 'HuggingFace Spaces' },
+      { label: 'Security Layer', value: 'Token + defense' },
+      { label: 'Core Scope', value: 'Media vault + streaming' },
+    ],
+    architectureLayers: ['API Gateway', 'Storage Layer', 'Ingestion Bot', 'Security Policies'],
   },
 ];

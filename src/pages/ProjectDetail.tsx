@@ -1,8 +1,7 @@
 import { motion } from 'motion/react';
 import { useParams, Link } from 'react-router-dom';
 import { projectsData } from '../data/projectsData';
-import { ExternalLink, Github, ArrowLeft, ShieldAlert, Layers } from 'lucide-react';
-import ProjectPlaceholder from '../components/ProjectPlaceholder';
+import { ExternalLink, Github, ArrowLeft, ShieldAlert, Layers, BarChart3, Workflow } from 'lucide-react';
 import SEO from '../components/SEO';
 
 export default function ProjectDetail() {
@@ -93,6 +92,21 @@ export default function ProjectDetail() {
             </p>
           </div>
 
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/20">
+              <p className="text-xs uppercase tracking-widest text-zinc-500">Problem</p>
+              <p className="text-sm text-zinc-300 mt-2">{project.problem}</p>
+            </div>
+            <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/20">
+              <p className="text-xs uppercase tracking-widest text-zinc-500">Solution</p>
+              <p className="text-sm text-zinc-300 mt-2">{project.solution}</p>
+            </div>
+            <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/20">
+              <p className="text-xs uppercase tracking-widest text-zinc-500">Impact</p>
+              <p className="text-sm text-zinc-300 mt-2">{project.impact}</p>
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-4 pt-6">
             <a
               href={project.liveUrl}
@@ -117,31 +131,41 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        {/* Visual Showcase */}
-        <div className="space-y-8">
-          <div className="relative group">
-            <div className="absolute -inset-2 bg-amber-500/20 blur-2xl rounded-[3rem] opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div className="relative bg-zinc-900 border border-zinc-800 rounded-[3rem] overflow-hidden aspect-[16/10] shadow-2xl">
-              <ProjectPlaceholder 
-                iconType={
-                  project.id === 'quicklink' ? 'globe' : 
-                  project.id === 'studybot' ? 'cpu' : 
-                  project.id === 'transparent-clock' ? 'layout' : 'server'
-                } 
-                title={project.title}
-              />
+          {/* Interactive Case Study */}
+          <div className="space-y-8">
+            <div className="relative group">
+              <div className="absolute -inset-2 bg-amber-500/20 blur-2xl rounded-[3rem] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="relative bg-zinc-900 border border-zinc-800 rounded-[3rem] overflow-hidden aspect-[16/10] shadow-2xl p-8 flex flex-col justify-between">
+                <div className="flex items-center gap-3 text-zinc-400 text-xs uppercase tracking-widest">
+                  <Workflow size={16} className="text-amber-500" />
+                  Architecture Layers
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {project.architectureLayers.map((layer) => (
+                    <div key={layer} className="px-3 py-2 rounded-xl border border-zinc-800 bg-zinc-950/60 text-xs text-zinc-300">
+                      {layer}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-8 bg-zinc-900/30 border border-zinc-800 rounded-[2rem] space-y-4">
+              <h3 className="text-sm font-bold text-zinc-300 uppercase tracking-widest flex items-center gap-2">
+                <BarChart3 size={16} className="text-amber-500" />
+                Measurable Outcomes
+              </h3>
+              <div className="space-y-3">
+                {project.metrics.map((metric) => (
+                  <div key={metric.label} className="flex items-center justify-between border-b border-zinc-800 pb-2 last:border-none last:pb-0">
+                    <span className="text-xs text-zinc-500 uppercase tracking-widest">{metric.label}</span>
+                    <span className="text-sm font-bold text-amber-500">{metric.value}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-
-          <div className="p-8 bg-zinc-900/30 border border-zinc-800 rounded-[2rem] space-y-4">
-            <h3 className="text-sm font-bold text-zinc-300 uppercase tracking-widest">Key Learning Outcome</h3>
-            <p className="text-sm text-zinc-500 leading-relaxed italic">
-              "This project served as a playground for implementing high-performance UI structures and managing local data persistence without 
-              relying on traditional external cloud databases for the Windows core."
-            </p>
-          </div>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
   );
 }

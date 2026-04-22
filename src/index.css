@@ -27,6 +27,15 @@
     scrollbar-width: none; /* Firefox */
   }
 
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid #f59e0b;
+    outline-offset: 2px;
+  }
+
   body::-webkit-scrollbar {
     display: none; /* Chrome, Safari, Opera */
   }
@@ -43,6 +52,17 @@
   /* Custom Selection: Amber Glow */
   ::selection {
     @apply bg-amber-500/30 text-amber-200;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

@@ -6,10 +6,13 @@ import TechGalaxy from '../components/TechGalaxy';
 import JourneyMarquee from '../components/JourneyMarquee';
 import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
+import SocialProof from '../components/SocialProof';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Home() {
   const [isHoverable, setIsHoverable] = useState(true);
   const currentYear = new Date().getFullYear();
+  const { t } = useLanguage();
 
   useEffect(() => {
     // Detect if device has a precise pointing device (mouse)
@@ -244,12 +247,22 @@ export default function Home() {
               className="group relative px-12 py-6 bg-amber-500 text-black font-black text-xl rounded-2xl flex items-center gap-4 transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-amber-500/20"
             >
               <div className="absolute -inset-1 bg-amber-400 rounded-2xl blur opacity-0 group-hover:opacity-40 transition-opacity"></div>
-              <span>Get in Touch</span>
+              <span>{t('home.cta.contact', 'Get in Touch')}</span>
               <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform" />
             </Link>
           </motion.div>
+          <div className="relative z-10 flex flex-wrap justify-center gap-4">
+            <Link to="/proof" className="px-6 py-3 border border-zinc-700 rounded-xl text-zinc-200 hover:border-amber-500/50 hover:text-amber-500 transition-colors text-xs font-black uppercase tracking-widest">
+              {t('home.cta.proof', 'View Proof of Work')}
+            </Link>
+            <Link to="/journal" className="px-6 py-3 border border-zinc-700 rounded-xl text-zinc-200 hover:border-amber-500/50 hover:text-amber-500 transition-colors text-xs font-black uppercase tracking-widest">
+              {t('home.cta.journal', 'Read Build Journal')}
+            </Link>
+          </div>
         </div>
       </motion.section>
+
+      <SocialProof />
     </div>
   );
 }

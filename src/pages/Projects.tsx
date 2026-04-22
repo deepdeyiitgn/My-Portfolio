@@ -107,6 +107,17 @@ export default function Projects() {
           </motion.div>
         ))}
       </div>
+
+      <div className="border border-zinc-800 rounded-3xl p-8 bg-zinc-900/20 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div>
+          <p className="text-white font-bold text-xl">Want deeper proof and delivery history?</p>
+          <p className="text-zinc-500 text-sm">Explore metrics, uptime, releases, and timeline updates before collaboration.</p>
+        </div>
+        <div className="flex gap-3">
+          <Link to="/proof" className="px-4 py-3 bg-amber-500 text-black rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-400 transition-colors">Proof</Link>
+          <Link to="/now" className="px-4 py-3 border border-zinc-700 text-zinc-300 rounded-xl text-xs font-black uppercase tracking-widest hover:border-amber-500/40 hover:text-amber-500 transition-colors">Roadmap</Link>
+        </div>
+      </div>
     </div>
   );
 }
