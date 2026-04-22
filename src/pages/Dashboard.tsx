@@ -375,7 +375,8 @@ export default function Dashboard() {
       fetchCategories();
       fetchJournals(1, filterCategory);
     }
-  }, [authenticated, fetchCategories, fetchJournals, filterCategory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated]);
 
   // ── Login ───────────────────────────────────────────────────────────────
   const handleLogin = async (e: FormEvent) => {

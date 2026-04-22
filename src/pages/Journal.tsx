@@ -72,7 +72,8 @@ export default function Journal() {
   useEffect(() => {
     fetchCategories();
     fetchJournals(1, '');
-  }, [fetchCategories, fetchJournals]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCategoryChange = (slug: string) => {
     setFilterCategory(slug);
