@@ -213,8 +213,7 @@ export default function Contact() {
           className="bg-zinc-900/40 border border-zinc-800 rounded-[3rem] p-8 md:p-10 shadow-2xl backdrop-blur-xl"
         >
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="hidden">
-              <label htmlFor="companyWebsite">Leave this field empty</label>
+            <div className="absolute left-[-9999px] w-px h-px overflow-hidden" aria-hidden="true">
               <input
                 id="companyWebsite"
                 type="text"
