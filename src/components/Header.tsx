@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Radio } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 const NAV_LINKS = [
@@ -16,6 +16,7 @@ const NAV_LINKS = [
   { key: 'nav.now', path: '/now' },
   { key: 'nav.faq', path: '/faq' },
   { key: 'nav.contact', path: '/contact' },
+  { key: 'nav.live', path: '/live', isLive: true },
 ];
 
 export default function Header() {
@@ -39,29 +40,42 @@ export default function Header() {
 
   return (
     <header className="fixed top-0 left-0 w-full z-[100] transition-all duration-300">
-      <nav className="mx-auto max-w-7xl px-6 py-5">
-        <div className="flex items-center justify-between bg-zinc-950/70 backdrop-blur-md rounded-2xl border border-zinc-900/50 px-6 py-3">
-          {/* Logo */}
-          <Link to="/" className="text-xl font-black tracking-tighter text-amber-500 hover:opacity-80 transition-opacity">
-            DEEP DEY.
+      <nav className="mx-auto max-w-7xl px-3 py-3 md:px-6 md:py-5">
+        <div className="flex items-center justify-between bg-zinc-950/70 backdrop-blur-md rounded-2xl border border-zinc-900/50 px-4 py-2.5 md:px-5 md:py-3 gap-2">
+
+          {/* Logo + Avatar */}
+          <Link to="/" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
+            <img
+              src="/assets/images/myphoto.png"
+              alt="Deep Dey"
+              className="w-7 h-7 rounded-full object-cover border border-amber-500/40"
+            />
+            <span className="text-base font-black tracking-tight text-amber-500 leading-none">
+              DEEP DEY.
+            </span>
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden lg:flex items-center gap-x-4 xl:gap-x-5 overflow-x-auto flex-1 justify-center px-2">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.path}
                 to={link.path}
-                className={`text-[10px] font-black uppercase tracking-[0.3em] transition-colors duration-300 ${
-                  location.pathname === link.path ? 'text-amber-500' : 'text-zinc-500 hover:text-amber-500'
-                }`}
+                className={`shrink-0 flex items-center gap-1 text-[9px] xl:text-[10px] font-black uppercase tracking-wider transition-colors duration-300 whitespace-nowrap ${
+                  location.pathname === link.path
+                    ? 'text-amber-500'
+                    : 'text-zinc-500 hover:text-amber-500'
+                } ${'isLive' in link && link.isLive ? 'text-red-500 hover:text-red-400' : ''}`}
               >
+                {'isLive' in link && link.isLive && (
+                  <Radio size={8} className="animate-pulse shrink-0" />
+                )}
                 {t(link.key)}
               </Link>
             ))}
           </div>
 
-          <div className="hidden md:block">
+          <div className="hidden lg:flex items-center gap-2 shrink-0">
             <label className="sr-only" htmlFor="language-switcher">Language</label>
             <select
               id="language-switcher"
@@ -79,7 +93,7 @@ export default function Header() {
           {/* Mobile Menu Toggle */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden text-zinc-400 hover:text-amber-500 transition-colors p-2 z-[110] relative"
+            className="lg:hidden text-zinc-400 hover:text-amber-500 transition-colors p-2 z-[110] relative shrink-0"
             aria-label="Toggle menu"
           >
             <AnimatePresence mode="wait">
@@ -90,7 +104,7 @@ export default function Header() {
                 exit={{ rotate: 90, opacity: 0 }}
                 transition={{ duration: 0.2 }}
               >
-                {isOpen ? <X size={24} /> : <Menu size={24} />}
+                {isOpen ? <X size={22} /> : <Menu size={22} />}
               </motion.div>
             </AnimatePresence>
           </button>
@@ -104,48 +118,66 @@ export default function Header() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="fixed inset-0 bg-zinc-950/90 backdrop-blur-2xl md:hidden z-[100] flex flex-col items-center justify-center"
+              className="fixed inset-0 bg-zinc-950/95 backdrop-blur-2xl lg:hidden z-[100] flex flex-col items-center justify-center overflow-y-auto"
             >
-              <div className="flex flex-col items-center space-y-8">
+              {/* Language switcher in mobile menu */}
+              <div className="absolute top-6 right-6">
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value as typeof language)}
+                  className="bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl px-2 py-1 text-xs"
+                >
+                  <option value="en">EN</option>
+                  <option value="bn">BN</option>
+                  <option value="hi">HI</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col items-center gap-5 py-16">
                 {NAV_LINKS.map((link, index) => (
                   <motion.div
                     key={link.path}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1, ease: [0.22, 1, 0.36, 1] }}
+                    transition={{ delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
                   >
                     <Link
                       to={link.path}
                       className="group flex flex-col items-center"
                     >
-                      <span className={`text-4xl font-black tracking-tighter transition-all duration-300 ${
-                        location.pathname === link.path 
-                          ? 'text-amber-500 scale-110' 
+                      <span className={`text-3xl font-black tracking-tight transition-all duration-300 flex items-center gap-2 ${
+                        location.pathname === link.path
+                          ? 'text-amber-500 scale-110'
                           : 'text-zinc-700 hover:text-amber-500'
-                      }`}>
+                      } ${'isLive' in link && link.isLive ? '!text-red-500' : ''}`}>
+                        {'isLive' in link && link.isLive && (
+                          <Radio size={20} className="animate-pulse" />
+                        )}
                         {t(link.key)}
                       </span>
-                      <motion.div 
-                        className="h-1 bg-amber-500 rounded-full mt-2" 
+                      <motion.div
+                        className="h-0.5 bg-amber-500 rounded-full mt-1"
                         initial={{ width: 0 }}
-                        animate={{ width: location.pathname === link.path ? "100%" : 0 }}
+                        animate={{ width: location.pathname === link.path ? '100%' : 0 }}
                         transition={{ duration: 0.6 }}
                       />
                     </Link>
                   </motion.div>
                 ))}
               </div>
-              
+
               {/* Branding in Menu */}
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.8 }}
-                className="absolute bottom-12 text-center space-y-2"
+                transition={{ delay: 0.7 }}
+                className="absolute bottom-8 text-center space-y-2"
               >
-                <div className="w-8 h-8 mx-auto border-2 border-zinc-800 rounded-lg transform rotate-45 flex items-center justify-center">
-                  <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                </div>
+                <img
+                  src="/assets/images/myphoto.png"
+                  alt="Deep Dey"
+                  className="w-10 h-10 rounded-full object-cover border border-amber-500/40 mx-auto"
+                />
                 <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">IIT KGP 2027 Aspirant</p>
               </motion.div>
             </motion.div>

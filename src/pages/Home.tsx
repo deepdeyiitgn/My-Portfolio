@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Target, Lightbulb, GraduationCap, ArrowRight, Zap, History, Milestone } from 'lucide-react';
+import { Target, Lightbulb, GraduationCap, ArrowRight, Zap, History, Milestone, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import TechGalaxy from '../components/TechGalaxy';
 import JourneyMarquee from '../components/JourneyMarquee';
@@ -263,6 +263,37 @@ export default function Home() {
       </motion.section>
 
       <SocialProof />
+
+      {/* Owner-only Dashboard Access */}
+      <motion.section
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.3 }}
+        className="max-w-7xl mx-auto px-6 pb-20"
+      >
+        <div className="relative overflow-hidden bg-zinc-950 border border-zinc-900 rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent pointer-events-none" />
+          <div className="relative z-10 flex items-center gap-5">
+            <div className="p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20 text-amber-500 shrink-0">
+              <Lock size={24} />
+            </div>
+            <div>
+              <p className="text-[10px] font-mono text-amber-500 uppercase tracking-[0.4em] mb-1">Owner Access</p>
+              <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">Are you Deep Dey?</h3>
+              <p className="text-zinc-500 text-sm mt-1">
+                Login to the content dashboard to manage journals, categories, and settings.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/dashboard"
+            className="relative z-10 shrink-0 px-8 py-4 bg-amber-500 text-black font-black uppercase tracking-widest rounded-2xl hover:bg-amber-400 transition-all active:scale-95 text-sm shadow-lg shadow-amber-500/20 flex items-center gap-2"
+          >
+            <Lock size={16} />
+            Login to Dashboard
+          </Link>
+        </div>
+      </motion.section>
     </div>
   );
 }
