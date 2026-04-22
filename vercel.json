@@ -89,6 +89,8 @@
       "destination": "https://qlynk.vercel.app/wiki",
       "permanent": true
     },
+    { "source": "/uday-pw(/)?", "destination": "https://www.pw.live/study-v2/batches/6774f509dcc961a5430bb4ba/batch-overview#Subjects_2", "permanent": true },
+    { "source": "/uday-pw-test(/)?", "destination": "https://www.pw.live/study-v2/batches/6774f509dcc961a5430bb4ba/batch-overview?contentOption=tests#Tests_6", "permanent": true },
     {
       "source": "/clock/",
       "destination": "https://clock.qlynk.me",
