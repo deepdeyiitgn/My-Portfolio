@@ -14,6 +14,9 @@ const Contact = lazy(() => import('./pages/Contact'));
 const FAQ = lazy(() => import('./pages/FAQ'));
 const Portfolio = lazy(() => import('./pages/Portfolio'));
 const Links = lazy(() => import('./pages/Links'));
+const Proof = lazy(() => import('./pages/Proof'));
+const Journal = lazy(() => import('./pages/Journal'));
+const Now = lazy(() => import('./pages/Now'));
 const LegalHub = lazy(() => import('./pages/LegalHub'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
@@ -77,6 +80,9 @@ function AnimatedRoutes() {
             <Route path="/faq" element={<FAQ />} />
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/links" element={<Links />} />
+            <Route path="/proof" element={<Proof />} />
+            <Route path="/journal" element={<Journal />} />
+            <Route path="/now" element={<Now />} />
             <Route path="/legal" element={<LegalHub />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />

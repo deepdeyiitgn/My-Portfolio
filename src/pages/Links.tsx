@@ -1,15 +1,33 @@
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { ExternalLink, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { linksData, LinkItem } from '../data/linksData';
 
 export default function Links() {
+  const [dynamicLinks, setDynamicLinks] = useState<LinkItem[]>(linksData);
+
+  useEffect(() => {
+    const loadLinks = async () => {
+      try {
+        const res = await fetch('/api/links');
+        const data = await res.json();
+        if (res.ok && Array.isArray(data.items) && data.items.length > 0) {
+          setDynamicLinks(data.items as LinkItem[]);
+        }
+      } catch {
+        setDynamicLinks(linksData);
+      }
+    };
+    loadLinks();
+  }, []);
+
   // Group links by category
-  const groupedLinks = linksData.reduce((acc, link) => {
+  const groupedLinks = useMemo(() => dynamicLinks.reduce((acc, link) => {
     if (!acc[link.category]) acc[link.category] = [];
     acc[link.category].push(link);
     return acc;
-  }, {} as Record<string, LinkItem[]>);
+  }, {} as Record<string, LinkItem[]>), [dynamicLinks]);
 
   const categories = Object.keys(groupedLinks) as (keyof typeof groupedLinks)[];
 

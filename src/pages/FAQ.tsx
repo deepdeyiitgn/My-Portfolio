@@ -6,23 +6,39 @@ import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 
 export default function FAQ() {
+  const [faqItems, setFaqItems] = useState<FAQItem[]>(faqData);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const listTopRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const loadFaqs = async () => {
+      try {
+        const res = await fetch('/api/faqs');
+        const data = await res.json();
+        if (res.ok && Array.isArray(data.items) && data.items.length > 0) {
+          setFaqItems(data.items as FAQItem[]);
+        }
+      } catch {
+        setFaqItems(faqData);
+      }
+    };
+    loadFaqs();
+  }, []);
+
   // Advanced Search Logic with Match Percentage
   const filteredFaqs = useMemo(() => {
     // Reset page to 1 when searching handled by useEffect
     if (!searchQuery.trim()) {
-      return faqData.map(item => ({ ...item, match: 0 }));
+      return faqItems.map(item => ({ ...item, match: 0 }));
     }
 
     const query = searchQuery.toLowerCase().trim();
     const queryWords = query.split(/\s+/);
 
-    return faqData
+    return faqItems
       .map(item => {
         const question = item.question.toLowerCase();
         const answer = item.answer.toLowerCase();
@@ -43,10 +59,10 @@ export default function FAQ() {
       })
       .filter(item => item.match > 0)
       .sort((a, b) => b.match - a.match);
-  }, [searchQuery]);
+  }, [searchQuery, faqItems]);
 
   // Use raw data if no search
-  const displayData = searchQuery.trim() ? filteredFaqs : faqData.map(item => ({ ...item, match: 0 }));
+  const displayData = searchQuery.trim() ? filteredFaqs : faqItems.map(item => ({ ...item, match: 0 }));
 
   // Reset to page 1 on search
   useEffect(() => {
@@ -89,7 +105,7 @@ export default function FAQ() {
         schema={{
           "@context": "https://schema.org",
           "@type": "FAQPage",
-          "mainEntity": faqData.map(f => ({
+           "mainEntity": faqItems.map(f => ({
             "@type": "Question",
             "name": f.question,
             "acceptedAnswer": {

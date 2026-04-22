@@ -2,21 +2,26 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Menu, X } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 const NAV_LINKS = [
-  { name: 'Home', path: '/' },
-  { name: 'About', path: '/about' },
-  { name: 'Me', path: '/me' },
-  { name: 'Projects', path: '/projects' },
-  { name: 'Portfolio', path: '/portfolio' },
-  { name: 'Links', path: '/links' },
-  { name: 'FAQ', path: '/faq' },
-  { name: 'Contact', path: '/contact' },
+  { key: 'nav.home', path: '/' },
+  { key: 'nav.about', path: '/about' },
+  { key: 'nav.me', path: '/me' },
+  { key: 'nav.projects', path: '/projects' },
+  { key: 'nav.portfolio', path: '/portfolio' },
+  { key: 'nav.links', path: '/links' },
+  { key: 'nav.proof', path: '/proof' },
+  { key: 'nav.journal', path: '/journal' },
+  { key: 'nav.now', path: '/now' },
+  { key: 'nav.faq', path: '/faq' },
+  { key: 'nav.contact', path: '/contact' },
 ];
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { language, setLanguage, t } = useLanguage();
 
   // Close menu on route change
   useEffect(() => {
@@ -51,9 +56,24 @@ export default function Header() {
                   location.pathname === link.path ? 'text-amber-500' : 'text-zinc-500 hover:text-amber-500'
                 }`}
               >
-                {link.name}
+                {t(link.key)}
               </Link>
             ))}
+          </div>
+
+          <div className="hidden md:block">
+            <label className="sr-only" htmlFor="language-switcher">Language</label>
+            <select
+              id="language-switcher"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value as typeof language)}
+              className="bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl px-2 py-1 text-xs"
+              aria-label="Select language"
+            >
+              <option value="en">EN</option>
+              <option value="bn">BN</option>
+              <option value="hi">HI</option>
+            </select>
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -103,7 +123,7 @@ export default function Header() {
                           ? 'text-amber-500 scale-110' 
                           : 'text-zinc-700 hover:text-amber-500'
                       }`}>
-                        {link.name}
+                        {t(link.key)}
                       </span>
                       <motion.div 
                         className="h-1 bg-amber-500 rounded-full mt-2" 
