@@ -182,8 +182,6 @@ export default function Portfolio() {
         <a
           href={pdfUrl}
           download="Deep_Dey_Portfolio.pdf"
-          target="_blank"
-          rel="noopener noreferrer"
           className="group relative px-12 py-6 bg-amber-500 text-black font-black text-xl rounded-3xl flex items-center gap-4 transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-amber-500/20"
         >
           <div className="absolute -inset-1 bg-amber-400 rounded-3xl blur opacity-0 group-hover:opacity-40 transition-opacity"></div>
