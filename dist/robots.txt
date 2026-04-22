@@ -6,10 +6,6 @@
 
 User-agent: *
 Allow: /
-Allow: /me
-Allow: /about
-Allow: /contact
-Allow: /links
 
 # Prevent indexing of internal logic/API boundaries if added later
 Disallow: /api/
@@ -23,4 +19,4 @@ Allow: /src/
 
 # Sitemaps for Dual-Domain Deployment
 Sitemap: https://just.qlynk.me/sitemap.xml
-Sitemap: https://deepdey.vercel.app/sitemap.xml
+Sitemap: https://justdeepdey.vercel.app/sitemap.xml
