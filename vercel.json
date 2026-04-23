@@ -15,7 +15,11 @@
     {
       "source": "/sitemap.xml",
       "destination": "/api/sitemap"
-    }
+    },
+    {
+      "source": "/sitemap.xml/",
+      "destination": "/api/sitemap"
+    },    
   ],
   "redirects": [
     {
