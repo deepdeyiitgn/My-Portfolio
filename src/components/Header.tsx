@@ -55,9 +55,9 @@ export default function Header() {
             </span>
           </Link>
 
-          {/* Desktop Nav */}
-          <div className="hidden lg:flex items-center gap-x-3 xl:gap-x-4 2xl:gap-x-5 overflow-visible flex-1 justify-center px-2 min-w-0">
-            {NAV_LINKS.map((link) => (
+          {/* Desktop Nav — HOME is omitted here because the logo already links home */}
+          <div className="hidden lg:flex items-center gap-x-3 xl:gap-x-4 2xl:gap-x-5 overflow-hidden flex-1 justify-center px-2 min-w-0">
+            {NAV_LINKS.filter((link) => link.path !== '/').map((link) => (
               <Link
                 key={link.path}
                 to={link.path}

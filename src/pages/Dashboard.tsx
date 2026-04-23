@@ -180,6 +180,7 @@ function JournalEditor({
   const [images, setImages] = useState<string[]>(Array.isArray(initial?.images) ? initial.images : []);
   const [imageLinksRaw, setImageLinksRaw] = useState((Array.isArray(initial?.images) ? initial.images : []).join('\n'));
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [categorySlug, setCategorySlug] = useState(initial?.categorySlug || '');
   const [categoryName, setCategoryName] = useState(initial?.categoryName || '');
   const [saving, setSaving] = useState(false);
@@ -246,18 +247,19 @@ function JournalEditor({
       throw new Error('Only JPG and PNG are supported');
     }
     const dataUrl = await fileToDataUrl(file);
-    const slugSafe = title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'journal';
+    const slugSafe = title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'journal';
     const r = await fetch('/api/upload-image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         dataUrl,
-        slug: `${slugSafe}-${Date.now()}`,
+        slug: slugSafe,
         title: title || 'Journal Image',
       }),
     });
     const d = await r.json();
     if (!r.ok || !d.ok || !d.url) throw new Error(d.message || 'Image upload failed');
+    setUploadError('');
     mergeImages([...images, d.url]);
   };
 
@@ -265,10 +267,11 @@ function JournalEditor({
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingImage(true);
+    setUploadError('');
     try {
       await uploadSingleImage(file);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Upload failed');
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploadingImage(false);
       e.target.value = '';
@@ -280,10 +283,11 @@ function JournalEditor({
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
     setUploadingImage(true);
+    setUploadError('');
     try {
       await uploadSingleImage(file);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Upload failed');
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploadingImage(false);
     }
@@ -291,10 +295,11 @@ function JournalEditor({
 
   const handlePasteFromClipboard = async () => {
     if (!navigator.clipboard?.read) {
-      alert('Clipboard image paste is not supported on this browser');
+      setUploadError('Clipboard image paste is not supported on this browser');
       return;
     }
     setUploadingImage(true);
+    setUploadError('');
     try {
       const items = await navigator.clipboard.read();
       for (const item of items) {
@@ -306,9 +311,9 @@ function JournalEditor({
         setUploadingImage(false);
         return;
       }
-      alert('No JPG/PNG image found in clipboard');
+      setUploadError('No JPG/PNG image found in clipboard');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Clipboard paste failed');
+      setUploadError(err instanceof Error ? err.message : 'Clipboard paste failed');
     } finally {
       setUploadingImage(false);
     }
@@ -434,6 +439,15 @@ function JournalEditor({
           <p className="text-[11px] text-zinc-600">
             Supports JPG/PNG, one upload at a time. Drag-drop and clipboard paste are enabled.
           </p>
+          {uploadError && (
+            <div className="flex items-start gap-2 p-3 bg-red-900/20 border border-red-800 rounded-xl text-red-400 text-xs">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" />
+              <span>{uploadError}</span>
+              <button type="button" onClick={() => setUploadError('')} className="ml-auto shrink-0 text-red-600 hover:text-red-400">
+                <X size={12} />
+              </button>
+            </div>
+          )}
           {images.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {images.map((img, idx) => {

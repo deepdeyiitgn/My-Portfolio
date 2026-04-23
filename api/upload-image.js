@@ -40,19 +40,76 @@ function isAuthenticated(req) {
 }
 
 function parseDataUrl(dataUrl) {
-  const match = /^data:(image\/(png|jpeg|jpg));base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
+  const match = /^data:(image\/(png|jpeg|jpg));base64,([A-Za-z0-9+/=\n]+)$/.exec(String(dataUrl || ''));
   if (!match) return null;
   const mime = match[1] === 'image/jpg' ? 'image/jpeg' : match[1];
-  const base64 = match[3];
+  // Strip any embedded newlines (some browsers add them in large data URLs)
+  const base64 = match[3].replace(/\n/g, '');
   const buffer = Buffer.from(base64, 'base64');
   return { mime, buffer };
 }
 
-function extractStaticUrl(value) {
-  const text = String(value || '');
-  const matched = text.match(/https?:\/\/static\.qlynk\.me\/f\/[A-Za-z0-9._\-/]+/i);
-  if (matched) return matched[0];
+/**
+ * Try to extract a static.qlynk.me file URL from any text/JSON response.
+ * Handles the API returning format=json (URL in response fields) as well as
+ * plain-text or redirect bodies.
+ */
+function extractFileUrl(text, fallbackSlug) {
+  // 1. Try JSON parse — look for common URL field names
+  try {
+    const data = JSON.parse(text);
+    const candidate =
+      data.url ||
+      data.link ||
+      data.path ||
+      data.file_url ||
+      data.download_url ||
+      data.public_url ||
+      data.cdn_url ||
+      (data.file && (data.file.url || data.file.link)) ||
+      (data.data && (data.data.url || data.data.link));
+
+    if (candidate && typeof candidate === 'string') {
+      const raw = candidate.trim();
+      // Absolute URL — return as-is
+      if (/^https?:\/\//i.test(raw)) return raw;
+      // Relative path — prefix with base
+      if (raw.startsWith('/')) return `https://static.qlynk.me${raw}`;
+    }
+
+    // If response has a slug field we can construct the URL ourselves
+    const slug = data.slug || data.id || data.key;
+    if (slug && typeof slug === 'string') {
+      return `https://static.qlynk.me/f/${encodeURIComponent(slug.trim())}`;
+    }
+  } catch {
+    // Not JSON — fall through
+  }
+
+  // 2. Regex scan of the raw text body
+  const matched = text.match(/https?:\/\/static\.qlynk\.me\/f\/[^\s"'<>]+/i);
+  if (matched) return matched[0].replace(/[.,;)]+$/, ''); // trim trailing punctuation
+
+  // 3. Last-resort: construct from the slug we sent
+  if (fallbackSlug) {
+    return `https://static.qlynk.me/f/${encodeURIComponent(fallbackSlug)}`;
+  }
+
   return null;
+}
+
+/**
+ * Build a short, safe slug.  We cap at 60 chars to stay well within typical
+ * API limits and avoid the "slug already in use" 409 by appending a random hex.
+ */
+function buildSlug(rawSlug) {
+  const base = (rawSlug || 'img')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `${base}-${rand}`;
 }
 
 module.exports = async (req, res) => {
@@ -74,28 +131,33 @@ module.exports = async (req, res) => {
     const body = await readBody(req);
     const imageUrl = String(body.imageUrl || '').trim();
     const dataUrl = String(body.dataUrl || '').trim();
-    const slug = String(body.slug || `journal-${Date.now()}`).trim();
+    const rawSlug = String(body.slug || '').trim();
     const title = String(body.title || 'Journal Image').trim();
 
+    // ── Link passthrough (no actual upload needed) ──────────────────────────
     if (imageUrl) {
-      const isAllowed = /\.(png|jpe?g)(\?.*)?$/i.test(imageUrl);
-      if (!isAllowed) return json(res, 400, { ok: false, message: 'Only JPG and PNG links are supported' });
+      const isAllowed = /\.(png|jpe?g)(\?.*)?$/i.test(imageUrl) ||
+                        imageUrl.includes('static.qlynk.me/f/');
+      if (!isAllowed) return json(res, 400, { ok: false, message: 'Only JPG/PNG links or static.qlynk.me/f/ URLs are supported' });
       return json(res, 200, { ok: true, url: imageUrl });
     }
 
+    // ── File upload via data URL ─────────────────────────────────────────────
     const parsed = parseDataUrl(dataUrl);
     if (!parsed) {
-      return json(res, 400, { ok: false, message: 'Invalid image payload. Upload one JPG/PNG file at a time.' });
+      return json(res, 400, { ok: false, message: 'Invalid image payload. Provide a valid JPG or PNG file.' });
     }
 
     const ext = parsed.mime === 'image/png' ? 'png' : 'jpg';
-    const filename = `${slug || 'journal-image'}-${Date.now()}.${ext}`;
+    const slug = buildSlug(rawSlug);
+    const filename = `${slug}.${ext}`;
 
+    // Build multipart form for the upstream API
     const form = new FormData();
     form.set('file', new Blob([parsed.buffer], { type: parsed.mime }), filename);
-    form.set('slug', slug || `journal-${Date.now()}`);
-    form.set('title', title || 'Journal Image');
-    form.set('format', 'redirect');
+    form.set('slug', slug);
+    form.set('title', title);
+    form.set('format', 'json');   // ← Request JSON response so we can parse the URL
 
     const upstream = await fetch('https://static.qlynk.me/api/rest', {
       method: 'POST',
@@ -106,15 +168,31 @@ module.exports = async (req, res) => {
     });
 
     const text = await upstream.text();
-    const extracted = extractStaticUrl(text);
 
-    if (!upstream.ok || !extracted) {
-      return json(res, 502, { ok: false, message: 'Image upload failed', details: text.slice(0, 300) });
+    // The API may return a non-2xx code on duplicate slug (409) or auth failure (401/403)
+    if (!upstream.ok) {
+      console.error('upload-image upstream error', upstream.status, text.slice(0, 400));
+      return json(res, 502, {
+        ok: false,
+        message: `Upstream API returned ${upstream.status}`,
+        details: text.slice(0, 300),
+      });
     }
 
-    return json(res, 200, { ok: true, url: extracted });
+    const fileUrl = extractFileUrl(text, slug);
+
+    if (!fileUrl) {
+      console.error('upload-image: could not extract URL from response', text.slice(0, 400));
+      return json(res, 502, {
+        ok: false,
+        message: 'Image uploaded but could not determine file URL',
+        details: text.slice(0, 300),
+      });
+    }
+
+    return json(res, 200, { ok: true, url: fileUrl });
   } catch (error) {
     console.error('upload-image error', error);
-    return json(res, 500, { ok: false, message: 'Internal server error' });
+    return json(res, 500, { ok: false, message: String(error?.message || 'Internal server error') });
   }
 };
