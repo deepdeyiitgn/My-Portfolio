@@ -218,7 +218,8 @@ function JournalEditor({
     try {
       const parsed = new URL(raw);
       if (!['http:', 'https:'].includes(parsed.protocol)) return '';
-      if (parsed.hostname === 'static.qlynk.me' && /^\/f\//.test(parsed.pathname)) return parsed.toString();
+      // 👇 YEH LINE UPDATE KARNI HAI (Dono domain allow karne hain) 👇
+      if ((parsed.hostname === 'static.qlynk.me' || parsed.hostname === 'deydeep-static-files.hf.space') && /^\/f\//.test(parsed.pathname)) return parsed.toString();
       if (/\.(png|jpe?g)(\?.*)?$/i.test(parsed.toString())) return parsed.toString();
       return '';
     } catch {
@@ -243,7 +244,8 @@ function JournalEditor({
   const addSingleLink = () => {
     const link = singleLinkInput.trim();
     if (!link) return;
-    if (!isImageUrl(link) && !link.includes('static.qlynk.me/f/')) {
+    // 👇 YEH LINE UPDATE KARNI HAI 👇
+    if (!isImageUrl(link) && !link.includes('static.qlynk.me/f/') && !link.includes('deydeep-static-files.hf.space/f/')) {
       setUploadError('Invalid image URL. Only JPG/PNG or static.qlynk.me/f/ links are supported.');
       return;
     }
