@@ -156,16 +156,23 @@ module.exports = async (req, res) => {
     const slug = buildSlug(rawSlug);
     const filename = `${slug}.${ext}`;
 
-    // Build multipart form for the upstream API
+    // Build multipart form for the upstream API.
+    // The password is sent via both the standard Authorization header and a
+    // legacy custom `password` header so this proxy stays compatible if the
+    // upstream CDN rotates its preferred auth scheme.
     const form = new FormData();
     form.set('file', new Blob([parsed.buffer], { type: parsed.mime }), filename);
     form.set('slug', slug);
     form.set('title', title);
     form.set('format', 'json');   // ← Request JSON response so we can parse the URL
+    form.set('password', process.env.SPACE_PASSWORD); // form-field fallback
 
     const upstream = await fetch('https://static.qlynk.me/api/rest', {
       method: 'POST',
       headers: {
+        // Primary: standard Bearer token (most CDN/REST APIs expect this)
+        Authorization: `Bearer ${process.env.SPACE_PASSWORD}`,
+        // Legacy: custom header kept for backward compatibility
         password: process.env.SPACE_PASSWORD,
       },
       body: form,
@@ -176,6 +183,16 @@ module.exports = async (req, res) => {
     // The API may return a non-2xx code on duplicate slug (409) or auth failure (401/403)
     if (!upstream.ok) {
       console.error('upload-image upstream error', upstream.status, text.slice(0, 400));
+
+      // Provide actionable guidance for common auth failures
+      if (upstream.status === 403 || upstream.status === 401) {
+        return json(res, 502, {
+          ok: false,
+          message: `Upstream CDN rejected the request (HTTP ${upstream.status}). Check that SPACE_PASSWORD is set correctly in your Vercel environment variables and matches the CDN upload credential.`,
+          details: text.slice(0, 300),
+        });
+      }
+
       return json(res, 502, {
         ok: false,
         message: `Upstream API returned ${upstream.status}`,
