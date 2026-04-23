@@ -52,7 +52,7 @@ function parseDataUrl(dataUrl) {
 }
 
 /**
- * Try to extract a deydeep-deqlynk.hf.space file URL from any text/JSON response.
+ * Try to extract a deydeep-static-files.hf.space file URL from any text/JSON response.
  * Handles the API returning format=json (URL in response fields) as well as
  * plain-text or redirect bodies.
  */
@@ -76,13 +76,13 @@ function extractFileUrl(text, fallbackSlug) {
       // Absolute URL — return as-is
       if (/^https?:\/\//i.test(raw)) return raw;
       // Relative path — prefix with base
-      if (raw.startsWith('/')) return `https://deydeep-deqlynk.hf.space${raw}`;
+      if (raw.startsWith('/')) return `https://deydeep-static-files.hf.space${raw}`;
     }
 
     // If response has a slug field we can construct the URL ourselves
     const slug = data.slug || data.id || data.key;
     if (slug && typeof slug === 'string') {
-      return `https://deydeep-deqlynk.hf.space/f/${encodeURIComponent(slug.trim())}`;
+      return `https://deydeep-static-files.hf.space/f/${encodeURIComponent(slug.trim())}`;
     }
   } catch {
     // Not JSON — fall through
@@ -94,7 +94,7 @@ function extractFileUrl(text, fallbackSlug) {
 
   // 3. Last-resort: construct from the slug we sent
   if (fallbackSlug) {
-    return `https://deydeep-deqlynk.hf.space/f/${encodeURIComponent(fallbackSlug)}`;
+    return `https://deydeep-static-files.hf.space/f/${encodeURIComponent(fallbackSlug)}`;
   }
 
   return null;
@@ -141,8 +141,8 @@ module.exports = async (req, res) => {
     // ── Link passthrough (no actual upload needed) ──────────────────────────
     if (imageUrl) {
       const isAllowed = /\.(png|jpe?g)(\?.*)?$/i.test(imageUrl) ||
-                        imageUrl.includes('deydeep-deqlynk.hf.space/f/');
-      if (!isAllowed) return json(res, 400, { ok: false, message: 'Only JPG/PNG links or deydeep-deqlynk.hf.space/f/ URLs are supported' });
+                        imageUrl.includes('deydeep-static-files.hf.space/f/');
+      if (!isAllowed) return json(res, 400, { ok: false, message: 'Only JPG/PNG links or deydeep-static-files.hf.space/f/ URLs are supported' });
       return json(res, 200, { ok: true, url: imageUrl });
     }
 
@@ -167,7 +167,7 @@ module.exports = async (req, res) => {
     form.set('format', 'json');   // ← Request JSON response so we can parse the URL
     form.set('password', process.env.SPACE_PASSWORD); // form-field fallback
 
-    const upstream = await fetch('https://deydeep-deqlynk.hf.space/api/rest', {
+    const upstream = await fetch('https://deydeep-static-files.hf.space/api/rest', {
       method: 'POST',
       headers: {
         // Primary: standard Bearer token (most CDN/REST APIs expect this)
