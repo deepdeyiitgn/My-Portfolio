@@ -195,13 +195,34 @@ function JournalEditor({
 
   const readMinutes = Math.max(1, Math.ceil((content.trim().split(/\s+/).length) / 200));
 
+  const sanitizeImageUrl = (value: string) => {
+    const raw = value.trim();
+    if (!raw) return '';
+    try {
+      const parsed = new URL(raw);
+      if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+      if (parsed.hostname === 'static.qlynk.me' && /^\/f\//.test(parsed.pathname)) return parsed.toString();
+      if (/\.(png|jpe?g)(\?.*)?$/i.test(parsed.toString())) return parsed.toString();
+      return '';
+    } catch {
+      return '';
+    }
+  };
+
   const mergeImages = (list: string[]) => {
-    const merged = Array.from(new Set(list.map((i) => i.trim()).filter(Boolean)));
+    const merged = Array.from(new Set(list.map((i) => sanitizeImageUrl(i)).filter(Boolean)));
     setImages(merged);
     setImageLinksRaw(merged.join('\n'));
   };
 
-  const isImageUrl = (value: string) => /^https?:\/\/.+\.(png|jpe?g)(\?.*)?$/i.test(value.trim());
+  useEffect(() => {
+    if (Array.isArray(initial?.images)) {
+      mergeImages(initial.images);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const isImageUrl = (value: string) => Boolean(sanitizeImageUrl(value));
 
   const addLinksFromTextarea = () => {
     const links = imageLinksRaw
@@ -415,18 +436,22 @@ function JournalEditor({
           </p>
           {images.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {images.map((img, idx) => (
-                <div key={`${img}-${idx}`} className="relative border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950">
-                  <img src={img} alt={`Uploaded ${idx + 1}`} className="w-full h-24 object-cover" loading="lazy" />
-                  <button
-                    type="button"
-                    onClick={() => mergeImages(images.filter((_, i) => i !== idx))}
-                    className="absolute top-1 right-1 p-1 bg-black/60 rounded text-zinc-200 hover:text-red-400"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              ))}
+              {images.map((img, idx) => {
+                const safeImg = sanitizeImageUrl(img);
+                if (!safeImg) return null;
+                return (
+                  <div key={`${safeImg}-${idx}`} className="relative border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950">
+                    <img src={safeImg} alt={`Uploaded ${idx + 1}`} className="w-full h-24 object-cover" loading="lazy" />
+                    <button
+                      type="button"
+                      onClick={() => mergeImages(images.filter((_, i) => i !== idx))}
+                      className="absolute top-1 right-1 p-1 bg-black/60 rounded text-zinc-200 hover:text-red-400"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

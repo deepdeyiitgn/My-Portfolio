@@ -48,6 +48,20 @@ function renderMarkdown(text: string) {
     .replace(/\n/g, '<br />');
 }
 
+function sanitizeImageUrl(value: string) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+    if (parsed.hostname === 'static.qlynk.me' && /^\/f\//.test(parsed.pathname)) return parsed.toString();
+    if (/\.(png|jpe?g)(\?.*)?$/i.test(parsed.toString())) return parsed.toString();
+    return '';
+  } catch {
+    return '';
+  }
+}
+
 export default function JournalView() {
   const { id = '' } = useParams();
   const [journal, setJournal] = useState<Journal | null>(null);
@@ -130,7 +144,9 @@ export default function JournalView() {
     return <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-20 text-red-400">{error || 'Not found'}</div>;
   }
 
-  const images = Array.isArray(journal.images) ? journal.images : [];
+  const images = (Array.isArray(journal.images) ? journal.images : [])
+    .map((img) => sanitizeImageUrl(img))
+    .filter(Boolean);
 
   return (
     <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 space-y-8">
