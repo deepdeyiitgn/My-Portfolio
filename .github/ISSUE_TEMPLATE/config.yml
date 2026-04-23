@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Security Vulnerability Report
+    url: mailto:a@qlynk.me?subject=[SECURITY REPORT] &body=Please describe the vulnerability, reproduction steps, and your environment.
+    about: Report a security vulnerability privately. Do NOT open a public issue.
+  - name: 💬 General / Technical Outreach
+    url: mailto:team.deepdey@gmail.com
+    about: General questions, architecture consultation, or collaboration inquiries.
+  - name: 🌐 Portfolio Contact Hub
+    url: https://deepdey.vercel.app/contact
+    about: Use the structured contact form for ticketed inquiries.

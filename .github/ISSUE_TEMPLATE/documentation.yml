@@ -1,0 +1,54 @@
+name: 📚 Documentation Improvement
+description: Report incorrect, outdated, or missing documentation
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve the documentation! Clear, accurate docs make the project better for everyone.
+
+  - type: dropdown
+    id: doc_type
+    attributes:
+      label: Documentation File
+      description: Which file or area needs improvement?
+      options:
+        - README.md
+        - CONTRIBUTING.md
+        - SECURITY.md
+        - CODE_OF_CONDUCT.md
+        - SUPPORT.md
+        - CONTRIBUTOR.md
+        - LICENSE
+        - Code comments (in source files)
+        - Issue / PR templates
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: Current Content (What is wrong or missing?)
+      description: Paste the incorrect/outdated section or describe what is missing
+      placeholder: "The README references React 18 but the project now uses React 19..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested
+    attributes:
+      label: Suggested Improvement
+      description: What should it say instead? Or what information should be added?
+      placeholder: "Update the tech stack table row for React to show '19.x' and link to https://react.dev"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any references, links, or extra context
+    validations:
+      required: false

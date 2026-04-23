@@ -1,0 +1,28 @@
+# CODEOWNERS
+# This file defines who is responsible for reviewing changes to specific paths.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repository
+* @deepdeyiitgn
+
+# API routes — security-sensitive, require careful review
+/api/ @deepdeyiitgn
+
+# Core architecture files
+/src/App.tsx @deepdeyiitgn
+/src/components/Layout.tsx @deepdeyiitgn
+/src/components/Header.tsx @deepdeyiitgn
+
+# Legal and policy documents
+/LICENSE @deepdeyiitgn
+/SECURITY.md @deepdeyiitgn
+/CODE_OF_CONDUCT.md @deepdeyiitgn
+/CONTRIBUTING.md @deepdeyiitgn
+
+# GitHub configuration
+/.github/ @deepdeyiitgn
+
+# Deployment configuration
+/vercel.json @deepdeyiitgn
+/vite.config.ts @deepdeyiitgn
+/tsconfig.json @deepdeyiitgn
