@@ -55,7 +55,9 @@ export default function Header() {
             </span>
           </Link>
 
-          {/* Desktop Nav — HOME is omitted here because the logo already links home */}
+          {/* Desktop Nav — overflow-hidden prevents items from spilling left under the logo
+               when justify-center causes symmetric overflow on tight viewports.
+               HOME is intentionally omitted here; the logo already links to '/'. */}
           <div className="hidden lg:flex items-center gap-x-3 xl:gap-x-4 2xl:gap-x-5 overflow-hidden flex-1 justify-center px-2 min-w-0">
             {NAV_LINKS.filter((link) => link.path !== '/').map((link) => (
               <Link

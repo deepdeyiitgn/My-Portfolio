@@ -40,11 +40,13 @@ function isAuthenticated(req) {
 }
 
 function parseDataUrl(dataUrl) {
-  const match = /^data:(image\/(png|jpeg|jpg));base64,([A-Za-z0-9+/=\n]+)$/.exec(String(dataUrl || ''));
+  // Accept optional embedded newlines that some browsers insert into large base64 data URLs.
+  // Using [\w+/=\n]+ is intentional: it matches valid base64 chars plus \n so the regex
+  // itself accepts newlines, and we strip them before decoding below.
+  const match = /^data:(image\/(png|jpeg|jpg));base64,([\w+/=\n]+)$/.exec(String(dataUrl || ''));
   if (!match) return null;
   const mime = match[1] === 'image/jpg' ? 'image/jpeg' : match[1];
-  // Strip any embedded newlines (some browsers add them in large data URLs)
-  const base64 = match[3].replace(/\n/g, '');
+  const base64 = match[3].replace(/\n/g, ''); // strip newlines before decoding
   const buffer = Buffer.from(base64, 'base64');
   return { mime, buffer };
 }
@@ -99,8 +101,10 @@ function extractFileUrl(text, fallbackSlug) {
 }
 
 /**
- * Build a short, safe slug.  We cap at 60 chars to stay well within typical
- * API limits and avoid the "slug already in use" 409 by appending a random hex.
+ * Build a short, safe slug.  We cap the user-supplied base at 40 chars and
+ * append 6 random hex chars, giving a total of ≤47 chars.  This stays well
+ * within typical API slug length limits and avoids 409 "slug already assigned"
+ * errors from the upstream API.
  */
 function buildSlug(rawSlug) {
   const base = (rawSlug || 'img')

@@ -248,6 +248,8 @@ function JournalEditor({
     }
     const dataUrl = await fileToDataUrl(file);
     const slugSafe = title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'journal';
+    // slug capped at 30 chars so buildSlug() keeps total well under 40+6=46 chars,
+    // safely below the upstream API's slug uniqueness-check window
     const r = await fetch('/api/upload-image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
