@@ -14,7 +14,8 @@ This repository hosts the production portfolio platform for Deep Dey. Contributi
 4. Run checks locally before opening a pull request:
    - `npm run lint`
    - `npm run build`
-5. Open a pull request with clear context and testing notes.
+5. If your change touches Journal or Contact flows, validate `/journal`, `/journal/view/:id`, `/journal/embed/:id`, and `/contact`.
+6. Open a pull request with clear context and testing notes.
 
 ## Contribution Types
 

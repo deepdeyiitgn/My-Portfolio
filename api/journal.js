@@ -1,10 +1,11 @@
 /**
  * /api/journal
  * GET  ?page=1&limit=20&category=<slug>&published=true  → paginated list
- * GET  ?slug=<slug>  → single journal entry
- * POST   → create journal (auth required)
- * PUT    → update journal (auth required); body must include _id
- * DELETE ?id=<id>    → delete (auth required)
+ * GET  ?slug=<slug>|id=<id>&countView=true              → single journal entry
+ * POST ?action=like&id=<id>&session=<sessionId>         → like a journal once/session
+ * POST                                                   → create journal (auth required)
+ * PUT                                                    → update journal (auth required); body must include _id
+ * DELETE ?id=<id>                                        → delete (auth required)
  */
 
 const { MongoClient, ObjectId } = require('mongodb');
@@ -70,13 +71,11 @@ function slugify(str) {
     .replace(/-+/g, '-');
 }
 
-/** Compute estimated read minutes from body text */
 function estimateReadMinutes(body) {
-  const words = (body || '').trim().split(/\s+/).length;
+  const words = (body || '').trim().split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.ceil(words / 200));
 }
 
-/** Return current IST datetime string */
 function nowIST() {
   return new Date().toLocaleString('en-IN', {
     timeZone: 'Asia/Kolkata',
@@ -99,6 +98,31 @@ function getParam(req, name) {
   }
 }
 
+function normalizeImages(images) {
+  if (!Array.isArray(images)) return [];
+  const unique = new Set();
+  for (const img of images) {
+    const value = String(img || '').trim();
+    if (value) unique.add(value);
+  }
+  return Array.from(unique);
+}
+
+async function getJournalByIdOrSlug(col, req) {
+  const slugParam = getParam(req, 'slug');
+  const idParam = getParam(req, 'id');
+  const authed = isAuthenticated(req);
+
+  const query = {};
+  if (slugParam) query.slug = slugParam;
+  if (idParam && ObjectId.isValid(idParam)) query._id = new ObjectId(idParam);
+
+  if (!query.slug && !query._id) return null;
+  if (!authed) query.published = true;
+
+  return col.findOne(query);
+}
+
 module.exports = async (req, res) => {
   try {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -114,20 +138,22 @@ module.exports = async (req, res) => {
     const db = await getDb();
     const col = db.collection('journals');
 
-    /* ── GET ─────────────────────────────────────────────────────────── */
     if (req.method === 'GET') {
-      const slugParam = getParam(req, 'slug');
-      if (slugParam) {
-        // Single entry by slug
-        const query = isAuthenticated(req)
-          ? { slug: slugParam }
-          : { slug: slugParam, published: true };
-        const entry = await col.findOne(query);
+      const wantsSingle = Boolean(getParam(req, 'slug') || getParam(req, 'id'));
+      if (wantsSingle) {
+        const entry = await getJournalByIdOrSlug(col, req);
         if (!entry) return json(res, 404, { ok: false, message: 'Not found' });
-        return json(res, 200, { ok: true, journal: entry });
+
+        const shouldCountView = getParam(req, 'countView') === 'true' || getParam(req, 'countView') === '1';
+        let journal = entry;
+        if (shouldCountView && entry._id) {
+          await col.updateOne({ _id: entry._id }, { $inc: { views: 1 } });
+          journal = { ...entry, views: Number(entry.views || 0) + 1 };
+        }
+
+        return json(res, 200, { ok: true, journal });
       }
 
-      // List
       const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
       const limit = Math.min(20, Math.max(1, parseInt(getParam(req, 'limit') || '20', 10)));
       const categoryParam = getParam(req, 'category');
@@ -157,8 +183,31 @@ module.exports = async (req, res) => {
       });
     }
 
-    /* ── POST (create) ───────────────────────────────────────────────── */
     if (req.method === 'POST') {
+      const action = getParam(req, 'action');
+      if (action === 'like') {
+        const id = getParam(req, 'id');
+        const session = String(getParam(req, 'session') || '').trim();
+        if (!id || !ObjectId.isValid(id)) return json(res, 400, { ok: false, message: 'Valid id required' });
+        if (!session) return json(res, 400, { ok: false, message: 'session required' });
+
+        const existing = await col.findOne({ _id: new ObjectId(id), published: true });
+        if (!existing) return json(res, 404, { ok: false, message: 'Not found' });
+
+        const likedSessions = Array.isArray(existing.likedSessions) ? existing.likedSessions : [];
+        if (likedSessions.includes(session)) {
+          return json(res, 200, { ok: true, alreadyLiked: true, likes: Number(existing.likes || 0) });
+        }
+
+        const nextSessions = [...likedSessions, session].slice(-5000);
+        await col.updateOne(
+          { _id: new ObjectId(id) },
+          { $inc: { likes: 1 }, $set: { likedSessions: nextSessions } },
+        );
+
+        return json(res, 200, { ok: true, likes: Number(existing.likes || 0) + 1, alreadyLiked: false });
+      }
+
       if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
 
       const body = await readBody(req);
@@ -168,6 +217,7 @@ module.exports = async (req, res) => {
       const categorySlug = String(body.categorySlug || '').trim();
       const categoryName = String(body.categoryName || '').trim();
       const publish = Boolean(body.publish);
+      const images = normalizeImages(body.images);
 
       if (!title) return json(res, 400, { ok: false, message: 'Title is required' });
       if (!content) return json(res, 400, { ok: false, message: 'Content is required' });
@@ -181,25 +231,28 @@ module.exports = async (req, res) => {
         content,
         categorySlug,
         categoryName,
+        images,
         published: publish,
         publishedAt: publish ? now : null,
         publishedAtIST: publish ? nowIST() : null,
         createdAt: now,
         updatedAt: now,
         readMinutes: estimateReadMinutes(content),
+        views: 0,
+        likes: 0,
+        likedSessions: [],
       };
 
       const result = await col.insertOne(doc);
       return json(res, 201, { ok: true, journal: { ...doc, _id: result.insertedId } });
     }
 
-    /* ── PUT (update) ────────────────────────────────────────────────── */
     if (req.method === 'PUT') {
       if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
 
       const body = await readBody(req);
       const id = body._id;
-      if (!id) return json(res, 400, { ok: false, message: '_id required' });
+      if (!id || !ObjectId.isValid(id)) return json(res, 400, { ok: false, message: '_id required' });
 
       const existing = await col.findOne({ _id: new ObjectId(id) });
       if (!existing) return json(res, 404, { ok: false, message: 'Not found' });
@@ -216,6 +269,7 @@ module.exports = async (req, res) => {
         content,
         categorySlug: body.categorySlug !== undefined ? String(body.categorySlug).trim() : existing.categorySlug,
         categoryName: body.categoryName !== undefined ? String(body.categoryName).trim() : existing.categoryName,
+        images: body.images !== undefined ? normalizeImages(body.images) : normalizeImages(existing.images),
         published: publish,
         publishedAt: publish ? (existing.publishedAt || now) : null,
         publishedAtIST: publish ? (existing.publishedAtIST || nowIST()) : null,
@@ -227,11 +281,10 @@ module.exports = async (req, res) => {
       return json(res, 200, { ok: true, journal: { ...existing, ...update } });
     }
 
-    /* ── DELETE ──────────────────────────────────────────────────────── */
     if (req.method === 'DELETE') {
       if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
       const id = getParam(req, 'id');
-      if (!id) return json(res, 400, { ok: false, message: 'id required' });
+      if (!id || !ObjectId.isValid(id)) return json(res, 400, { ok: false, message: 'id required' });
       await col.deleteOne({ _id: new ObjectId(id) });
       return json(res, 200, { ok: true, message: 'Deleted' });
     }

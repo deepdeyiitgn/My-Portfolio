@@ -36,7 +36,7 @@ const LEGAL_NODES = [
 
 export default function LegalHub() {
   return (
-    <div className="max-w-7xl mx-auto px-6 py-20 space-y-24">
+    <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-20 space-y-24">
       <SEO 
         title="Legal Hub | Deep Dey Infrastructure"
         description="Centralized compliance portal for all Deep Dey digital assets, software, and systems."

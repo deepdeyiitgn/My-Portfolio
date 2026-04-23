@@ -23,7 +23,7 @@ export default function ProjectDetail() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="max-w-7xl mx-auto px-6 py-12 space-y-16"
+      className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 space-y-16"
     >
       <SEO 
         title={`${project.title} | Project Detail`}

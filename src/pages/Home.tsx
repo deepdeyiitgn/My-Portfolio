@@ -49,7 +49,7 @@ export default function Home() {
         }}
       />
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 items-center gap-12">
+      <section className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 grid md:grid-cols-2 items-center gap-12">
         <motion.div
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
@@ -118,7 +118,7 @@ export default function Home() {
         initial={{ opacity: 0, y: 50 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
-        className="max-w-7xl mx-auto px-6"
+        className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6"
       >
         <TechGalaxy />
       </motion.section>
@@ -214,7 +214,7 @@ export default function Home() {
         initial={{ opacity: 0, y: 50 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
-        className="max-w-7xl mx-auto px-6 py-20"
+        className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-20"
       >
         <div className="relative group overflow-hidden bg-zinc-900/30 border border-zinc-800 rounded-[3rem] p-12 md:p-24 text-center space-y-10">
           {/* Background Glow */}
@@ -269,7 +269,7 @@ export default function Home() {
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.3 }}
-        className="max-w-7xl mx-auto px-6 pb-20"
+        className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 pb-20"
       >
         <div className="relative overflow-hidden bg-zinc-950 border border-zinc-900 rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent pointer-events-none" />

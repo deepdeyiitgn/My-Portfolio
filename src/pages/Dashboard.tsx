@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, type FormEvent, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, type FormEvent, type ReactNode, type ChangeEvent, type DragEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Lock, LogIn, Eye, EyeOff, Plus, Trash2, Edit3, Send, X,
   ChevronLeft, ChevronRight, LogOut, Tag, BookOpen, Settings,
-  ToggleLeft, ToggleRight, Clock, Loader2, AlertCircle, CheckCircle2,
+  ToggleLeft, ToggleRight, Clock, Loader2, AlertCircle, CheckCircle2, Upload, ImagePlus, Clipboard,
 } from 'lucide-react';
 import SEO from '../components/SEO';
 
@@ -29,6 +29,9 @@ interface Journal {
   createdAt: string;
   updatedAt: string;
   readMinutes: number;
+  likes?: number;
+  views?: number;
+  images?: string[];
 }
 
 type Tab = 'journals' | 'categories' | 'settings';
@@ -174,11 +177,15 @@ function JournalEditor({
   const [title, setTitle] = useState(initial?.title || '');
   const [summary, setSummary] = useState(initial?.summary || '');
   const [content, setContent] = useState(initial?.content || '');
+  const [images, setImages] = useState<string[]>(Array.isArray(initial?.images) ? initial.images : []);
+  const [imageLinksRaw, setImageLinksRaw] = useState((Array.isArray(initial?.images) ? initial.images : []).join('\n'));
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [categorySlug, setCategorySlug] = useState(initial?.categorySlug || '');
   const [categoryName, setCategoryName] = useState(initial?.categoryName || '');
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCategoryChange = (slug: string) => {
     setCategorySlug(slug);
@@ -188,10 +195,108 @@ function JournalEditor({
 
   const readMinutes = Math.max(1, Math.ceil((content.trim().split(/\s+/).length) / 200));
 
+  const mergeImages = (list: string[]) => {
+    const merged = Array.from(new Set(list.map((i) => i.trim()).filter(Boolean)));
+    setImages(merged);
+    setImageLinksRaw(merged.join('\n'));
+  };
+
+  const isImageUrl = (value: string) => /^https?:\/\/.+\.(png|jpe?g)(\?.*)?$/i.test(value.trim());
+
+  const addLinksFromTextarea = () => {
+    const links = imageLinksRaw
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const valid = links.filter((link) => isImageUrl(link) || link.includes('static.qlynk.me/f/'));
+    mergeImages([...images, ...valid]);
+  };
+
+  const fileToDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+
+  const uploadSingleImage = async (file: File) => {
+    if (!/^image\/(png|jpeg|jpg)$/i.test(file.type)) {
+      throw new Error('Only JPG and PNG are supported');
+    }
+    const dataUrl = await fileToDataUrl(file);
+    const slugSafe = title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'journal';
+    const r = await fetch('/api/upload-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dataUrl,
+        slug: `${slugSafe}-${Date.now()}`,
+        title: title || 'Journal Image',
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok || !d.url) throw new Error(d.message || 'Image upload failed');
+    mergeImages([...images, d.url]);
+  };
+
+  const handlePickImage = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      await uploadSingleImage(file);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploadingImage(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      await uploadSingleImage(file);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handlePasteFromClipboard = async () => {
+    if (!navigator.clipboard?.read) {
+      alert('Clipboard image paste is not supported on this browser');
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const imgType = item.types.find((type) => /^image\/(png|jpeg|jpg)$/i.test(type));
+        if (!imgType) continue;
+        const blob = await item.getType(imgType);
+        const file = new File([blob], `clipboard-${Date.now()}.${imgType.includes('png') ? 'png' : 'jpg'}`, { type: imgType });
+        await uploadSingleImage(file);
+        setUploadingImage(false);
+        return;
+      }
+      alert('No JPG/PNG image found in clipboard');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Clipboard paste failed');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
-      await onSave({ title, summary, content, categorySlug, categoryName, readMinutes }, false);
+      await onSave({ title, summary, content, categorySlug, categoryName, readMinutes, images }, false);
     } finally {
       setSaving(false);
     }
@@ -200,7 +305,7 @@ function JournalEditor({
   const handlePublish = async () => {
     setPublishing(true);
     try {
-      await onSave({ title, summary, content, categorySlug, categoryName, readMinutes }, true);
+      await onSave({ title, summary, content, categorySlug, categoryName, readMinutes, images }, true);
       setShowPreview(false);
     } finally {
       setPublishing(false);
@@ -259,6 +364,73 @@ function JournalEditor({
           />
         </div>
 
+        <div
+          className="space-y-2 border border-zinc-800 rounded-2xl p-4 bg-zinc-900/20"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleDrop}
+        >
+          <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Journal Images (Optional)</label>
+          <textarea
+            value={imageLinksRaw}
+            onChange={(e) => setImageLinksRaw(e.target.value)}
+            rows={4}
+            placeholder="Paste image links (jpg/png), one per line..."
+            className={`${inputCls} resize-y text-xs`}
+          />
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={addLinksFromTextarea}
+              className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 flex items-center gap-2`}
+            >
+              <ImagePlus size={14} /> Add Link Images
+            </button>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingImage}
+              className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 flex items-center gap-2 disabled:opacity-50`}
+            >
+              {uploadingImage ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+              Upload One Image
+            </button>
+            <button
+              type="button"
+              onClick={handlePasteFromClipboard}
+              disabled={uploadingImage}
+              className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 flex items-center gap-2 disabled:opacity-50`}
+            >
+              <Clipboard size={14} /> Paste from Clipboard
+            </button>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg"
+            className="hidden"
+            onChange={handlePickImage}
+          />
+          <p className="text-[11px] text-zinc-600">
+            Supports JPG/PNG, one upload at a time. Drag-drop and clipboard paste are enabled.
+          </p>
+          {images.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {images.map((img, idx) => (
+                <div key={`${img}-${idx}`} className="relative border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950">
+                  <img src={img} alt={`Uploaded ${idx + 1}`} className="w-full h-24 object-cover" loading="lazy" />
+                  <button
+                    type="button"
+                    onClick={() => mergeImages(images.filter((_, i) => i !== idx))}
+                    className="absolute top-1 right-1 p-1 bg-black/60 rounded text-zinc-200 hover:text-red-400"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="flex flex-wrap gap-3 pt-2">
           <button onClick={onCancel} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700`}>
             Cancel
@@ -293,7 +465,7 @@ function JournalEditor({
       <AnimatePresence>
         {showPreview && (
           <JournalPreview
-            journal={{ title, summary, content, categoryName, readMinutes }}
+            journal={{ title, summary, content, categoryName, readMinutes, images }}
             onClose={() => setShowPreview(false)}
             onPublish={handlePublish}
             publishing={publishing}
@@ -562,7 +734,7 @@ export default function Dashboard() {
 
   // ── Dashboard ───────────────────────────────────────────────────────────
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-4 py-8 space-y-6">
       <SEO title="Dashboard | Deep Dey" description="Content management dashboard" route="/dashboard" />
 
       <AnimatePresence>

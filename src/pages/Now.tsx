@@ -3,7 +3,7 @@ import { nowData } from '../data/nowData';
 
 export default function Now() {
   return (
-    <div className="max-w-7xl mx-auto px-6 py-12 space-y-12">
+    <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 space-y-12">
       <SEO title="Now / Roadmap / Changelog | Deep Dey" description="Current focus, roadmap, and change history." route="/now" />
 
       <div className="space-y-3">

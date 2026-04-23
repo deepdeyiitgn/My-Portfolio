@@ -10,7 +10,7 @@ export default function Footer() {
     <footer className="w-full border-t border-zinc-900 bg-zinc-950/80 backdrop-blur-md pt-24 pb-12 px-6 overflow-hidden relative">
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
 
-      <div className="max-w-7xl mx-auto space-y-20">
+      <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto space-y-20">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 md:gap-16">
           <div className="space-y-6">
             <Link to="/" className="text-2xl font-black tracking-tighter text-amber-500 hover:opacity-80 transition-opacity">

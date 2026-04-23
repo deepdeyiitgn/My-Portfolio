@@ -27,7 +27,7 @@ const STATS = [
 
 export default function SocialProof() {
   return (
-    <section className="max-w-7xl mx-auto px-6 space-y-12" aria-label="Social proof and credibility">
+    <section className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 space-y-12" aria-label="Social proof and credibility">
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {STATS.map((stat) => (
           <div key={stat.label} className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-6">

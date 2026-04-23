@@ -75,7 +75,7 @@ export default function Live() {
       : null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-10 space-y-10">
+    <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-4 py-10 space-y-10">
       <SEO
         title="Live Stream | Deep Dey"
         description="Watch Deep Dey's latest YouTube streams and live sessions — engineering talks, JEE sessions, and dev builds."

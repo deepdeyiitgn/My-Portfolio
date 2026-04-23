@@ -14,6 +14,7 @@
 
 - [ ] `npm run lint`
 - [ ] `npm run build`
+- [ ] If relevant, manually verified `/contact`, `/journal`, `/journal/view/:id`, and `/journal/embed/:id`
 
 ## Screenshots (if UI change)
 

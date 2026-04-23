@@ -15,6 +15,7 @@ If you need help with this project, use the channels below.
 
 - General/technical outreach: **team.deepdey@gmail.com**
 - Security-specific reporting: **a@qlynk.me**
+- Ticketed contact flow (web): **/contact** (auto ticket ID + mail client handoff)
 
 ## Before Opening an Issue
 

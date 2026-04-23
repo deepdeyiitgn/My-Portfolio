@@ -40,9 +40,10 @@ If you discover a security vulnerability within the portfolio ecosystem (includi
 
 As a stateless, client-side application built on React 18 and Vite, the attack surface is intentionally minimized. 
 
-1. **No Backend Database:** This portfolio does not store, process, or transmit sensitive user data. Forms and routing are handled via secure, stateless webhooks or mailto triggers.
+1. **Backend APIs with Minimal Data Surface:** Journal/category data is stored in MongoDB; contact routing and dashboard image upload operate through constrained API routes with strict input validation.
 2. **Edge Security (Vercel):** All deployments are shielded by Vercel's Edge Network, providing automatic DDoS mitigation, global HTTPS enforcement, and strict TLS configurations.
-3. **Dependency Scanning:** We utilize `npm audit` and GitHub Dependabot to ensure all third-party libraries (e.g., Framer Motion, react-pdf) are free from known CVEs.
+3. **Dependency Scanning:** We utilize `npm audit` and GitHub Dependabot to ensure all third-party libraries (e.g., Motion, react-pdf) are free from known CVEs.
+4. **Credential Isolation:** `SPACE_PASSWORD` for static image uploads remains server-side in API routes and is never exposed in client bundles.
 4. **Content Security Policy (CSP):** The application relies on external CDNs only for verified SVG assets and heavily sandbox-restricted iframes (e.g., Spotify widgets using `sandbox="allow-scripts allow-same-origin"`).
 
 ---

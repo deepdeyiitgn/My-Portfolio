@@ -71,6 +71,12 @@ Implemented `react-helmet-async` for deep, page-specific metadata injection. Fea
 ### 7. Future-Proof Temporal Logic
 The vertical timeline component is self-aware. It actively scans the current system year (`new Date().getFullYear()`) and automatically applies a glowing "Live/Active" radar pulse to the milestone matching the current year (Extends to 2035).
 
+### 8. Journal Detail + Embed Engine
+Journal cards now route to dedicated detail pages (`/journal/view/:id`) with per-open view counting, one-like-per-session behavior, native share support, and embeddable iframe output (`/journal/embed/:id`).
+
+### 9. Ticketed Contact Pipeline
+Contact submissions create a ticket response first, then open the user’s mail app with a structured, prefilled body and subject. Each ticket type can preload editable templates, including a custom query mode.
+
 ---
 
 ## 🛠️ Technology Stack
@@ -165,6 +171,9 @@ The vertical timeline component is self-aware. It actively scans the current sys
 - `/portfolio` → PDF-based visual portfolio
 - `/links` → Link-in-bio ecosystem
 - `/contact` → Contact routing by inquiry category
+- `/journal` → Journal listing with likes/views/read-time metadata
+- `/journal/view/:id` → Full journal page with engagement actions
+- `/journal/embed/:id` → Lightweight embeddable journal mode
 - `/faq` → Frequently asked questions
 - `/legal`, `/privacy`, `/terms`, `/dmca`, `/copyright` → Legal information pages
 
@@ -198,6 +207,11 @@ To clone and run this architecture locally on your machine:
    ```bash
    npm run lint
    ```
+
+### Optional environment variables (for full feature set)
+
+- `MONGODB_URI` → Journal and category storage
+- `SPACE_PASSWORD` → Secure image upload proxy to `https://static.qlynk.me/api/rest` from dashboard
 
 -----
 

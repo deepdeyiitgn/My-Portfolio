@@ -40,7 +40,7 @@ export default function Header() {
 
   return (
     <header className="fixed top-0 left-0 w-full z-[100] transition-all duration-300">
-      <nav className="mx-auto max-w-7xl px-3 py-3 md:px-6 md:py-5">
+      <nav className="mx-auto max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] px-3 py-3 md:px-6 md:py-5">
         <div className="flex items-center justify-between bg-zinc-950/70 backdrop-blur-md rounded-2xl border border-zinc-900/50 px-4 py-2.5 md:px-5 md:py-3 gap-2">
 
           {/* Logo + Avatar */}
@@ -56,12 +56,12 @@ export default function Header() {
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden lg:flex items-center gap-x-4 xl:gap-x-5 overflow-x-auto flex-1 justify-center px-2">
+          <div className="hidden lg:flex items-center gap-x-3 xl:gap-x-4 2xl:gap-x-5 overflow-visible flex-1 justify-center px-2 min-w-0">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.path}
                 to={link.path}
-                className={`shrink-0 flex items-center gap-1 text-[9px] xl:text-[10px] font-black uppercase tracking-wider transition-colors duration-300 whitespace-nowrap ${
+                className={`shrink-0 flex items-center gap-1 text-[10px] xl:text-[11px] font-black uppercase tracking-wider transition-colors duration-300 whitespace-nowrap ${
                   location.pathname === link.path
                     ? 'text-amber-500'
                     : 'text-zinc-500 hover:text-amber-500'
@@ -87,6 +87,15 @@ export default function Header() {
               <option value="en">EN</option>
               <option value="bn">BN</option>
               <option value="hi">HI</option>
+              <option value="es">ES</option>
+              <option value="fr">FR</option>
+              <option value="de">DE</option>
+              <option value="ar">AR</option>
+              <option value="ru">RU</option>
+              <option value="pt">PT</option>
+              <option value="ja">JA</option>
+              <option value="ko">KO</option>
+              <option value="zh">ZH</option>
             </select>
           </div>
 
@@ -130,6 +139,15 @@ export default function Header() {
                   <option value="en">EN</option>
                   <option value="bn">BN</option>
                   <option value="hi">HI</option>
+                  <option value="es">ES</option>
+                  <option value="fr">FR</option>
+                  <option value="de">DE</option>
+                  <option value="ar">AR</option>
+                  <option value="ru">RU</option>
+                  <option value="pt">PT</option>
+                  <option value="ja">JA</option>
+                  <option value="ko">KO</option>
+                  <option value="zh">ZH</option>
                 </select>
               </div>
 
