@@ -35,7 +35,7 @@ All contributors must follow our [Code of Conduct](./CODE_OF_CONDUCT.md). Respec
 | **Accessibility** | WCAG improvements, keyboard navigation, ARIA labels |
 | **Responsiveness** | Mobile/tablet layout fixes (without breaking desktop) |
 | **Performance** | Bundle size reductions, lazy loading improvements |
-| **Documentation** | README, legal docs, code comments |
+| **Documentation** | README, legal docs, CHANGELOG, code comments |
 | **Typo/copy fixes** | Any text or content corrections |
 
 ---
@@ -121,6 +121,8 @@ npm run build
 ```
 
 Both `npm run lint` and `npm run build` **must pass** before opening a pull request. PRs that fail either check will not be reviewed.
+
+> The same checks run automatically via **GitHub Actions CI** ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)) on every push and pull request. A green CI badge is required for merge.
 
 ### Routes to Validate Manually
 

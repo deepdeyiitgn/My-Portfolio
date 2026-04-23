@@ -68,7 +68,8 @@ This is primarily a **stateless, client-side React SPA** with a small number of 
 | **Base64 Validation** | Strict `[A-Za-z0-9+/=\n]+` regex for data URL decoding in upload proxy |
 | **CDN Error Handling** | Upload proxy detects CDN-level `status: "error"` responses even when HTTP status is 200 |
 | **Edge Security** | Vercel Edge Network provides automatic DDoS mitigation, global HTTPS enforcement, and TLS 1.3 |
-| **Dependency Scanning** | `npm audit` and GitHub Dependabot for known CVE detection |
+| **CI Validation** | GitHub Actions runs type-check and production build on every push and PR — see [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) |
+| **Dependency Scanning** | `npm audit` and GitHub Dependabot (weekly automated PRs) for known CVE detection |
 | **iframe Sandboxing** | Third-party embeds use strict `sandbox` attributes (`allow-scripts allow-same-origin`) |
 | **Slug Uniqueness** | Upload slugs include 6-char random hex suffix to prevent enumeration and 409 collisions |
 

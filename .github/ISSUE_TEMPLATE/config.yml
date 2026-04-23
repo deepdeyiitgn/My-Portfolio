@@ -9,3 +9,6 @@ contact_links:
   - name: 🌐 Portfolio Contact Hub
     url: https://deepdey.vercel.app/contact
     about: Use the structured contact form for ticketed inquiries.
+  - name: 📖 Read the Docs First
+    url: https://github.com/deepdeyiitgn/My-Portfolio/blob/main/README.md
+    about: Check the README, CONTRIBUTING guide, and CHANGELOG before opening an issue.

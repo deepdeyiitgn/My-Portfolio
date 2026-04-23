@@ -1,0 +1,48 @@
+name: ❓ Question / Discussion
+description: Ask a question about the codebase, architecture, or design decisions
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before asking, please check:
+        - The [README](../README.md) and [project documentation](../CONTRIBUTING.md)
+        - Existing [open issues](https://github.com/deepdeyiitgn/My-Portfolio/issues) and [discussions](https://github.com/deepdeyiitgn/My-Portfolio/discussions)
+
+        > Due to the current academic hiatus (JEE Advanced 2027), responses may be slower than usual. For urgent technical support, email **team.deepdey@gmail.com**.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Topic Area
+      options:
+        - Architecture / System design
+        - API routes / Backend
+        - UI / Component design
+        - Animations / Motion
+        - SEO / Performance
+        - i18n / Language support
+        - CMS / Dashboard
+        - Deployment / Vercel
+        - Contributing
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: Be as specific as possible. Include relevant file paths or code snippets if applicable.
+      placeholder: "Why does the Journal embed route (/journal/embed/:id) skip the Layout wrapper? Is this intentional?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: What have you already tried / researched?
+      description: Share what you already looked at to avoid duplicate effort
+    validations:
+      required: false

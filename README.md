@@ -16,6 +16,8 @@
   [![Contributing](https://img.shields.io/badge/Contributing-Welcome-22c55e?style=for-the-badge)](./CONTRIBUTING.md)
   [![Code of Conduct](https://img.shields.io/badge/Code_of_Conduct-Enforced-8b5cf6?style=for-the-badge)](./CODE_OF_CONDUCT.md)
   [![Support](https://img.shields.io/badge/Support-Available-0ea5e9?style=for-the-badge)](./SUPPORT.md)
+  [![Changelog](https://img.shields.io/badge/Changelog-📋-64748b?style=for-the-badge)](./CHANGELOG.md)
+  [![CI](https://github.com/deepdeyiitgn/My-Portfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/deepdeyiitgn/My-Portfolio/actions/workflows/ci.yml)
 
   > *"100% effort + extra 1% = Dream Achieved."*
 
@@ -162,8 +164,16 @@ Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · 
  ┃ ┗ 📜 main.tsx                 # React application entry point
  ┣ 📂 .github
  ┃ ┣ 📂 ISSUE_TEMPLATE           # Structured GitHub issue templates
+ ┃ ┃ ┣ 📜 bug_report.yml         # Bug report form
+ ┃ ┃ ┣ 📜 feature_request.yml    # Feature request form
+ ┃ ┃ ┣ 📜 documentation.yml      # Documentation improvement form
+ ┃ ┃ ┣ 📜 question.yml           # Question / discussion form
+ ┃ ┃ ┗ 📜 config.yml             # Issue template chooser + contact links
+ ┃ ┣ 📂 workflows
+ ┃ ┃ ┗ 📜 ci.yml                 # GitHub Actions CI (type-check + build)
  ┃ ┣ 📜 CODEOWNERS               # Code ownership declarations
  ┃ ┣ 📜 FUNDING.yml              # Sponsorship links
+ ┃ ┣ 📜 dependabot.yml           # Automated dependency updates
  ┃ ┗ 📜 pull_request_template.md # Standardized PR template
  ┗ 📂 dist                       # Production build output (git-ignored)
 ```
@@ -195,6 +205,12 @@ Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · 
 | `/terms` | Terms of service |
 | `/dmca` | DMCA takedown policy |
 | `/copyright` | Copyright information |
+
+---
+
+## 📋 Changelog
+
+See [`CHANGELOG.md`](./CHANGELOG.md) for a full version history and release notes.
 
 ---
 
