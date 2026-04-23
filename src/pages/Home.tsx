@@ -89,7 +89,7 @@ export default function Home() {
           whileInView={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1, ease: "easeOut" }}
           viewport={{ once: true, amount: 0.4 }}
-          className="relative group"
+          className="relative group max-w-[500px] mx-auto"
         >
           <div className="absolute -inset-4 bg-amber-500/20 rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity"></div>
           <div className="relative overflow-hidden rounded-[2rem] border-2 border-amber-500/30 aspect-square max-w-[450px] mx-auto shadow-2xl">

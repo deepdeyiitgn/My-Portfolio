@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Youtube, Play, Radio, Clock, ExternalLink, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Youtube, Play, Radio, Clock, ExternalLink, Loader2, AlertCircle, RefreshCw, Eye } from 'lucide-react';
 import SEO from '../components/SEO';
 
 const CHANNEL_ID = 'UCrh1Mx5CTTbbkgW5O6iS2Tw';
 const CHANNEL_URL = `https://www.youtube.com/channel/${CHANNEL_ID}`;
+const PAGE_SIZE = 20;
 
 interface VideoItem {
   videoId: string;
@@ -22,6 +23,8 @@ interface LiveData {
   videos: VideoItem[];
 }
 
+type VideoTab = 'all' | 'video' | 'stream' | 'short';
+
 function formatDate(iso: string) {
   try {
     return new Date(iso).toLocaleDateString('en-IN', {
@@ -35,12 +38,21 @@ function formatDate(iso: string) {
   }
 }
 
+function detectVideoType(video: VideoItem): 'short' | 'stream' | 'video' {
+  const text = `${video.title} ${video.description}`.toLowerCase();
+  if (/#shorts?\b|#ytshorts/i.test(text)) return 'short';
+  if (/#live\b|#stream\b|#livestream\b|live stream|going live/i.test(text)) return 'stream';
+  return 'video';
+}
+
 export default function Live() {
   const [data, setData] = useState<LiveData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
-  const [liveMode, setLiveMode] = useState(true); // true = show live embed, false = show selected video
+  const [liveMode, setLiveMode] = useState(true);
+  const [tab, setTab] = useState<VideoTab>('all');
+  const [page, setPage] = useState(1);
 
   const fetchData = async () => {
     setLoading(true);
@@ -68,11 +80,38 @@ export default function Live() {
     fetchData();
   }, []);
 
+  // Filter videos by tab
+  const filteredVideos = useMemo(() => {
+    if (!data) return [];
+    const sorted = [...data.videos].sort(
+      (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    );
+    if (tab === 'all') return sorted;
+    return sorted.filter((v) => detectVideoType(v) === tab);
+  }, [data, tab]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredVideos.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedVideos = filteredVideos.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Reset page when tab changes
+  const handleTabChange = (t: VideoTab) => {
+    setTab(t);
+    setPage(1);
+  };
+
   const currentEmbedUrl = liveMode
     ? data?.liveEmbedUrl
     : selectedVideo
       ? `${selectedVideo.embedUrl}&autoplay=0`
       : null;
+
+  const TAB_LABELS: { key: VideoTab; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'stream', label: 'Stream' },
+    { key: 'video', label: 'Video' },
+    { key: 'short', label: 'Shorts' },
+  ];
 
   return (
     <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-4 py-10 space-y-10">
@@ -198,7 +237,9 @@ export default function Live() {
                     <Clock size={11} /> {formatDate(selectedVideo.publishedAt)}
                   </span>
                   {selectedVideo.viewCount !== null && (
-                    <span>{selectedVideo.viewCount.toLocaleString('en-IN')} views</span>
+                    <span className="flex items-center gap-1.5">
+                      <Eye size={11} /> {selectedVideo.viewCount.toLocaleString('en-IN')} views
+                    </span>
                   )}
                   <a
                     href={selectedVideo.watchUrl}
@@ -238,41 +279,91 @@ export default function Live() {
               </button>
             </div>
 
-            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
-              {data.videos.map((video, i) => (
-                <motion.button
-                  key={video.videoId}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  onClick={() => { setSelectedVideo(video); setLiveMode(false); }}
-                  className={`w-full text-left p-3 rounded-2xl border transition-all group ${
-                    !liveMode && selectedVideo?.videoId === video.videoId
-                      ? 'border-amber-500/40 bg-amber-500/5'
-                      : 'border-zinc-800 bg-zinc-900/20 hover:border-zinc-700'
+            {/* Category tabs */}
+            <div className="flex gap-1 flex-wrap">
+              {TAB_LABELS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => handleTabChange(key)}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${
+                    tab === key
+                      ? 'bg-amber-500 text-black'
+                      : 'bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-amber-500/40 hover:text-zinc-300'
                   }`}
                 >
-                  <div className="flex gap-3">
-                    <div className="relative shrink-0 w-20 h-14 rounded-xl overflow-hidden bg-zinc-800">
-                      <img
-                        src={video.thumbnail}
-                        alt={video.title}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
-                        <Play size={16} className="text-white" />
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-zinc-200 text-xs font-medium line-clamp-2 leading-snug">{video.title}</p>
-                      <p className="text-zinc-600 text-[10px] mt-1 font-mono">{formatDate(video.publishedAt)}</p>
-                    </div>
-                  </div>
-                </motion.button>
+                  {label}
+                  {key === 'all' ? ` (${data.videos.length})` : ''}
+                </button>
               ))}
             </div>
+
+            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+              {pagedVideos.length === 0 ? (
+                <p className="text-zinc-600 text-xs text-center py-6">No {tab === 'all' ? 'videos' : tab + 's'} found</p>
+              ) : (
+                pagedVideos.map((video, i) => (
+                  <motion.button
+                    key={video.videoId}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    onClick={() => { setSelectedVideo(video); setLiveMode(false); }}
+                    className={`w-full text-left p-3 rounded-2xl border transition-all group ${
+                      !liveMode && selectedVideo?.videoId === video.videoId
+                        ? 'border-amber-500/40 bg-amber-500/5'
+                        : 'border-zinc-800 bg-zinc-900/20 hover:border-zinc-700'
+                    }`}
+                  >
+                    <div className="flex gap-3">
+                      <div className="relative shrink-0 w-20 h-14 rounded-xl overflow-hidden bg-zinc-800">
+                        <img
+                          src={video.thumbnail}
+                          alt={video.title}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                          <Play size={16} className="text-white" />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-zinc-200 text-xs font-medium line-clamp-2 leading-snug">{video.title}</p>
+                        <p className="text-zinc-600 text-[10px] mt-1 font-mono">{formatDate(video.publishedAt)}</p>
+                        {video.viewCount !== null && (
+                          <p className="text-zinc-600 text-[10px] font-mono flex items-center gap-1">
+                            <Eye size={9} /> {video.viewCount.toLocaleString('en-IN')} views
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </motion.button>
+                ))
+              )}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  ← Prev
+                </button>
+                <span className="text-[10px] font-mono text-zinc-600">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  Next →
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

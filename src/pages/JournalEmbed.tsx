@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Clock, Eye, Heart } from 'lucide-react';
+import { Clock, Eye, Heart, ExternalLink } from 'lucide-react';
 
 interface Journal {
   _id: string;
@@ -52,6 +52,8 @@ export default function JournalEmbed() {
     return <div className="min-h-screen bg-zinc-950 text-zinc-500 p-4">Loading…</div>;
   }
 
+  const journalUrl = `${window.location.origin}/journal/view/${id}`;
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-300 p-4 md:p-6">
       <article className="max-w-4xl mx-auto space-y-4">
@@ -74,6 +76,18 @@ export default function JournalEmbed() {
           />
         )}
       </article>
+
+      {/* Transparent go-to-journal button in bottom-right corner */}
+      <a
+        href={journalUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-4 right-4 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900/60 border border-zinc-700/40 text-zinc-400 hover:text-amber-500 hover:border-amber-500/40 text-xs font-mono transition-all backdrop-blur-sm"
+        title="Open full journal"
+      >
+        <ExternalLink size={12} />
+        Open
+      </a>
     </div>
   );
 }

@@ -183,6 +183,20 @@ module.exports = async (req, res) => {
       });
     }
 
+    // Check if the CDN returned a JSON error even with 200 status
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed.status === 'error' || parsed.ok === false || parsed.error) {
+        console.error('upload-image cdn returned error', text.slice(0, 400));
+        return json(res, 502, {
+          ok: false,
+          message: parsed.message || parsed.error || 'CDN upload failed',
+        });
+      }
+    } catch {
+      // not JSON – continue to URL extraction
+    }
+
     const fileUrl = extractFileUrl(text, slug);
 
     if (!fileUrl) {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clock, Eye, Heart, Share2, Code2, X, ChevronLeft, ChevronRight, Link2 } from 'lucide-react';
+import { Clock, Eye, Heart, Share2, Code2, X, ChevronLeft, ChevronRight, Link2, ArrowLeft } from 'lucide-react';
 import SEO from '../components/SEO';
 
 interface Journal {
@@ -64,6 +64,7 @@ function sanitizeImageUrl(value: string) {
 
 export default function JournalView() {
   const { id = '' } = useParams();
+  const navigate = useNavigate();
   const [journal, setJournal] = useState<Journal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -151,6 +152,14 @@ export default function JournalView() {
   return (
     <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 space-y-8">
       <SEO title={`${journal.title} | Journal`} description={journal.summary || 'Journal post'} route={`/journal/view/${id}`} />
+
+      {/* Go Back button */}
+      <button
+        onClick={() => navigate(-1)}
+        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-amber-500 hover:border-amber-500/40 text-sm font-bold transition-all"
+      >
+        <ArrowLeft size={14} /> Go Back
+      </button>
 
       <article className="space-y-6">
         <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wider text-zinc-500">

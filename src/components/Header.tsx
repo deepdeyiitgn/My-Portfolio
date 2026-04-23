@@ -153,7 +153,7 @@ export default function Header() {
                 </select>
               </div>
 
-              <div className="flex flex-col items-center gap-5 py-16">
+              <div className="flex flex-col items-center gap-2.5 py-8">
                 {NAV_LINKS.map((link, index) => (
                   <motion.div
                     key={link.path}
@@ -165,13 +165,13 @@ export default function Header() {
                       to={link.path}
                       className="group flex flex-col items-center"
                     >
-                      <span className={`text-3xl font-black tracking-tight transition-all duration-300 flex items-center gap-2 ${
+                      <span className={`text-xl font-black tracking-tight transition-all duration-300 flex items-center gap-2 ${
                         location.pathname === link.path
                           ? 'text-amber-500 scale-110'
                           : 'text-zinc-700 hover:text-amber-500'
                       } ${'isLive' in link && link.isLive ? '!text-red-500' : ''}`}>
                         {'isLive' in link && link.isLive && (
-                          <Radio size={20} className="animate-pulse" />
+                          <Radio size={16} className="animate-pulse" />
                         )}
                         {t(link.key)}
                       </span>

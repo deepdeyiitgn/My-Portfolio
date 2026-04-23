@@ -178,7 +178,7 @@ function JournalEditor({
   const [summary, setSummary] = useState(initial?.summary || '');
   const [content, setContent] = useState(initial?.content || '');
   const [images, setImages] = useState<string[]>(Array.isArray(initial?.images) ? initial.images : []);
-  const [imageLinksRaw, setImageLinksRaw] = useState((Array.isArray(initial?.images) ? initial.images : []).join('\n'));
+  const [singleLinkInput, setSingleLinkInput] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [categorySlug, setCategorySlug] = useState(initial?.categorySlug || '');
@@ -213,7 +213,6 @@ function JournalEditor({
   const mergeImages = (list: string[]) => {
     const merged = Array.from(new Set(list.map((i) => sanitizeImageUrl(i)).filter(Boolean)));
     setImages(merged);
-    setImageLinksRaw(merged.join('\n'));
   };
 
   useEffect(() => {
@@ -225,13 +224,16 @@ function JournalEditor({
 
   const isImageUrl = (value: string) => Boolean(sanitizeImageUrl(value));
 
-  const addLinksFromTextarea = () => {
-    const links = imageLinksRaw
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean);
-    const valid = links.filter((link) => isImageUrl(link) || link.includes('static.qlynk.me/f/'));
-    mergeImages([...images, ...valid]);
+  const addSingleLink = () => {
+    const link = singleLinkInput.trim();
+    if (!link) return;
+    if (!isImageUrl(link) && !link.includes('static.qlynk.me/f/')) {
+      setUploadError('Invalid image URL. Only JPG/PNG or static.qlynk.me/f/ links are supported.');
+      return;
+    }
+    setUploadError('');
+    mergeImages([...images, link]);
+    setSingleLinkInput('');
   };
 
   const fileToDataUrl = (file: File) =>
@@ -398,21 +400,28 @@ function JournalEditor({
           onDrop={handleDrop}
         >
           <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Journal Images (Optional)</label>
-          <textarea
-            value={imageLinksRaw}
-            onChange={(e) => setImageLinksRaw(e.target.value)}
-            rows={4}
-            placeholder="Paste image links (jpg/png), one per line..."
-            className={`${inputCls} resize-y text-xs`}
-          />
-          <div className="flex flex-wrap gap-2">
+
+          {/* One-at-a-time link input */}
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={singleLinkInput}
+              onChange={(e) => setSingleLinkInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSingleLink(); } }}
+              placeholder="Paste image link (jpg/png or static.qlynk.me/f/...)..."
+              className={`${inputCls} text-xs flex-1`}
+            />
             <button
               type="button"
-              onClick={addLinksFromTextarea}
-              className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 flex items-center gap-2`}
+              onClick={addSingleLink}
+              disabled={!singleLinkInput.trim()}
+              className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 flex items-center gap-2 disabled:opacity-40 shrink-0`}
             >
-              <ImagePlus size={14} /> Add Link Images
+              <ImagePlus size={14} /> Add
             </button>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -420,7 +429,7 @@ function JournalEditor({
               className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 flex items-center gap-2 disabled:opacity-50`}
             >
               {uploadingImage ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-              Upload One Image
+              Upload Photo
             </button>
             <button
               type="button"
@@ -439,7 +448,7 @@ function JournalEditor({
             onChange={handlePickImage}
           />
           <p className="text-[11px] text-zinc-600">
-            Supports JPG/PNG, one upload at a time. Drag-drop and clipboard paste are enabled.
+            Add one image at a time — unlimited per post. Supports file upload, URL link, drag-drop, and clipboard paste.
           </p>
           {uploadError && (
             <div className="flex items-start gap-2 p-3 bg-red-900/20 border border-red-800 rounded-xl text-red-400 text-xs">
