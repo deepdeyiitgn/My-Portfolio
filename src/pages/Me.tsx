@@ -4,7 +4,7 @@ import SEO from '../components/SEO';
 
 export default function Me() {
   return (
-    <div className="max-w-7xl mx-auto px-6 py-12 space-y-32">
+    <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 space-y-32">
       <SEO 
         title="Persona & Vision | Beyond the Code"
         description="Explore the personal side of Deep Dey: Visual storytelling through photography, video editing, and the disciplined vision of a JEE Advanced 2027 aspirant."

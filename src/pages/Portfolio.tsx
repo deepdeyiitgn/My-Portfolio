@@ -64,7 +64,7 @@ export default function Portfolio() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col items-center space-y-16">
+    <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 flex flex-col items-center space-y-16">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

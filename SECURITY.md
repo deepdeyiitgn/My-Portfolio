@@ -1,64 +1,100 @@
-# 🛡️ Security Policy & Architecture Guidelines
+# 🛡️ Security Policy
 
-Welcome to the central security policy for the **Deep Dey | Cinematic Portfolio & System Architecture**. Security, privacy, and system integrity are fundamental to the "Dark-Amber" ecosystem. This document outlines our vulnerability reporting protocols, supported versions, and architectural security standards.
+This document describes the security policy, supported versions, vulnerability reporting process, and architectural security posture for the **Deep Dey Portfolio & System Architecture** project.
 
 ---
 
 ## 🔒 Supported Versions
 
-We actively maintain and provide security updates for the current production architecture. Legacy versions (V1) are kept for archival purposes but do not receive active security patches.
-
-| Version Pipeline | Status | Maintenance Phase |
-| :--- | :--- | :--- |
-| **v2.x (Current - React/Vite)** | ✅ Actively Supported | Maintained with automated dependency scanning |
-| **v1.x (Legacy HTML/JS)** | ❌ Unsupported | Deprecated / Archival only |
+| Version | Status | Notes |
+| :--- | :---: | :--- |
+| **v3.x** (React 19 + Vite 6) | ✅ Actively Supported | Current production branch — receives all security patches |
+| **v2.x** (React 18 + Vite 5) | ⚠️ Limited | Critical patches only; migration to v3 recommended |
+| **v1.x** (Vanilla HTML/JS) | ❌ Unsupported | Deprecated and archived — no patches issued |
 
 ---
 
 ## 🚨 Reporting a Vulnerability
 
-**DO NOT report security vulnerabilities via public GitHub Issues.**
+> **⚠️ DO NOT open a public GitHub Issue for security vulnerabilities.**
 
-If you discover a security vulnerability within the portfolio ecosystem (including QuickLink routing, Transparent Clock API references, or Vercel edge configurations), please report it responsibly so we can patch it before public disclosure.
+Public disclosure before a patch is available puts all users at risk. Use the private reporting process below.
 
-### Contact Protocol:
-1. Send an email to the dedicated security node: **a@qlynk.me** or **team.deepdey@gmail.com**.
-2. Subject Line: `[SECURITY REPORT] <Brief Description of Vulnerability>`
-3. Please include:
-   - The exact URL or component where the vulnerability exists.
-   - A step-by-step description or Proof of Concept (PoC) to reproduce the issue.
-   - Your system environment details (Browser, OS).
+### Reporting Steps
 
-### Response Timeline:
-- **Acknowledgment:** Within 48 hours of your report.
-- **Triage & Assessment:** Within 7 days.
-- **Patch Deployment:** As per the severity matrix (Critical patches deployed within 24 hours).
+1. **Email** the security contact:
+   - Primary: **a@qlynk.me**
+   - Secondary: **team.deepdey@gmail.com**
+
+2. **Subject line format:**
+   ```
+   [SECURITY REPORT] <Short description> — <Severity: Critical/High/Medium/Low>
+   ```
+
+3. **Include in your report:**
+   - Affected URL, route, component, or API endpoint
+   - Step-by-step reproduction instructions (or a minimal PoC)
+   - Expected vs actual behavior
+   - Your environment (Browser, OS, Node version if applicable)
+   - CVSS score estimate if available (optional but appreciated)
+   - Any screenshots, logs, or HTTP request/response captures
+
+### Response Timeline
+
+| Phase | SLA |
+| :--- | :--- |
+| **Acknowledgment** | ≤ 48 hours |
+| **Triage & Severity Assessment** | ≤ 7 days |
+| **Patch (Critical — CVSS ≥ 9.0)** | ≤ 24 hours after triage |
+| **Patch (High — CVSS 7.0–8.9)** | ≤ 7 days after triage |
+| **Patch (Medium/Low — CVSS < 7.0)** | Next scheduled maintenance window |
+| **Public Disclosure** | After patch is deployed and verified |
 
 ---
 
 ## 🏗️ Architectural Security Posture
 
-As a stateless, client-side application built on React 18 and Vite, the attack surface is intentionally minimized. 
+### Attack Surface
 
-1. **No Backend Database:** This portfolio does not store, process, or transmit sensitive user data. Forms and routing are handled via secure, stateless webhooks or mailto triggers.
-2. **Edge Security (Vercel):** All deployments are shielded by Vercel's Edge Network, providing automatic DDoS mitigation, global HTTPS enforcement, and strict TLS configurations.
-3. **Dependency Scanning:** We utilize `npm audit` and GitHub Dependabot to ensure all third-party libraries (e.g., Framer Motion, react-pdf) are free from known CVEs.
-4. **Content Security Policy (CSP):** The application relies on external CDNs only for verified SVG assets and heavily sandbox-restricted iframes (e.g., Spotify widgets using `sandbox="allow-scripts allow-same-origin"`).
+This is primarily a **stateless, client-side React SPA** with a small number of Vercel serverless API routes. The attack surface is intentionally minimal by design.
+
+### Key Security Controls
+
+| Control | Implementation |
+| :--- | :--- |
+| **Authentication** | Cookie-based session (`dd_auth`) validated on every API write operation |
+| **Credential Isolation** | `SPACE_PASSWORD` and `MONGODB_URI` are server-side environment variables, never bundled in client code |
+| **Input Validation** | All image URLs validated via `sanitizeImageUrl()` (allowlist: `static.qlynk.me/f/`, `.png`, `.jpg`, `.jpeg`) |
+| **Base64 Validation** | Strict `[A-Za-z0-9+/=\n]+` regex for data URL decoding in upload proxy |
+| **CDN Error Handling** | Upload proxy detects CDN-level `status: "error"` responses even when HTTP status is 200 |
+| **Edge Security** | Vercel Edge Network provides automatic DDoS mitigation, global HTTPS enforcement, and TLS 1.3 |
+| **CI Validation** | GitHub Actions runs type-check and production build on every push and PR — see [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) |
+| **Dependency Scanning** | `npm audit` and GitHub Dependabot (weekly automated PRs) for known CVE detection |
+| **iframe Sandboxing** | Third-party embeds use strict `sandbox` attributes (`allow-scripts allow-same-origin`) |
+| **Slug Uniqueness** | Upload slugs include 6-char random hex suffix to prevent enumeration and 409 collisions |
+
+### Data Storage
+
+- **Journal & Category data:** MongoDB Atlas with connection string stored only in Vercel environment.
+- **Images:** Uploaded to `static.qlynk.me` via a server-side proxy. Raw `SPACE_PASSWORD` never reaches the browser.
+- **No PII stored client-side.** Session state uses session storage only for per-session like/view tracking.
 
 ---
 
 ## 🛑 Out of Scope
 
-The following domains and assets are managed by third parties and are **out of scope** for this vulnerability program:
-- `vercel.app` infrastructure vulnerabilities (Report directly to Vercel).
-- Issues within the underlying `react-pdf` web worker architecture (Unless it directly compromises this specific deployment).
-- Third-party widgets (e.g., 6klabs Spotify tracker, SimpleIcons CDN).
-- Social engineering, phishing, or physical security attacks against the author.
+The following are **not** in scope for this security program:
+
+- `vercel.app` infrastructure vulnerabilities → report to [Vercel Security](https://vercel.com/security)
+- Issues within `react-pdf` web worker internals (unless directly exploitable in this deployment)
+- Third-party widget vulnerabilities (Spotify, SimpleIcons CDN)
+- Social engineering, phishing, or physical attacks targeting the author
+- Rate limiting / brute-force on public read-only endpoints
 
 ---
 
 ## 📜 Safe Harbor
 
-We strongly support the open-source security community. If you conduct your research in good faith and adhere to this policy, we will consider your actions authorized. We will not initiate legal action or ask law enforcement to investigate you regarding activities that comply with these guidelines.
+If you conduct research in good faith and in accordance with this policy, we consider your actions authorized. We will not initiate legal action or involve law enforcement for research that complies with these guidelines.
 
-*Note: Due to the current academic hiatus (JEE Advanced 2027 Target), non-critical bug bounties or immediate structural overhauls are paused, but critical security disclosures will be prioritized and addressed immediately.*
+*Note: Due to the current academic hiatus (JEE Advanced 2027), non-critical bounties and structural overhauls are paused, but all security disclosures — regardless of severity — are prioritized and will receive a timely response.*

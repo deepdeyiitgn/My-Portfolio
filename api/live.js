@@ -81,7 +81,7 @@ module.exports = async (req, res) => {
       entryBlocks.push(match[1]);
     }
 
-    const videos = entryBlocks.slice(0, 15).map((entry) => {
+    const videos = entryBlocks.map((entry) => {
       const videoId = parseVideoId(entry);
       const title = extractTag(entry, 'title');
       const published = extractTag(entry, 'published');

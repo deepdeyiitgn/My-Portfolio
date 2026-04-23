@@ -29,7 +29,7 @@ const METHODOLOGY_CARDS = [
 
 export default function About() {
   return (
-    <div className="max-w-7xl mx-auto px-6 py-12 space-y-40">
+    <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 space-y-40">
       <SEO 
         title="Cinematic Biography & Methodology | Deep Dey"
         description="Born in Dharmanagar, Tripura. Scored 80%+ in Boards. Transitioned to CBSE at Golden Valley High School. Targeting IIT Kharagpur, IIT Kanpur, or IIT Gandhinagar (JEE 2027)."

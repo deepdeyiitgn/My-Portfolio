@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { BookOpen, ChevronLeft, ChevronRight, Clock, Tag, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, Clock, Tag, Loader2, AlertCircle, RefreshCw, Eye, Heart } from 'lucide-react';
 import SEO from '../components/SEO';
 
 interface JournalItem {
@@ -8,14 +9,14 @@ interface JournalItem {
   title: string;
   slug: string;
   summary: string;
-  content: string;
   categorySlug: string;
   categoryName: string;
   published: boolean;
   publishedAt: string | null;
   publishedAtIST: string | null;
-  createdAt: string;
   readMinutes: number;
+  likes?: number;
+  views?: number;
 }
 
 interface Category {
@@ -38,14 +39,15 @@ export default function Journal() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const fetchCategories = useCallback(async () => {
     try {
       const r = await fetch('/api/categories');
       const d = await r.json();
       if (d.ok) setCategories(d.categories);
-    } catch { /* ignore */ }
+    } catch {
+      // ignore
+    }
   }, []);
 
   const fetchJournals = useCallback(async (page = 1, catFilter = '') => {
@@ -86,7 +88,7 @@ export default function Journal() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-12 space-y-12">
+    <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 space-y-12">
       <SEO
         title="Build Journal | Deep Dey"
         description="Articles, build logs, and engineering notes from Deep Dey."
@@ -96,12 +98,11 @@ export default function Journal() {
       <div className="space-y-4">
         <h2 className="text-amber-500 font-mono tracking-[0.4em] uppercase text-[10px] font-black">Content Engine</h2>
         <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-white">JOURNAL.</h1>
-        <p className="text-zinc-500 max-w-2xl">
-          Articles, build logs, and engineering notes — published thoughts on systems, code, and building in public.
+        <p className="text-zinc-500 max-w-3xl">
+          Articles, build logs, and engineering notes — open any entry to view full content, share it, embed it, and react with likes.
         </p>
       </div>
 
-      {/* Category filters */}
       {categories.length > 0 && (
         <div className="flex flex-wrap gap-3">
           <button
@@ -130,14 +131,12 @@ export default function Journal() {
         </div>
       )}
 
-      {/* Loading */}
       {loading && (
         <div className="flex justify-center py-20">
           <Loader2 size={28} className="animate-spin text-amber-500" />
         </div>
       )}
 
-      {/* Error */}
       {!loading && error && (
         <div className="flex items-center gap-3 p-5 bg-red-900/20 border border-red-800 rounded-2xl text-red-400">
           <AlertCircle size={18} />
@@ -151,7 +150,6 @@ export default function Journal() {
         </div>
       )}
 
-      {/* Empty state */}
       {!loading && !error && journals.length === 0 && (
         <div className="text-center py-20 text-zinc-600 space-y-3">
           <BookOpen size={36} className="mx-auto opacity-30" />
@@ -159,17 +157,15 @@ export default function Journal() {
         </div>
       )}
 
-      {/* Journal list */}
       {!loading && journals.length > 0 && (
-        <section className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <section className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
           {journals.map((item, i) => (
             <motion.article
               key={item._id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
-              className="p-6 rounded-3xl border border-zinc-800 bg-zinc-900/20 space-y-4 hover:border-zinc-700 transition-all cursor-pointer"
-              onClick={() => setExpandedId(expandedId === item._id ? null : item._id)}
+              transition={{ delay: i * 0.03 }}
+              className="p-6 rounded-3xl border border-zinc-800 bg-zinc-900/20 space-y-4 hover:border-zinc-700 transition-all"
             >
               <div className="flex items-center gap-2 flex-wrap">
                 {item.categoryName && (
@@ -179,36 +175,40 @@ export default function Journal() {
                   </span>
                 )}
               </div>
+
               <h2 className="text-xl font-bold text-white tracking-tight">{item.title}</h2>
-              {item.summary && <p className="text-zinc-400 text-sm">{item.summary}</p>}
-              <div className="flex items-center gap-3 text-xs text-zinc-500 font-mono">
+              {item.summary && <p className="text-zinc-400 text-sm line-clamp-3">{item.summary}</p>}
+
+              <div className="grid grid-cols-2 gap-2 text-xs text-zinc-500 font-mono">
                 <span className="flex items-center gap-1">
-                  <Clock size={10} />
+                  <Clock size={10} /> {item.readMinutes} min read
+                </span>
+                <span className="flex items-center gap-1">
+                  <Heart size={10} /> {Number(item.likes || 0)} likes
+                </span>
+                <span className="flex items-center gap-1">
+                  <Eye size={10} /> {Number(item.views || 0)} views
+                </span>
+                <span>
                   {item.publishedAtIST
-                    ? item.publishedAtIST.slice(0, 16) + ' IST'
+                    ? item.publishedAtIST.slice(0, 10)
                     : item.publishedAt
                       ? new Date(item.publishedAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
                       : ''}
                 </span>
-                <span>{item.readMinutes} min read</span>
               </div>
 
-              {/* Expanded content */}
-              {expandedId === item._id && item.content && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="border-t border-zinc-800 pt-4 text-zinc-400 text-sm leading-relaxed whitespace-pre-wrap overflow-hidden"
-                >
-                  {item.content.slice(0, 1200)}{item.content.length > 1200 ? '…' : ''}
-                </motion.div>
-              )}
+              <Link
+                to={`/journal/view/${item._id}`}
+                className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-amber-500 text-black text-xs font-black uppercase tracking-wider hover:bg-amber-400 transition-colors"
+              >
+                Read Journal
+              </Link>
             </motion.article>
           ))}
         </section>
       )}
 
-      {/* Pagination */}
       {!loading && pagination.totalPages > 1 && (
         <div className="flex items-center justify-center gap-4 pt-4">
           <button

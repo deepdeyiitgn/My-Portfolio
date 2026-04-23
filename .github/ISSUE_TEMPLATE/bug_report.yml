@@ -1,42 +1,99 @@
-name: Bug report
+name: 🐛 Bug Report
 description: Report a reproducible bug in the portfolio project
 title: "[Bug]: "
-labels: ["bug"]
+labels: ["bug", "needs-triage"]
 body:
   - type: markdown
     attributes:
-      value: "Thanks for reporting a bug. Please provide enough detail to reproduce it."
+      value: |
+        Thank you for taking the time to report a bug. Please fill in all required fields to help us reproduce and fix the issue quickly.
+
+        > ⚠️ **Security vulnerabilities** must be reported privately via email — see [SECURITY.md](../SECURITY.md). Do NOT open a public issue.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight checklist
+      description: Please confirm these before submitting
+      options:
+        - label: I searched existing issues and this has not been reported before
+          required: true
+        - label: I reproduced the issue on the latest version of the site
+          required: true
+        - label: This is NOT a security vulnerability (I have read SECURITY.md)
+          required: true
+
+  - type: input
+    id: url
+    attributes:
+      label: Affected URL / Route
+      description: The exact page URL or route where the bug occurs
+      placeholder: "https://deepdey.vercel.app/journal or /live"
+    validations:
+      required: true
+
   - type: textarea
     id: description
     attributes:
-      label: Description
-      description: What happened?
-      placeholder: Describe the issue clearly.
+      label: Bug Description
+      description: A clear and concise description of what the bug is
+      placeholder: "When I click the 'Go Back' button on a journal page, the page does not navigate back — it stays on the same page."
     validations:
       required: true
+
   - type: textarea
     id: steps
     attributes:
-      label: Steps to reproduce
-      description: Provide exact steps.
+      label: Steps to Reproduce
+      description: Exact numbered steps to reproduce the issue
       placeholder: |
-        1. Go to ...
-        2. Click ...
-        3. See error ...
+        1. Navigate to /journal/view/some-id
+        2. Click the '← Go Back' button
+        3. Observe that nothing happens
     validations:
       required: true
+
   - type: textarea
     id: expected
     attributes:
-      label: Expected behavior
-      placeholder: What should happen?
+      label: Expected Behavior
+      description: What should happen?
+      placeholder: "The browser should navigate to the previous page in history."
     validations:
       required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happens?
+      placeholder: "The page stays on the same journal URL and the back button has no effect."
+    validations:
+      required: true
+
   - type: input
     id: environment
     attributes:
       label: Environment
-      description: Browser/OS/device details
-      placeholder: Chrome 135 on Windows 11
+      description: Browser name + version, Operating System, and device type
+      placeholder: "Chrome 124 on Windows 11 (Desktop) / Safari 17 on iPhone 15 (iOS)"
     validations:
       required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots / Screen Recording
+      description: Drag and drop images or a recording here (optional but very helpful)
+      placeholder: "Paste or drag images here..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other context — console errors, network logs, or related observations
+      placeholder: "Console shows: TypeError: Cannot read properties of undefined..."
+    validations:
+      required: false

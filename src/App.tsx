@@ -16,6 +16,8 @@ const Portfolio = lazy(() => import('./pages/Portfolio'));
 const Links = lazy(() => import('./pages/Links'));
 const Proof = lazy(() => import('./pages/Proof'));
 const Journal = lazy(() => import('./pages/Journal'));
+const JournalView = lazy(() => import('./pages/JournalView'));
+const JournalEmbed = lazy(() => import('./pages/JournalEmbed'));
 const Now = lazy(() => import('./pages/Now'));
 const LegalHub = lazy(() => import('./pages/LegalHub'));
 const Terms = lazy(() => import('./pages/Terms'));
@@ -84,6 +86,8 @@ function AnimatedRoutes() {
             <Route path="/links" element={<Links />} />
             <Route path="/proof" element={<Proof />} />
             <Route path="/journal" element={<Journal />} />
+            <Route path="/journal/view/:id" element={<JournalView />} />
+            <Route path="/journal/embed/:id" element={<JournalEmbed />} />
             <Route path="/now" element={<Now />} />
             <Route path="/legal" element={<LegalHub />} />
             <Route path="/terms" element={<Terms />} />

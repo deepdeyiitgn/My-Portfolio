@@ -5,14 +5,18 @@ import { Link } from 'react-router-dom';
 import TechGalaxy from '../components/TechGalaxy';
 import JourneyMarquee from '../components/JourneyMarquee';
 import SEO from '../components/SEO';
-import { timelineData } from '../data/timelineData';
+import { timelineData, type TimelineItem } from '../data/timelineData';
 import SocialProof from '../components/SocialProof';
 import { useLanguage } from '../context/LanguageContext';
+import { renderIcon } from '../utils/iconMap';
 
 export default function Home() {
   const [isHoverable, setIsHoverable] = useState(true);
   const currentYear = new Date().getFullYear();
   const { t } = useLanguage();
+
+  // Timeline — default is local data; replaced with MongoDB items when mode='custom'
+  const [activeTimeline, setActiveTimeline] = useState<TimelineItem[]>(timelineData);
 
   useEffect(() => {
     // Detect if device has a precise pointing device (mouse)
@@ -22,6 +26,30 @@ export default function Home() {
     const handler = (e: MediaQueryListEvent) => setIsHoverable(e.matches);
     mediaQuery.addEventListener('change', handler);
     return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
+  // Fetch timeline mode & custom items on mount
+  useEffect(() => {
+    fetch('/api/timeline')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.ok && d.mode === 'custom' && Array.isArray(d.items) && d.items.length > 0) {
+          const converted: TimelineItem[] = d.items.map(
+            (item: { _id: string; year: number; dateStr: string; title: string; school: string; description: string; iconName: string; iconSize: number }, idx: number) => ({
+              id: idx + 1,
+              year: item.year,
+              dateStr: item.dateStr,
+              title: item.title,
+              school: item.school,
+              description: item.description,
+              icon: renderIcon(item.iconName, item.iconSize),
+            })
+          );
+          setActiveTimeline(converted);
+        }
+        // If default mode or fetch empty → keep local timelineData
+      })
+      .catch(() => { /* keep default */ });
   }, []);
 
   return (
@@ -49,7 +77,7 @@ export default function Home() {
         }}
       />
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 items-center gap-12">
+      <section className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 grid md:grid-cols-2 items-center gap-12">
         <motion.div
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
@@ -89,7 +117,7 @@ export default function Home() {
           whileInView={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1, ease: "easeOut" }}
           viewport={{ once: true, amount: 0.4 }}
-          className="relative group"
+          className="relative group max-w-[500px] mx-auto"
         >
           <div className="absolute -inset-4 bg-amber-500/20 rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity"></div>
           <div className="relative overflow-hidden rounded-[2rem] border-2 border-amber-500/30 aspect-square max-w-[450px] mx-auto shadow-2xl">
@@ -118,7 +146,7 @@ export default function Home() {
         initial={{ opacity: 0, y: 50 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
-        className="max-w-7xl mx-auto px-6"
+        className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6"
       >
         <TechGalaxy />
       </motion.section>
@@ -144,7 +172,7 @@ export default function Home() {
         <div className="absolute left-1/2 md:left-1/2 w-0.5 bg-zinc-900 h-full -translate-x-1/2 z-0 hidden md:block opacity-50"></div>
 
         <div className="space-y-24">
-          {timelineData.map((item, index) => {
+          {activeTimeline.map((item, index) => {
             const isActive = currentYear === item.year;
             
             return (
@@ -214,7 +242,7 @@ export default function Home() {
         initial={{ opacity: 0, y: 50 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
-        className="max-w-7xl mx-auto px-6 py-20"
+        className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-20"
       >
         <div className="relative group overflow-hidden bg-zinc-900/30 border border-zinc-800 rounded-[3rem] p-12 md:p-24 text-center space-y-10">
           {/* Background Glow */}
@@ -269,7 +297,7 @@ export default function Home() {
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.3 }}
-        className="max-w-7xl mx-auto px-6 pb-20"
+        className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 pb-20"
       >
         <div className="relative overflow-hidden bg-zinc-950 border border-zinc-900 rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent pointer-events-none" />
