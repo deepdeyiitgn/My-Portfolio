@@ -54,7 +54,8 @@ function sanitizeImageUrl(value: string) {
   try {
     const parsed = new URL(raw);
     if (!['http:', 'https:'].includes(parsed.protocol)) return '';
-    if (parsed.hostname === 'static.qlynk.me' && /^\/f\//.test(parsed.pathname)) return parsed.toString();
+    // 👇 YAHAN BHI DONO DOMAIN ALLOW KAR DE 👇
+    if ((parsed.hostname === 'static.qlynk.me' || parsed.hostname === 'deydeep-static-files.hf.space') && /^\/f\//.test(parsed.pathname)) return parsed.toString();
     if (/\.(png|jpe?g)(\?.*)?$/i.test(parsed.toString())) return parsed.toString();
     return '';
   } catch {
