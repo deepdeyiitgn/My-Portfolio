@@ -5,14 +5,18 @@ import { Link } from 'react-router-dom';
 import TechGalaxy from '../components/TechGalaxy';
 import JourneyMarquee from '../components/JourneyMarquee';
 import SEO from '../components/SEO';
-import { timelineData } from '../data/timelineData';
+import { timelineData, type TimelineItem } from '../data/timelineData';
 import SocialProof from '../components/SocialProof';
 import { useLanguage } from '../context/LanguageContext';
+import { renderIcon } from '../utils/iconMap';
 
 export default function Home() {
   const [isHoverable, setIsHoverable] = useState(true);
   const currentYear = new Date().getFullYear();
   const { t } = useLanguage();
+
+  // Timeline — default is local data; replaced with MongoDB items when mode='custom'
+  const [activeTimeline, setActiveTimeline] = useState<TimelineItem[]>(timelineData);
 
   useEffect(() => {
     // Detect if device has a precise pointing device (mouse)
@@ -22,6 +26,30 @@ export default function Home() {
     const handler = (e: MediaQueryListEvent) => setIsHoverable(e.matches);
     mediaQuery.addEventListener('change', handler);
     return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
+  // Fetch timeline mode & custom items on mount
+  useEffect(() => {
+    fetch('/api/timeline')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.ok && d.mode === 'custom' && Array.isArray(d.items) && d.items.length > 0) {
+          const converted: TimelineItem[] = d.items.map(
+            (item: { _id: string; year: number; dateStr: string; title: string; school: string; description: string; iconName: string; iconSize: number }, idx: number) => ({
+              id: idx + 1,
+              year: item.year,
+              dateStr: item.dateStr,
+              title: item.title,
+              school: item.school,
+              description: item.description,
+              icon: renderIcon(item.iconName, item.iconSize),
+            })
+          );
+          setActiveTimeline(converted);
+        }
+        // If default mode or fetch empty → keep local timelineData
+      })
+      .catch(() => { /* keep default */ });
   }, []);
 
   return (
@@ -144,7 +172,7 @@ export default function Home() {
         <div className="absolute left-1/2 md:left-1/2 w-0.5 bg-zinc-900 h-full -translate-x-1/2 z-0 hidden md:block opacity-50"></div>
 
         <div className="space-y-24">
-          {timelineData.map((item, index) => {
+          {activeTimeline.map((item, index) => {
             const isActive = currentYear === item.year;
             
             return (
