@@ -1,7 +1,7 @@
 import { motion } from 'motion/react';
 import { useParams, Link } from 'react-router-dom';
 import { projectsData } from '../data/projectsData';
-import { ExternalLink, Github, ArrowLeft, ShieldAlert, Layers, BarChart3, Workflow } from 'lucide-react';
+import { ExternalLink, Github, ArrowLeft, ShieldAlert, Layers, BarChart3, Workflow, Image as ImageIcon } from 'lucide-react';
 import SEO from '../components/SEO';
 
 export default function ProjectDetail() {
@@ -132,28 +132,45 @@ export default function ProjectDetail() {
         </div>
 
           {/* Interactive Case Study */}
+          {/* Right Side Info & Live Screenshot */}
           <div className="space-y-8">
+            
+            {/* SCREENSHOT SECTION */}
             <div className="relative group">
               <div className="absolute -inset-2 bg-amber-500/20 blur-2xl rounded-[3rem] opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div className="relative bg-zinc-900 border border-zinc-800 rounded-[3rem] overflow-hidden aspect-[16/10] shadow-2xl p-8 flex flex-col justify-between">
-                <div className="flex items-center gap-3 text-zinc-400 text-xs uppercase tracking-widest">
-                  <Workflow size={16} className="text-amber-500" />
-                  Architecture Layers
+              <div className="relative bg-zinc-900 border border-zinc-800 rounded-[3rem] overflow-hidden shadow-2xl p-4">
+                <div className="flex items-center gap-3 text-zinc-400 text-xs uppercase tracking-widest px-4 pb-4 pt-2">
+                  <ImageIcon size={16} className="text-amber-500" /> Live Platform Preview
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {project.architectureLayers.map((layer) => (
-                    <div key={layer} className="px-3 py-2 rounded-xl border border-zinc-800 bg-zinc-950/60 text-xs text-zinc-300">
-                      {layer}
+                <div className="rounded-[2rem] overflow-hidden bg-zinc-950 aspect-[16/10] border border-zinc-800 flex items-center justify-center relative">
+                  {(project as any).screenshotUrl ? (
+                    <img src={(project as any).screenshotUrl} alt={`${project.title} Preview`} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-zinc-600 flex flex-col items-center gap-2">
+                      <ImageIcon size={32} className="opacity-50" />
+                      <span className="text-xs font-mono uppercase text-center px-4">Preview offline<br/>(Will generate automatically via Dashboard)</span>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
 
+            {/* Architecture Layers */}
             <div className="p-8 bg-zinc-900/30 border border-zinc-800 rounded-[2rem] space-y-4">
               <h3 className="text-sm font-bold text-zinc-300 uppercase tracking-widest flex items-center gap-2">
-                <BarChart3 size={16} className="text-amber-500" />
-                Measurable Outcomes
+                <Workflow size={16} className="text-amber-500" /> Architecture Layers
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {project.architectureLayers.map((layer) => (
+                  <div key={layer} className="px-3 py-2 rounded-xl border border-zinc-800 bg-zinc-950/60 text-xs text-zinc-300">{layer}</div>
+                ))}
+              </div>
+            </div>
+
+            {/* Measurable Outcomes */}
+            <div className="p-8 bg-zinc-900/30 border border-zinc-800 rounded-[2rem] space-y-4">
+              <h3 className="text-sm font-bold text-zinc-300 uppercase tracking-widest flex items-center gap-2">
+                <BarChart3 size={16} className="text-amber-500" /> Measurable Outcomes
               </h3>
               <div className="space-y-3">
                 {project.metrics.map((metric) => (
