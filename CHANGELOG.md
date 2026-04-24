@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [3.1.5] — 2026-04-24 [LAST]
 
 ### Added
 - `.github/workflows/ci.yml` — GitHub Actions CI pipeline (type-check + build on every push/PR)
@@ -18,6 +18,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `.env.example` — Corrected description of `SPACE_PASSWORD` (it is the CDN upload credential, not only a dashboard password)
 
 ---
+
+## [Unreleased]
+
+### Added
+- **Dynamic Projects Dashboard:** Added a fully functional "Projects" tab in the admin dashboard to manage portfolio ecosystem directly via MongoDB. Includes a live split-screen visual and JSON preview.
+- **3-Layer Auto-Screenshot Architecture:** Engineered a highly resilient serverless screenshot generator to bypass Vercel timeouts and Cloudflare bot-protections:
+  - **Layer 1:** Google PageSpeed Insights API (Official Google servers for 0% CAPTCHA block and high compression).
+  - **Layer 2:** Site-Shot API with Global Geolocation Proxies (Brazil/Tokyo) to bypass regional blocks.
+  - **Layer 3:** Thum.io API with massive rotating human-like headers as a fail-safe raw image fallback.
+- **Default vs Custom Ecosystem Mode:** Added a global toggle to seamlessly switch between static file-based projects (`projectsData.ts`) and dynamic MongoDB-driven projects.
+- **Smart Client-Side Image Formatting:** Added CSS-based `object-fit` handling on the frontend to automatically stretch or crop heavily portrait screenshots into perfect 16:10 landscape preview cards.
+
+### Changed
+- Transitioned serverless architecture to Node.js 22 (`engines` updated).
+- Optimized Vercel deployment by shifting from heavy local headless browsers to lightweight Cloud APIs, eliminating 502 memory crashes.
+
+### Removed
+- Removed `@sparticuz/chromium` to reduce build size and prevent Vercel 10-second timeout limits.
+
+---
+
 
 ## [3.1.0] — 2026-04-09
 
