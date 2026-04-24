@@ -82,7 +82,7 @@ async function takeScreenshotWithRetry(url, maxRetries = 1) {
       console.error(`Screenshot attempt ${attempt + 1} failed for ${url}:`, error.message);
       
       if (attempt === maxRetries) {
-        throw new Error(`Target is too heavy or blocking bots. Please try again or use default mode.`);
+        throw new Error(`Browser Crash Info: ${error.message}`);
       }
       attempt++;
     }
