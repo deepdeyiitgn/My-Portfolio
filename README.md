@@ -75,6 +75,14 @@ The milestone timeline uses `new Date().getFullYear()` to auto-highlight the cur
 ### 🌍 12-Language i18n
 Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · JA · KO · ZH via a custom React Context provider.
 
+### 🚀 Key Features of New Dashboard
+
+* **Advanced Project Ecosystem:** Manage portfolio projects through a custom dashboard. Switch seamlessly between static data files and a dynamic MongoDB database.
+* **Overpowered Screenshot Bot:** A custom 3-Layer backend architecture that automatically captures live website screenshots. 
+  * Uses Google's PageSpeed API, Global Geo-Proxies, and rotating Human-Agent headers to completely bypass bot protection (Cloudflare, CAPTCHAs) and Vercel's strict serverless timeout limits.
+* **Smart UI Previews:** Auto-crops and formats dynamic Base64 images directly on the client side to maintain perfect aspect ratios without overloading the backend.
+
+
 ---
 
 ## 🛠️ Technology Stack
