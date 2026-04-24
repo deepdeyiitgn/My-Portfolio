@@ -38,7 +38,7 @@ const HUMAN_HEADERS = [
 ];
 
 // ─── PUPPETEER RETRY MECHANISM (Robust Error Handling) ───
-async function takeScreenshotWithRetry(url, maxRetries = 2) {
+async function takeScreenshotWithRetry(url, maxRetries = 1) {
   let attempt = 0;
   
   while (attempt <= maxRetries) {
@@ -48,7 +48,13 @@ async function takeScreenshotWithRetry(url, maxRetries = 2) {
       
       // Browser launch setup optimized for serverless Vercel
       browser = await puppeteer.launch({
-        args: isLocal ? puppeteer.defaultArgs() : [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
+        args: isLocal ? puppeteer.defaultArgs() : [
+          ...chromium.args, 
+          '--no-sandbox', 
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage', // Memory crash se bachayega
+          '--single-process' // Vercel me fast start hoga
+        ],
         defaultViewport: chromium.defaultViewport,
         executablePath: await chromium.executablePath(),
         headless: chromium.headless,
@@ -62,14 +68,11 @@ async function takeScreenshotWithRetry(url, maxRetries = 2) {
       const randomHeader = HUMAN_HEADERS[Math.floor(Math.random() * HUMAN_HEADERS.length)];
       await page.setExtraHTTPHeaders(randomHeader);
       
-      // Load page - wait until network is mostly quiet (JS executed)
-      await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
+      // FAST LOAD: 'networkidle2' ki jagah 'load' kiya, timeout thoda kam kiya
+      await page.goto(url, { waitUntil: 'load', timeout: 12000 });
       
-      // Buffer time for JS animations or lazy-loaded images to pop in
-      await new Promise(r => setTimeout(r, 1500));
-      
-      // Capture screenshot
-      const screenshotBuffer = await page.screenshot({ type: 'jpeg', quality: 80 });
+      // Capture screenshot directly
+      const screenshotBuffer = await page.screenshot({ type: 'jpeg', quality: 70 }); // Quality thodi kam ki for speed
       await browser.close();
 
       return `data:image/jpeg;base64,${screenshotBuffer.toString('base64')}`;
@@ -79,11 +82,9 @@ async function takeScreenshotWithRetry(url, maxRetries = 2) {
       console.error(`Screenshot attempt ${attempt + 1} failed for ${url}:`, error.message);
       
       if (attempt === maxRetries) {
-        throw new Error(`Failed to take screenshot after ${maxRetries + 1} attempts. Target might be blocking bots or timing out.`);
+        throw new Error(`Target is too heavy or blocking bots. Please try again or use default mode.`);
       }
       attempt++;
-      // Wait 1 second before retrying
-      await new Promise(r => setTimeout(r, 1000));
     }
   }
 }
