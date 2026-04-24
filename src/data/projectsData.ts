@@ -36,6 +36,7 @@ export const projectsData: Project[] = [
       { label: 'UI Flow Steps', value: '2-step sharing' },
     ],
     architectureLayers: ['Frontend SPA', 'URL Processing', 'QR Utility', 'SEO Layer'],
+    screenshotUrl: '/69eb00ccd24c4d75c62cc04c.png'
   },
   {
     id: 'studybot',
@@ -56,6 +57,7 @@ export const projectsData: Project[] = [
       { label: 'Community Fit', value: 'Student-first' },
     ],
     architectureLayers: ['Bot Commands', 'Task Scheduler', 'Reminder Engine', 'Community Layer'],
+    screenshotUrl: '/69eb01deef048160b7374d68.png'
   },
   {
     id: 'transparent-clock',
@@ -76,6 +78,7 @@ export const projectsData: Project[] = [
       { label: 'Core Utilities', value: '3+' },
     ],
     architectureLayers: ['WPF UI', 'Session Tracking', 'Local Storage', 'Utility Integrations'],
+    screenshotUrl: '/69eb01798f30a15224010404.png' 
   },
   {
     id: 'qlynk-node-server',
@@ -96,5 +99,6 @@ export const projectsData: Project[] = [
       { label: 'Core Scope', value: 'Media vault + streaming' },
     ],
     architectureLayers: ['API Gateway', 'Storage Layer', 'Ingestion Bot', 'Security Policies'],
+    screenshotUrl: '/69eb02bff3d3b01f6326a557.jpg' 
   },
 ];
