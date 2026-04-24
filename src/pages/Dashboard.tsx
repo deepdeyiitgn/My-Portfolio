@@ -564,6 +564,20 @@ function JournalEditor({
   );
 }
 
+// ── Screenshot Validation Helper ──────────────────────────────────────────────
+const validateScreenshotUrl = (url: string) => {
+  if (!url) return false;
+  // Base64 valid hai
+  if (url.startsWith('data:image/')) return true;
+
+  // QLYNK CDN ke liye extension bypass
+  const isMyCDN = url.includes('static.qlynk.me') || url.includes('deydeep-static-files.hf.space');
+  if (isMyCDN) return true;
+
+  // Baaki links ke liye image extension check
+  return /\.(jpg|jpeg|png|webp|avif|gif|svg)$/i.test(url);
+};
+
 // ── Timeline Card Preview (mirrors Home.tsx timeline card exactly) ────────────
 
 function TimelineCardPreview({
@@ -853,6 +867,42 @@ function ProjectEditor({
     }
   };
 
+// 👇 YAHAN SE NAYA CODE ADD KRNA HAI 👇
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Target 16:10 ratio (Desktop View preview ke liye)
+        canvas.width = 1280;
+        canvas.height = 800;
+
+        if (ctx) {
+          // Cover & Top align (Portrait image ko top se landscape me fit karne ke liye)
+          const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+          const x = (canvas.width / 2) - (img.width / 2) * scale;
+          const y = 0; 
+          
+          ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+          
+          // Compress with 70% quality to save DB space
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+          updateField('screenshotUrl', compressedBase64); // Form data update
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // Reset input
+  };
+  // 👆 YAHAN TAK 👆
+  
   const handleSubmit = async () => {
     if (!formData.title || !formData.id) return;
     setSaving(true);
@@ -883,14 +933,43 @@ function ProjectEditor({
           <input value={formData.title} onChange={(e) => updateField('title', e.target.value)} className={inputCls} placeholder="Project Title" />
         </div>
 
+        {/* Live URL */}
         <div className="space-y-1">
-          <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Live URL (For Screenshot & Link)</label>
-          <div className="flex gap-2">
-            <input value={formData.liveUrl} onChange={(e) => updateField('liveUrl', e.target.value)} className={`${inputCls} flex-1`} placeholder="https://..." />
-            <button type="button" onClick={generateScreenshot} disabled={generatingScreenshot || !formData.liveUrl} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-amber-500/20 hover:text-amber-500 disabled:opacity-50 flex items-center gap-2`}>
-              {generatingScreenshot ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />} Auto-Capture
-            </button>
+          <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Live URL</label>
+          <input value={formData.liveUrl} onChange={(e) => updateField('liveUrl', e.target.value)} className={inputCls} placeholder="https://project.com" />
+        </div>
+
+        {/* Screenshot Control Center */}
+        <div className="space-y-2 p-3 border border-zinc-800 rounded-xl bg-zinc-900/30">
+          <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Screenshot (Auto / Upload / Manual)</label>
+          <div className="flex flex-col xl:flex-row gap-2">
+            <input
+              type="text"
+              placeholder="Paste Base64 or Image URL..."
+              className={`${inputCls} flex-1`}
+              value={formData.screenshotUrl || ''}
+              onChange={(e) => updateField('screenshotUrl', e.target.value)}
+            />
+            <div className="flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={generateScreenshot}
+                disabled={generatingScreenshot || !formData.liveUrl}
+                className={`${btnCls} bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 flex items-center gap-1 disabled:opacity-50`}
+              >
+                {generatingScreenshot ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />} Auto
+              </button>
+              <label className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 cursor-pointer flex items-center gap-1`}>
+                <Upload size={14} /> Upload
+                <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
+              </label>
+            </div>
           </div>
+          {formData.screenshotUrl && !validateScreenshotUrl(formData.screenshotUrl) && (
+            <p className="text-red-400 text-[10px] flex items-center gap-1">
+              <AlertCircle size={10} /> Warning: URL must have extension (unless using QLYNK CDN)
+            </p>
+          )}
         </div>
 
         <div className="space-y-1">
