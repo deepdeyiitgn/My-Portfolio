@@ -1,8 +1,7 @@
-const puppeteer = require('puppeteer-core');
-const chromium = require('@sparticuz/chromium');
+// api/projects.js
 const { MongoClient, ObjectId } = require('mongodb');
 
-// ─── MONGODB CACHING (Vercel connection limits bachane ke liye) ───
+// --- MONGODB CACHING ---
 let cachedDb = null;
 async function connectToDatabase() {
   if (cachedDb) return cachedDb;
@@ -14,84 +13,70 @@ async function connectToDatabase() {
   return cachedDb;
 }
 
-// ─── ANTI-BOT HEADERS (Rotating headers for stealth) ───
-const HUMAN_HEADERS = [
+// --- CLOUD SCREENSHOT API (Best-Effort with Rotating Headers) ---
+// We cannot guarantee bypassing all CAPTCHAs, but dynamic headers help.
+const HUMAN_HEADERS_FOR_MICROLINK = [
+  // 1. Common Chrome on Windows
   {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
     'Accept-Language': 'en-US,en;q=0.9',
     'Sec-Fetch-Dest': 'document',
     'Sec-Fetch-Mode': 'navigate',
     'Sec-Fetch-Site': 'none',
     'Upgrade-Insecure-Requests': '1'
   },
+  // 2. Common Chrome on Mac
   {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15',
-    'Accept-Language': 'en-GB,en;q=0.9',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate'
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+    'Accept-Language': 'en-GB,en;q=0.9'
   },
+  // 3. Firefox on Linux
   {
-    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0',
+    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0',
     'Accept-Language': 'en-IN,en;q=0.5',
     'Sec-Fetch-Dest': 'document'
+  },
+  // 4. Googlebot (Human-like behavior is better, but bots are often white-listed)
+  {
+    'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+  },
+  // 5. Common Mobile Chrome (Android)
+  {
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36'
   }
 ];
 
-// ─── PUPPETEER RETRY MECHANISM (Robust Error Handling) ───
-async function takeScreenshotWithRetry(url, maxRetries = 1) {
-  let attempt = 0;
-  
-  while (attempt <= maxRetries) {
-    let browser = null;
-    try {
-      const isLocal = process.env.NODE_ENV === 'development';
-      
-      // Browser launch setup optimized for serverless Vercel
-      browser = await puppeteer.launch({
-        args: isLocal ? puppeteer.defaultArgs() : [
-          ...chromium.args, 
-          '--no-sandbox', 
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage', // Memory crash se bachayega
-          '--single-process' // Vercel me fast start hoga
-        ],
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
-        ignoreHTTPSErrors: true,
-      });
-
-      const page = await browser.newPage();
-      await page.setViewport({ width: 1280, height: 800 });
-      
-      // Inject human headers
-      const randomHeader = HUMAN_HEADERS[Math.floor(Math.random() * HUMAN_HEADERS.length)];
-      await page.setExtraHTTPHeaders(randomHeader);
-      
-      // FAST LOAD: 'networkidle2' ki jagah 'load' kiya, timeout thoda kam kiya
-      await page.goto(url, { waitUntil: 'load', timeout: 12000 });
-      
-      // Capture screenshot directly
-      const screenshotBuffer = await page.screenshot({ type: 'jpeg', quality: 70 }); // Quality thodi kam ki for speed
-      await browser.close();
-
-      return `data:image/jpeg;base64,${screenshotBuffer.toString('base64')}`;
-      
-    } catch (error) {
-      if (browser) await browser.close().catch(() => {}); // Ensure browser is closed on crash
-      console.error(`Screenshot attempt ${attempt + 1} failed for ${url}:`, error.message);
-      
-      if (attempt === maxRetries) {
-        throw new Error(`Browser Crash Info: ${error.message}`);
-      }
-      attempt++;
+// ─── CLOUD SCREENSHOT API (Bypasses Vercel Limits & Auto-Crops) ───
+async function takeScreenshot(url) {
+  try {
+    // Thum.io API: No API key needed, bypasses most bot checks, 
+    // and automatically crops portrait sites to landscape!
+    // width/1280 aur crop/800 ka matlab hai ye perfectly 16:10 desktop view nikalega.
+    const apiUrl = `https://image.thum.io/get/width/1280/crop/800/noanimate/${url}`;
+    
+    const response = await fetch(apiUrl);
+    
+    if (!response.ok) {
+      throw new Error(`Thum.io API failed with status ${response.status}`);
     }
+    
+    // Fetch image data directly
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    
+    // Convert to Base64 (Compressed JPEG format from Thum.io)
+    const base64Image = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+    
+    return base64Image;
+  } catch (error) {
+    console.error("Screenshot API Error:", error.message);
+    throw new Error(`Screenshot Failed: Target site might be offline or strictly blocking access.`);
   }
 }
 
-// ─── MAIN API HANDLER ───
+// --- MAIN API HANDLER ---
 module.exports = async (req, res) => {
-  // CORS Handling (optional but safe)
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
@@ -104,7 +89,7 @@ module.exports = async (req, res) => {
       if (!url) return res.status(400).json({ ok: false, message: 'Live URL is required for screenshot' });
 
       try {
-        const base64Image = await takeScreenshotWithRetry(url, 2); // Tries up to 3 times total
+        const base64Image = await takeScreenshotWithRotatedHeaders(url);
         return res.status(200).json({ ok: true, image: base64Image });
       } catch (screenshotError) {
         return res.status(500).json({ ok: false, message: screenshotError.message });
