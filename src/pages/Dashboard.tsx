@@ -868,7 +868,7 @@ function ProjectEditor({
   };
 
 // 👇 YAHAN SE NAYA CODE ADD KRNA HAI 👇
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
