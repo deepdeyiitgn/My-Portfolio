@@ -1,0 +1,36 @@
+name: Secure Stealth Ping
+
+on:
+  schedule:
+    # Har 4 ghante mein trigger hoga (Randomness logic iske andar handle hogi)
+    - cron: '0 */4 * * *' 
+  workflow_dispatch: # Manual testing ke liye option
+
+jobs:
+  stealth_ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Cryptographic Random Delay
+        run: |
+          # 1 se 14400 seconds (4 hours) ke beech random delay calculate karega
+          # openssl ka use karke pattern-less randomness generate ho rahi hai
+          DELAY=$(( ( $(printf "%d" "0x$(openssl rand -hex 2)") % 14400 ) + 1 ))
+          echo "Waiting for $DELAY seconds before pinging..."
+          sleep $DELAY
+
+      - name: First Ping - Homepage
+        run: |
+          # Real browser User-Agent ke saath homepage ping
+          curl -I -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36" \
+          https://deepdey.vercel.app/
+
+      - name: Second Ping - API FAQs
+        run: |
+          # 5-10 seconds ka gap taaki natural lage
+          sleep $(( ( $(printf "%d" "0x$(openssl rand -hex 1)") % 6 ) + 5 ))
+          
+          # Direct API hit taaki MongoDB connection active rahe
+          curl -s -o /dev/null -I -w "Status: %{http_code}" -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" \
+          https://deepdey.vercel.app/api/faqs
+
+ # This code is the final Code edit of this project, at 1:00pm  24th April 2026, Friday!
