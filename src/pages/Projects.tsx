@@ -2,7 +2,7 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { projectsData } from '../data/projectsData';
 import { ExternalLink, ArrowRight } from 'lucide-react';
-import ProjectPlaceholder from '../components/ProjectPlaceholder';
+// import ProjectPlaceholder from '../components/ProjectPlaceholder';
 import SEO from '../components/SEO';
 
 export default function Projects() {
@@ -54,14 +54,8 @@ export default function Projects() {
             
             <div className="flex flex-col h-full space-y-6 relative z-10">
               <div className="flex justify-between items-start">
-                <div className="w-16 h-16 bg-zinc-950 rounded-2xl border border-zinc-800 group-hover:border-amber-500/30 transition-colors overflow-hidden">
-                  <ProjectPlaceholder 
-                    iconType={
-                      project.id === 'quicklink' ? 'globe' : 
-                      project.id === 'studybot' ? 'cpu' : 
-                      project.id === 'transparent-clock' ? 'layout' : 'server'
-                    } 
-                  />
+                <div className="w-16 h-16 bg-zinc-950 rounded-2xl border border-zinc-800 p-2 group-hover:border-amber-500/30 transition-colors overflow-hidden flex items-center justify-center">
+                  <img src={project.logoUrl} alt={project.title} className="w-full h-full object-contain" />
                 </div>
                 <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-600 bg-zinc-950 px-3 py-1 rounded-full border border-zinc-900">
                   {project.category}
