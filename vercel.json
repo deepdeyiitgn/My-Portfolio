@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "api/projects.js": {
-      "maxDuration": 60
-    }
-  },
   "rewrites": [
     {
       "source": "/sitemap.xml",
@@ -25,8 +20,7 @@
       "source": "/(.*)/",
       "destination": "/index.html"
     }   
-  ]
-},
+  ],
   "redirects": [
     {
       "source": "/insta",
