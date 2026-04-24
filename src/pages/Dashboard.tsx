@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Lock, LogIn, Eye, EyeOff, Plus, Trash2, Edit3, Send, X,
   ChevronLeft, ChevronRight, LogOut, Tag, BookOpen, Settings,
-  ToggleLeft, ToggleRight, Clock, Loader2, AlertCircle, CheckCircle2, Upload, ImagePlus, Clipboard,
+  ToggleLeft, ToggleRight, Clock, Loader2, AlertCircle, CheckCircle2, Upload, ImagePlus, Clipboard, Layers
 } from 'lucide-react';
 import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
@@ -36,7 +36,27 @@ interface Journal {
   images?: string[];
 }
 
-type Tab = 'journals' | 'categories' | 'settings' | 'journey';
+type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects';
+
+// ── Projects types ────────────────────────────────────────────────────────────
+export interface ProjectDB {
+  _id?: string;
+  id: string;
+  title: string;
+  shortDescription: string;
+  fullDescription: string;
+  techStack: string[];
+  liveUrl: string;
+  githubUrl?: string;
+  logoUrl: string;
+  category: string;
+  problem: string;
+  solution: string;
+  impact: string;
+  metrics: Array<{ label: string; value: string }>;
+  architectureLayers: string[];
+  screenshotUrl?: string;
+}
 
 // ── Journey (Timeline) types ──────────────────────────────────────────────────
 
@@ -771,8 +791,194 @@ function JourneyEditor({
   );
 }
 
-// ── Main Dashboard Component ──────────────────────────────────────────────────
 
+// ── Project Editor ────────────────────────────────────────────────────────────
+
+function ProjectEditor({
+  initial,
+  onSave,
+  onCancel,
+}: {
+  initial?: Partial<ProjectDB>;
+  onSave: (data: Omit<ProjectDB, '_id'>) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [formData, setFormData] = useState<Partial<ProjectDB>>({
+    id: initial?.id || '',
+    title: initial?.title || '',
+    shortDescription: initial?.shortDescription || '',
+    fullDescription: initial?.fullDescription || '',
+    techStack: initial?.techStack || [],
+    liveUrl: initial?.liveUrl || '',
+    githubUrl: initial?.githubUrl || '',
+    logoUrl: initial?.logoUrl || '',
+    category: initial?.category || '',
+    problem: initial?.problem || '',
+    solution: initial?.solution || '',
+    impact: initial?.impact || '',
+    metrics: initial?.metrics || [{ label: 'Metric', value: 'Value' }],
+    architectureLayers: initial?.architectureLayers || [],
+    screenshotUrl: initial?.screenshotUrl || '',
+  });
+
+  const [saving, setSaving] = useState(false);
+  const [generatingScreenshot, setGeneratingScreenshot] = useState(false);
+  const [techInput, setTechInput] = useState('');
+  const [layerInput, setLayerInput] = useState('');
+
+  const updateField = (field: keyof ProjectDB, value: any) => setFormData((prev) => ({ ...prev, [field]: value }));
+
+  const generateScreenshot = async () => {
+    if (!formData.liveUrl) {
+      alert("Please enter a Live URL first!");
+      return;
+    }
+    setGeneratingScreenshot(true);
+    try {
+      const r = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'screenshot', url: formData.liveUrl }),
+      });
+      const d = await r.json();
+      if (d.ok && d.image) {
+        updateField('screenshotUrl', d.image);
+      } else {
+        alert(d.message || "Failed to capture screenshot. Site might be blocking bots.");
+      }
+    } catch (err) {
+      alert("Network error while generating screenshot.");
+    } finally {
+      setGeneratingScreenshot(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.title || !formData.id) return;
+    setSaving(true);
+    try {
+      await onSave(formData as Omit<ProjectDB, '_id'>);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-6 items-start">
+      {/* ── Form Left Side ── */}
+      <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Project ID (URL slug) *</label>
+            <input value={formData.id} onChange={(e) => updateField('id', e.target.value.toLowerCase())} className={inputCls} placeholder="my-project" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Category</label>
+            <input value={formData.category} onChange={(e) => updateField('category', e.target.value)} className={inputCls} placeholder="SaaS / Tool" />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Title *</label>
+          <input value={formData.title} onChange={(e) => updateField('title', e.target.value)} className={inputCls} placeholder="Project Title" />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Live URL (For Screenshot & Link)</label>
+          <div className="flex gap-2">
+            <input value={formData.liveUrl} onChange={(e) => updateField('liveUrl', e.target.value)} className={`${inputCls} flex-1`} placeholder="https://..." />
+            <button type="button" onClick={generateScreenshot} disabled={generatingScreenshot || !formData.liveUrl} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-amber-500/20 hover:text-amber-500 disabled:opacity-50 flex items-center gap-2`}>
+              {generatingScreenshot ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />} Auto-Capture
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+           <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Logo URL</label>
+           <input value={formData.logoUrl} onChange={(e) => updateField('logoUrl', e.target.value)} className={inputCls} placeholder="https://..." />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Short Description</label>
+          <input value={formData.shortDescription} onChange={(e) => updateField('shortDescription', e.target.value)} className={inputCls} />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Full Architecture Description</label>
+          <textarea value={formData.fullDescription} onChange={(e) => updateField('fullDescription', e.target.value)} rows={3} className={inputCls} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+           <div className="space-y-1">
+             <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Problem Solved</label>
+             <textarea value={formData.problem} onChange={(e) => updateField('problem', e.target.value)} rows={2} className={inputCls} />
+           </div>
+           <div className="space-y-1">
+             <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Solution</label>
+             <textarea value={formData.solution} onChange={(e) => updateField('solution', e.target.value)} rows={2} className={inputCls} />
+           </div>
+        </div>
+
+        {/* Arrays (Tech Stack & Layers) simplified for this editor */}
+        <div className="space-y-1">
+          <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Tech Stack (comma separated)</label>
+          <input value={formData.techStack?.join(', ')} onChange={(e) => updateField('techStack', e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} className={inputCls} placeholder="React, Node.js, MongoDB" />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Architecture Layers (comma separated)</label>
+          <input value={formData.architectureLayers?.join(', ')} onChange={(e) => updateField('architectureLayers', e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} className={inputCls} placeholder="API Gateway, Storage Layer" />
+        </div>
+
+        <div className="flex gap-3 pt-4 border-t border-zinc-800">
+          <button onClick={onCancel} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700`}>Cancel</button>
+          <button onClick={handleSubmit} disabled={saving || !formData.title || !formData.id} className={`${btnCls} bg-amber-500 text-black hover:bg-amber-400 flex items-center gap-2 disabled:opacity-50`}>
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {initial?._id ? 'Update Project' : 'Add Project'}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Live Preview Right Side ── */}
+      <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar">
+        <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest flex items-center gap-2 border-b border-zinc-800 pb-2">
+          <Eye size={12} /> Live Preview Card & JSON
+        </p>
+        
+        {/* Visual Card Preview */}
+        <div className="bg-zinc-900/40 border border-zinc-800 rounded-[2rem] p-6 space-y-4 relative">
+            <div className="flex justify-between items-start">
+              <div className="w-12 h-12 bg-zinc-950 rounded-xl border border-zinc-800 p-2 overflow-hidden flex items-center justify-center">
+                {formData.logoUrl ? <img src={formData.logoUrl} alt="logo" className="w-full h-full object-contain" /> : <div className="text-zinc-600 text-xs text-center leading-tight font-mono">No Logo</div>}
+              </div>
+              <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-500 bg-zinc-950 px-2 py-1 rounded-full border border-zinc-800">{formData.category || 'Category'}</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">{formData.title || 'Project Title'}</h3>
+              <p className="text-zinc-500 text-xs mt-1">{formData.shortDescription || 'Short description will appear here...'}</p>
+            </div>
+            {formData.screenshotUrl && (
+              <div className="mt-4 rounded-xl overflow-hidden border border-zinc-800 aspect-video relative">
+                  <img src={formData.screenshotUrl} alt="Screenshot" className="w-full h-full object-cover" />
+                  <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[8px] uppercase tracking-widest text-emerald-400 border border-emerald-500/20 font-bold flex items-center gap-1">
+                    <CheckCircle2 size={10} /> Auto-Captured
+                  </div>
+              </div>
+            )}
+        </div>
+
+        {/* JSON Preview */}
+        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
+           <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-2">Raw JSON Data</p>
+           <pre className="text-[10px] font-mono text-zinc-400 overflow-x-auto whitespace-pre-wrap">
+             {JSON.stringify(formData, null, 2)}
+           </pre>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Dashboard Component ──────────────────────────────────────────────────
 export default function Dashboard() {
   const [authenticated, setAuthenticated] = useState<null | boolean>(null); // null = loading
   const [password, setPassword] = useState('');
@@ -804,6 +1010,14 @@ export default function Dashboard() {
   const [savingJourneyMode, setSavingJourneyMode] = useState(false);
   const [journeyEditorMode, setJourneyEditorMode] = useState<'none' | 'create' | 'edit'>('none');
   const [editingJourneyItem, setEditingJourneyItem] = useState<TimelineItemDB | null>(null);
+
+  // ── Projects state ──────────────────────────────────────────────────────
+  const [projectMode, setProjectMode] = useState<'default' | 'custom'>('default');
+  const [projects, setProjects] = useState<ProjectDB[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [savingProjectMode, setSavingProjectMode] = useState(false);
+  const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | 'edit'>('none');
+  const [editingProject, setEditingProject] = useState<ProjectDB | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -841,6 +1055,20 @@ export default function Dashboard() {
     finally { setLoadingJourney(false); }
   }, []);
 
+  // ── Fetch projects data ─────────────────────────────────────────────────
+  const fetchProjectsData = useCallback(async () => {
+    setLoadingProjects(true);
+    try {
+      const r = await fetch('/api/projects');
+      const d = await r.json();
+      if (d.ok) {
+        setProjectMode(d.mode === 'custom' ? 'custom' : 'default');
+        setProjects(Array.isArray(d.items) ? d.items : []);
+      }
+    } catch { /* ignore */ }
+    finally { setLoadingProjects(false); }
+  }, []);
+
   // ── Fetch journals ──────────────────────────────────────────────────────
   const fetchJournals = useCallback(async (page = 1, catFilter = '') => {
     setLoadingJournals(true);
@@ -864,6 +1092,7 @@ export default function Dashboard() {
       fetchCategories();
       fetchJournals(1, filterCategory);
       fetchJourneyData();
+      fetchProjectsData(); // <-- YE LINE ADD KARO
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated]);
@@ -1031,6 +1260,45 @@ export default function Dashboard() {
     else showToast(d.message || 'Error', 'error');
   };
 
+  // ── Project handlers ────────────────────────────────────────────────────
+  const handleProjectModeChange = async (newMode: 'default' | 'custom') => {
+    setSavingProjectMode(true);
+    try {
+      const r = await fetch('/api/projects', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: newMode }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        setProjectMode(newMode);
+        showToast(`Projects switched to ${newMode === 'custom' ? 'Custom' : 'Default'}`);
+        if (newMode === 'custom') fetchProjectsData();
+      } else showToast(d.message || 'Error', 'error');
+    } catch { showToast('Network error', 'error'); } 
+    finally { setSavingProjectMode(false); }
+  };
+
+  const handleProjectSave = async (data: Omit<ProjectDB, '_id'>) => {
+    const isEdit = projectEditorMode === 'edit' && editingProject;
+    const method = isEdit ? 'PUT' : 'POST';
+    const body = isEdit ? { ...data, _id: editingProject!._id } : data;
+    const r = await fetch('/api/projects', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (d.ok) {
+      showToast(isEdit ? 'Project updated!' : 'Project added!');
+      setProjectEditorMode('none'); setEditingProject(null); fetchProjectsData();
+    } else throw new Error(d.message);
+  };
+
+  const handleProjectDelete = async (id: string) => {
+    if (!confirm('Delete this project?')) return;
+    const r = await fetch(`/api/projects?id=${id}`, { method: 'DELETE' });
+    const d = await r.json();
+    if (d.ok) { showToast('Project deleted'); fetchProjectsData(); }
+    else showToast(d.message || 'Error', 'error');
+  };
+
   // ── Loading state ───────────────────────────────────────────────────────
   if (authenticated === null) {
     return (
@@ -1132,6 +1400,7 @@ export default function Dashboard() {
         {[
           { label: 'Total Journals', value: journalTotal },
           { label: 'Published', value: journals.filter((j) => j.published).length },
+          { label: 'Ecosystem', value: projectMode === 'custom' ? projects.length : 'Default' }, // <-- YE NAYA HAI
           { label: 'Drafts', value: journals.filter((j) => !j.published).length },
           { label: 'Categories', value: categories.length },
         ].map((stat) => (
@@ -1146,6 +1415,7 @@ export default function Dashboard() {
       <div className="flex gap-2 border-b border-zinc-800 pb-0 overflow-x-auto">
         {([
           { id: 'journals', label: 'Journals', icon: <BookOpen size={14} /> },
+          { id: 'projects', label: 'Projects', icon: <Layers size={14} /> }, // <-- YE NAYA TAB HAI
           { id: 'categories', label: 'Categories', icon: <Tag size={14} /> },
           { id: 'journey', label: 'Journey', icon: <Clock size={14} /> },
           { id: 'settings', label: 'Settings', icon: <Settings size={14} /> },
@@ -1312,6 +1582,79 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ── Projects Tab ─────────────────────────────────────────────────── */}
+      {tab === 'projects' && (
+        <div className="space-y-6">
+          {/* Mode Toggle */}
+          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-4">
+             <div>
+               <h3 className="text-white font-bold text-base">Ecosystem Source</h3>
+               <p className="text-zinc-500 text-xs mt-1">Default (File) vs Custom (MongoDB)</p>
+             </div>
+             <div className="flex gap-3">
+               <button onClick={() => handleProjectModeChange('default')} disabled={savingProjectMode} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold border transition-all ${projectMode === 'default' ? 'bg-amber-500/10 border-amber-500 text-amber-500' : 'bg-zinc-900 border-zinc-700 text-zinc-400'}`}>Default (File)</button>
+               <button onClick={() => handleProjectModeChange('custom')} disabled={savingProjectMode} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold border transition-all ${projectMode === 'custom' ? 'bg-amber-500/10 border-amber-500 text-amber-500' : 'bg-zinc-900 border-zinc-700 text-zinc-400'}`}>Custom (MongoDB)</button>
+             </div>
+          </div>
+
+          {projectMode === 'custom' && (
+             <div className="space-y-4">
+               {projectEditorMode === 'none' ? (
+                 <>
+                   <div className="flex items-center gap-3">
+                     <button onClick={() => { setProjectEditorMode('create'); setEditingProject(null); }} className={`${btnCls} bg-amber-500 text-black hover:bg-amber-400 flex items-center gap-2`}><Plus size={14}/> Add Project</button>
+                     <button onClick={fetchProjectsData} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700`}>Refresh</button>
+                   </div>
+                   
+                   {loadingProjects ? (
+                     <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-amber-500" /></div>
+                   ) : projects.length === 0 ? (
+                     <div className="text-center py-16 text-zinc-600 bg-zinc-900/20 border border-zinc-800 rounded-2xl">
+                       <Layers size={32} className="mx-auto mb-3 opacity-40" />
+                       <p className="text-sm">No custom projects yet.</p>
+                     </div>
+                   ) : (
+                     <div className="space-y-3">
+                       {projects.map(p => (
+                         <div key={p._id} className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition-all flex justify-between items-center gap-4">
+                           <div className="flex gap-4 items-center min-w-0">
+                             <div className="w-12 h-12 bg-zinc-950 rounded-xl overflow-hidden p-2 border border-zinc-800 shrink-0">
+                               {p.logoUrl ? <img src={p.logoUrl} className="w-full h-full object-contain" /> : <Layers className="w-full h-full text-zinc-700 p-1"/>}
+                             </div>
+                             <div className="min-w-0">
+                               <p className="text-white font-bold text-base truncate">{p.title}</p>
+                               <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest">{p.category}</p>
+                             </div>
+                           </div>
+                           <div className="flex gap-2 shrink-0">
+                             <button onClick={() => { setProjectEditorMode('edit'); setEditingProject(p); }} className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-400 transition-colors"><Edit3 size={16} /></button>
+                             <button onClick={() => handleProjectDelete(p._id!)} className="p-2 hover:bg-red-900/30 rounded-xl text-zinc-600 hover:text-red-400 transition-colors"><Trash2 size={16} /></button>
+                           </div>
+                         </div>
+                       ))}
+                     </div>
+                   )}
+                 </>
+               ) : (
+                 <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => { setProjectEditorMode('none'); setEditingProject(null); }} className="p-2 rounded-xl hover:bg-zinc-800 text-zinc-400"><ChevronLeft size={18} /></button>
+                      <h2 className="text-white font-bold text-lg">{projectEditorMode === 'create' ? 'New Project' : `Editing: ${editingProject?.title}`}</h2>
+                    </div>
+                    <ProjectEditor initial={editingProject || undefined} onSave={handleProjectSave} onCancel={() => setProjectEditorMode('none')} />
+                 </div>
+               )}
+             </div>
+          )}
+
+          {projectMode === 'default' && (
+            <div className="bg-zinc-900/20 border border-zinc-800 rounded-2xl p-6 text-center">
+              <p className="text-zinc-500 text-sm">Showing default projects from <code className="text-amber-500/70 bg-black/50 px-1 rounded">src/data/projectsData.ts</code>.<br/> Switch to Custom to edit and add screenshots dynamically.</p>
+            </div>
+          )}
+        </div>
+      )}
+      
       {/* ── Categories Tab ───────────────────────────────────────────────── */}
       {tab === 'categories' && (
         <div className="space-y-6 max-w-xl">
