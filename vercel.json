@@ -1,8 +1,7 @@
 {
   "functions": {
-    "api/**/*.js": {
-      "maxDuration": 60,
-      "memory": 1024
+    "api/projects.js": {
+      "maxDuration": 60
     }
   },
 {
