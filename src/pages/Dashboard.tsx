@@ -230,7 +230,9 @@ function JournalEditor({
     setCategoryName(cat?.name || '');
   };
 
-  const readMinutes = Math.max(1, Math.ceil((content.trim().split(/\s+/).length) / 200));
+  // Naya logic: 110 words per minute ke hisaab se realistic reading time
+  const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
+  const readMinutes = Math.max(1, Math.ceil(wordCount / 110));
 
   const sanitizeImageUrl = (value: string) => {
     const raw = value.trim();
