@@ -298,16 +298,25 @@ export default function Journal() {
       )}
 {/* FILTER & SORT MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-md max-h-[85vh] flex flex-col">
-            <div className="flex justify-between items-center mb-6">
+        // Mobile pe bottom se attach hoga (justify-end), Desktop pe center (sm:justify-center)
+        <div className="fixed inset-0 z-[100] flex items-center justify-end sm:justify-center bg-black/80 backdrop-blur-sm sm:p-4">
+          
+          <div className="bg-zinc-900 border border-zinc-800 sm:rounded-3xl rounded-t-3xl p-6 w-full max-w-md max-h-[85vh] sm:h-auto flex flex-col animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 duration-200">
+            
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6 shrink-0">
               <h3 className="text-xl font-bold text-white">Filter & Sort</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white p-1 transition-colors">
-                <X size={20} />
+              <button 
+                onClick={() => setIsModalOpen(false)} 
+                className="text-zinc-400 hover:text-white p-2 bg-zinc-800/50 rounded-full transition-colors"
+              >
+                <X size={18} />
               </button>
             </div>
             
-            <div className="overflow-y-auto custom-scrollbar pr-2 flex-1 space-y-8">
+            {/* Scrollable Middle Content */}
+            <div className="overflow-y-auto custom-scrollbar pr-2 flex-1 space-y-8 min-h-0">
+              
               {/* Sort Options */}
               <div>
                 <h4 className="text-[10px] font-mono text-amber-500 tracking-widest uppercase mb-3">Sort By</h4>
@@ -322,10 +331,10 @@ export default function Journal() {
                     <button
                       key={opt.id}
                       onClick={() => setTempSortBy(opt.id)}
-                      className={`p-3 rounded-xl text-xs uppercase tracking-wider border transition-all ${
+                      className={`p-3 rounded-xl text-[11px] sm:text-xs uppercase tracking-wider border transition-all ${
                         tempSortBy === opt.id 
-                          ? 'bg-amber-500 text-black border-amber-500 font-bold' 
-                          : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-600'
+                          ? 'bg-amber-500 text-black border-amber-500 font-bold shadow-[0_0_15px_rgba(245,158,11,0.2)]' 
+                          : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700'
                       }`}
                     >
                       {opt.label}
@@ -334,10 +343,28 @@ export default function Journal() {
                 </div>
               </div>
 
-              {/* Multiple Categories */}
-              <div>
-                <h4 className="text-[10px] font-mono text-amber-500 tracking-widest uppercase mb-3">Categories (Multi-Select)</h4>
-                <div className="flex flex-wrap gap-2">
+              {/* Multiple Categories with internal scrolling */}
+              <div className="flex flex-col h-full pb-2">
+                <h4 className="text-[10px] font-mono text-amber-500 tracking-widest uppercase mb-3 shrink-0">
+                  Categories (Multi-Select)
+                </h4>
+                
+                {/* Specific scroll area for tags */}
+                <div className="flex flex-wrap gap-2 max-h-[35vh] overflow-y-auto custom-scrollbar p-1">
+                  
+                  {/* "All" Option */}
+                  <button
+                    onClick={() => setTempCategories([])}
+                    className={`px-4 py-2.5 rounded-xl text-xs transition-all border ${
+                      tempCategories.length === 0 
+                        ? 'bg-amber-500 text-black border-amber-500 font-bold shadow-[0_0_10px_rgba(245,158,11,0.2)]' 
+                        : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700'
+                    }`}
+                  >
+                    All Categories
+                  </button>
+
+                  {/* Fetched Categories */}
                   {categories.map((cat) => (
                     <button
                       key={cat._id}
@@ -348,10 +375,10 @@ export default function Journal() {
                           setTempCategories([...tempCategories, cat.slug]);
                         }
                       }}
-                      className={`px-4 py-2 rounded-xl text-xs transition-colors border ${
+                      className={`px-4 py-2.5 rounded-xl text-xs transition-all border ${
                         tempCategories.includes(cat.slug) 
                           ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 font-bold' 
-                          : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-600'
+                          : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700'
                       }`}
                     >
                       {cat.name}
@@ -362,30 +389,32 @@ export default function Journal() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3 pt-6 mt-2 border-t border-zinc-800 shrink-0">
+            <div className="flex gap-3 pt-5 mt-2 border-t border-zinc-800 shrink-0">
               <button
                 onClick={() => {
                   setTempCategories([]);
                   setTempSortBy('recent');
                 }}
-                className="flex-1 py-3 rounded-xl border border-zinc-700 text-zinc-300 text-xs font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors"
+                className="flex-[1] py-3.5 rounded-xl border border-zinc-700 text-zinc-300 text-[11px] sm:text-xs font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors"
               >
-                Clear All
+                Clear
               </button>
               <button
                 onClick={() => {
                   setFilterCategories(tempCategories);
                   setSortBy(tempSortBy);
                   setIsModalOpen(false);
-                  fetchJournals(1, tempCategories, tempSortBy); // Apply karne pe API call chalega!
+                  fetchJournals(1, tempCategories, tempSortBy); 
                 }}
-                className="flex-1 py-3 rounded-xl bg-amber-500 text-black text-xs font-bold uppercase tracking-widest hover:bg-amber-400 transition-colors"
+                className="flex-[2] py-3.5 rounded-xl bg-amber-500 text-black text-[11px] sm:text-xs font-bold uppercase tracking-widest hover:bg-amber-400 transition-colors shadow-[0_0_20px_rgba(245,158,11,0.2)]"
               >
                 Apply Filters
               </button>
             </div>
+
           </div>
         </div>
+      )}
       )}      
     </div>
   );
