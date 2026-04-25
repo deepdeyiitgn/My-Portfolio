@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { BookOpen, ChevronLeft, ChevronRight, Clock, Tag, Loader2, AlertCircle, RefreshCw, Eye, Heart } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, Clock, Tag, Loader2, AlertCircle, RefreshCw, Eye, Heart, X } from 'lucide-react';
 import SEO from '../components/SEO';
 
 interface JournalItem {
@@ -38,24 +38,41 @@ export default function Journal() {
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filterCategory, setFilterCategory] = useState('');
+
+  // Naye States: Filter aur Sort ke liye
+  const [filterCategories, setFilterCategories] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState('recent');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Modal ke andar use hone wale temp states (jab tak Apply na ho)
+  const [tempCategories, setTempCategories] = useState<string[]>([]);
+  const [tempSortBy, setTempSortBy] = useState('recent');
+  const [quickCategories, setQuickCategories] = useState<Category[]>([]);
 
   const fetchCategories = useCallback(async () => {
     try {
       const r = await fetch('/api/categories');
       const d = await r.json();
-      if (d.ok) setCategories(d.categories);
+      if (d.ok) {
+        setCategories(d.categories);
+        // Randomly 3-4 categories pick karna quick filter ke liye
+        const shuffled = [...d.categories].sort(() => 0.5 - Math.random());
+        setQuickCategories(shuffled.slice(0, 4));
+      }
     } catch {
       // ignore
     }
   }, []);
 
-  const fetchJournals = useCallback(async (page = 1, catFilter = '') => {
+  const fetchJournals = useCallback(async (page = 1, catsFilter: string[] = [], sortParam = 'recent') => {
     setLoading(true);
     setError('');
     try {
       const params = new URLSearchParams({ page: String(page), limit: '20', published: 'true' });
-      if (catFilter) params.set('category', catFilter);
+      if (catsFilter.length > 0) {
+        params.set('categories', catsFilter.join(','));
+      }
+      params.set('sort', sortParam);
       const r = await fetch(`/api/journal?${params.toString()}`);
       const d = await r.json();
       if (d.ok) {
@@ -77,13 +94,25 @@ export default function Journal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleCategoryChange = (slug: string) => {
-    setFilterCategory(slug);
-    fetchJournals(1, slug);
+  useEffect(() => {
+    fetchCategories();
+    fetchJournals(1, [], 'recent');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleQuickCategoryToggle = (slug: string) => {
+    let newCats;
+    if (filterCategories.includes(slug)) {
+      newCats = filterCategories.filter(c => c !== slug); // Remove if selected
+    } else {
+      newCats = [...filterCategories, slug]; // Add if not selected
+    }
+    setFilterCategories(newCats);
+    fetchJournals(1, newCats, sortBy);
   };
 
   const handlePageChange = (newPage: number) => {
-    fetchJournals(newPage, filterCategory);
+    fetchJournals(newPage, filterCategories, sortBy);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -104,23 +133,26 @@ export default function Journal() {
       </div>
 
       {categories.length > 0 && (
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={() => handleCategoryChange('')}
+            onClick={() => {
+              setFilterCategories([]);
+              fetchJournals(1, [], sortBy);
+            }}
             className={`px-4 py-2 rounded-full text-xs uppercase tracking-widest border transition-colors ${
-              filterCategory === ''
+              filterCategories.length === 0
                 ? 'bg-amber-500 text-black border-amber-500'
                 : 'bg-zinc-900/20 text-zinc-400 border-zinc-800 hover:border-amber-500/40'
             }`}
           >
             All
           </button>
-          {categories.map((cat) => (
+          {quickCategories.map((cat) => (
             <button
               key={cat._id}
-              onClick={() => handleCategoryChange(cat.slug)}
+              onClick={() => handleQuickCategoryToggle(cat.slug)}
               className={`px-4 py-2 rounded-full text-xs uppercase tracking-widest border transition-colors ${
-                filterCategory === cat.slug
+                filterCategories.includes(cat.slug)
                   ? 'bg-amber-500 text-black border-amber-500'
                   : 'bg-zinc-900/20 text-zinc-400 border-zinc-800 hover:border-amber-500/40'
               }`}
@@ -128,6 +160,17 @@ export default function Journal() {
               {cat.name}
             </button>
           ))}
+          
+          <button
+            onClick={() => {
+              setTempCategories(filterCategories);
+              setTempSortBy(sortBy);
+              setIsModalOpen(true);
+            }}
+            className="px-4 py-2 rounded-full flex items-center gap-2 text-xs uppercase tracking-widest border bg-zinc-800 text-white border-zinc-700 hover:bg-zinc-700 transition-colors ml-auto"
+          >
+            <Tag size={12} /> Filters & Sort
+          </button>
         </div>
       )}
 
@@ -142,7 +185,7 @@ export default function Journal() {
           <AlertCircle size={18} />
           <span className="text-sm">{error}</span>
           <button
-            onClick={() => fetchJournals(pagination.page, filterCategory)}
+            onClick={() => fetchJournals(pagination.page, filterCategories, sortBy)}
             className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-red-800/30 rounded-xl text-xs hover:bg-red-800/50 transition-colors"
           >
             <RefreshCw size={12} /> Retry
@@ -253,6 +296,97 @@ export default function Journal() {
           Showing {journals.length} of {pagination.total} entries · Page {pagination.page} of {pagination.totalPages}
         </p>
       )}
+{/* FILTER & SORT MODAL */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-md max-h-[85vh] flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-white">Filter & Sort</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white p-1 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="overflow-y-auto custom-scrollbar pr-2 flex-1 space-y-8">
+              {/* Sort Options */}
+              <div>
+                <h4 className="text-[10px] font-mono text-amber-500 tracking-widest uppercase mb-3">Sort By</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'recent', label: 'Most Recent' },
+                    { id: 'old', label: 'Oldest' },
+                    { id: 'most-liked', label: 'Most Liked' },
+                    { id: 'most-viewed', label: 'Most Viewed' },
+                    { id: 'relevant', label: 'Relevant (Random)' }
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => setTempSortBy(opt.id)}
+                      className={`p-3 rounded-xl text-xs uppercase tracking-wider border transition-all ${
+                        tempSortBy === opt.id 
+                          ? 'bg-amber-500 text-black border-amber-500 font-bold' 
+                          : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-600'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Multiple Categories */}
+              <div>
+                <h4 className="text-[10px] font-mono text-amber-500 tracking-widest uppercase mb-3">Categories (Multi-Select)</h4>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat._id}
+                      onClick={() => {
+                        if (tempCategories.includes(cat.slug)) {
+                          setTempCategories(tempCategories.filter(c => c !== cat.slug));
+                        } else {
+                          setTempCategories([...tempCategories, cat.slug]);
+                        }
+                      }}
+                      className={`px-4 py-2 rounded-xl text-xs transition-colors border ${
+                        tempCategories.includes(cat.slug) 
+                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 font-bold' 
+                          : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-600'
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-6 mt-2 border-t border-zinc-800 shrink-0">
+              <button
+                onClick={() => {
+                  setTempCategories([]);
+                  setTempSortBy('recent');
+                }}
+                className="flex-1 py-3 rounded-xl border border-zinc-700 text-zinc-300 text-xs font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors"
+              >
+                Clear All
+              </button>
+              <button
+                onClick={() => {
+                  setFilterCategories(tempCategories);
+                  setSortBy(tempSortBy);
+                  setIsModalOpen(false);
+                  fetchJournals(1, tempCategories, tempSortBy); // Apply karne pe API call chalega!
+                }}
+                className="flex-1 py-3 rounded-xl bg-amber-500 text-black text-xs font-bold uppercase tracking-widest hover:bg-amber-400 transition-colors"
+              >
+                Apply Filters
+              </button>
+            </div>
+          </div>
+        </div>
+      )}      
     </div>
   );
 }
