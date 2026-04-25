@@ -414,8 +414,7 @@ export default function Journal() {
 
           </div>
         </div>
-      )}
-      )}      
+      )}     
     </div>
   );
 }
