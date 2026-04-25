@@ -73,9 +73,9 @@ function slugify(str) {
 
 function estimateReadMinutes(body) {
   const words = (body || '').trim().split(/\s+/).filter(Boolean).length;
-  return Math.max(1, Math.ceil(words / 200));
+  // Dashboard ki tarah backend me bhi realistic read time 110 words/minute
+  return Math.max(1, Math.ceil(words / 110));
 }
-
 function nowIST() {
   return new Date().toLocaleString('en-IN', {
     timeZone: 'Asia/Kolkata',
@@ -156,20 +156,52 @@ module.exports = async (req, res) => {
 
       const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
       const limit = Math.min(20, Math.max(1, parseInt(getParam(req, 'limit') || '20', 10)));
-      const categoryParam = getParam(req, 'category');
       const onlyPublished = !isAuthenticated(req);
 
       const filter = {};
       if (onlyPublished) filter.published = true;
-      if (categoryParam) filter.categorySlug = categoryParam;
+
+      // 1. Multiple Categories Handle Karna
+      const categoriesParam = getParam(req, 'categories');
+      const singleCategoryParam = getParam(req, 'category'); // Fallback purane code ke liye
+      
+      if (categoriesParam) {
+        // Agar comma separated list aati hai "tech,design" -> array banayega
+        const cats = categoriesParam.split(',').map(c => c.trim()).filter(Boolean);
+        if (cats.length > 0) {
+          filter.categorySlug = { $in: cats };
+        }
+      } else if (singleCategoryParam) {
+        filter.categorySlug = singleCategoryParam;
+      }
+
+      // 2. Sorting Handle Karna
+      const sortParam = getParam(req, 'sort') || 'recent';
+      let sortObj = { publishedAt: -1, createdAt: -1 }; // Default Recent
+
+      if (sortParam === 'old') {
+        sortObj = { publishedAt: 1, createdAt: 1 };
+      } else if (sortParam === 'most-liked') {
+        sortObj = { likes: -1, publishedAt: -1 };
+      } else if (sortParam === 'most-viewed') {
+        sortObj = { views: -1, publishedAt: -1 };
+      } else if (sortParam === 'relevant') {
+        // 'relevant' ke liye database sort normal rakhenge, array ko JavaScript me randomly shuffle karenge
+        sortObj = { publishedAt: -1, createdAt: -1 }; 
+      }
 
       const total = await col.countDocuments(filter);
-      const journals = await col
+      let journals = await col
         .find(filter)
-        .sort({ publishedAt: -1, createdAt: -1 })
+        .sort(sortObj)
         .skip((page - 1) * limit)
         .limit(limit)
         .toArray();
+
+      // Agar 'relevant' sort selected hai, toh array items ko randomly mix kar do
+      if (sortParam === 'relevant') {
+        journals = journals.sort(() => 0.5 - Math.random());
+      }
 
       return json(res, 200, {
         ok: true,
