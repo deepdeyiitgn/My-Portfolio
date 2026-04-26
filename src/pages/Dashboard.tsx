@@ -8,8 +8,8 @@ import {
 import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
 import { ICON_NAMES, renderIcon } from '../utils/iconMap';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
 // ── types ────────────────────────────────────────────────────────────────────
 

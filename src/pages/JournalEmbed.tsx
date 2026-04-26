@@ -59,13 +59,25 @@ export default function JournalEmbed() {
     <div className="min-h-screen bg-zinc-950 text-zinc-300 p-4 md:p-6">
       <article className="max-w-4xl mx-auto space-y-4">
         <h1 className="text-xl md:text-3xl font-black text-white tracking-tight">{journal.title}</h1>
-        <div className="flex items-center gap-3 text-[10px] font-mono text-zinc-500">
-          <span className="flex items-center gap-1"><Clock size={12} /> {journal.readMinutes} min read</span>
-          <span className="flex items-center gap-1"><Heart size={12} /> {Number(journal.likes || 0)} likes</span>
-          <span className="flex items-center gap-1"><Eye size={12} /> {Number(journal.views || 0)} views</span>
-          <span className="uppercase text-amber-500/50 border border-amber-500/20 px-1.5 rounded">{journal.contentType || 'markdown'}</span>
+        
+        {/* PURANA CODE (Jisme error tha, comment kar diya hai)
+        <div className="flex flex-wrap items-center gap-3 text-[10px] font-mono text-zinc-500">
+            <span className="flex items-center gap-1"><Clock size={12} /> {journal.readMinutes} min read</span>
+            <span className="flex items-center gap-1"><Heart size={12} /> {Number(journal.likes || 0)} likes</span>
+            <span className="flex items-center gap-1"><Eye size={12} /> {Number(journal.views || 0)} views</span>
+            <span className="uppercase text-amber-500/50 border border-amber-500/20 px-1.5 rounded">{journal.contentType || 'markdown'}</span>
+            </div>
+          </div>
+        */}
+
+        {/* NAYA CODE (Extra </div> hata diya) */}
+        <div className="flex flex-wrap items-center gap-3 text-[10px] font-mono text-zinc-500">
+            <span className="flex items-center gap-1"><Clock size={12} /> {journal.readMinutes} min read</span>
+            <span className="flex items-center gap-1"><Heart size={12} /> {Number(journal.likes || 0)} likes</span>
+            <span className="flex items-center gap-1"><Eye size={12} /> {Number(journal.views || 0)} views</span>
+            <span className="uppercase text-amber-500/50 border border-amber-500/20 px-1.5 rounded">{journal.contentType || 'markdown'}</span>
         </div>
-        </div>
+
         {journal.summary && <p className="text-zinc-400 text-sm">{journal.summary}</p>}
 
         {isCompact ? (
