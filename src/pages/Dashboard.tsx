@@ -8,6 +8,8 @@ import {
 import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
 import { ICON_NAMES, renderIcon } from '../utils/iconMap';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 // ── types ────────────────────────────────────────────────────────────────────
 
@@ -23,6 +25,7 @@ interface Journal {
   slug: string;
   summary: string;
   content: string;
+  contentType?: string;
   categorySlug: string;
   categoryName: string;
   published: boolean;
@@ -173,9 +176,14 @@ function JournalPreview({
           <div className="flex items-center gap-4 text-xs text-zinc-600 font-mono">
             <span className="flex items-center gap-1.5"><Clock size={12} /> {now} IST</span>
             <span>{journal.readMinutes || 1} min read</span>
+            <span className="uppercase text-amber-500/70 border border-amber-500/30 px-2 py-0.5 rounded-md text-[9px]">{journal.contentType || 'richtext'}</span>
           </div>
           <div className="border-t border-zinc-800 pt-6">
-            <MarkdownPreview content={journal.content || ''} />
+            {journal.contentType === 'markdown' ? (
+              <MarkdownPreview content={journal.content || ''} />
+            ) : (
+              <div className="prose prose-invert max-w-none text-zinc-400 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: journal.content || '' }} />
+            )}
           </div>
         </div>
 
@@ -213,6 +221,8 @@ function JournalEditor({
   const [title, setTitle] = useState(initial?.title || '');
   const [summary, setSummary] = useState(initial?.summary || '');
   const [content, setContent] = useState(initial?.content || '');
+  // Purana: const [contentType, setContentType] = useState(initial?.contentType || 'richtext');
+  const [contentType, setContentType] = useState(initial?.contentType || 'markdown');
   const [images, setImages] = useState<string[]>(Array.isArray(initial?.images) ? initial.images : []);
   const [singleLinkInput, setSingleLinkInput] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -366,7 +376,7 @@ function JournalEditor({
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
-      await onSave({ title, summary, content, categorySlug, categoryName, readMinutes, images }, false);
+      await onSave({ title, summary, content, contentType, categorySlug, categoryName, readMinutes, images }, false);
     } finally {
       setSaving(false);
     }
@@ -375,7 +385,7 @@ function JournalEditor({
   const handlePublish = async () => {
     setPublishing(true);
     try {
-      await onSave({ title, summary, content, categorySlug, categoryName, readMinutes, images }, true);
+      await onSave({ title, summary, content, contentType, categorySlug, categoryName, readMinutes, images }, true);
       setShowPreview(false);
     } finally {
       setPublishing(false);
@@ -420,18 +430,69 @@ function JournalEditor({
           />
         </div>
 
-        <div className="space-y-1">
-          <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest flex items-center justify-between">
-            <span>Content (Markdown) *</span>
-            <span className="text-zinc-600">{readMinutes} min read · {content.trim().split(/\s+/).filter(Boolean).length} words</span>
-          </label>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={16}
-            placeholder="# Heading&#10;&#10;Write your journal in **Markdown**..."
-            className={`${inputCls} resize-y font-mono text-xs leading-relaxed`}
-          />
+        <div className="space-y-2 border border-zinc-800 rounded-xl p-4 bg-zinc-900/30">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+            <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
+              <span>Content Editor *</span>
+            </label>
+            <span className="text-zinc-600 text-[10px] font-mono">{readMinutes} min read · {content.trim().split(/\s+/).filter(Boolean).length} words</span>
+          </div>
+
+          {/* Teeno Tabs */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setContentType('richtext')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${contentType === 'richtext' ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}
+            >
+              Normal Text
+            </button>
+            <button
+              type="button"
+              onClick={() => setContentType('markdown')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${contentType === 'markdown' ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}
+            >
+              Markdown
+            </button>
+            <button
+              type="button"
+              onClick={() => setContentType('html')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${contentType === 'html' ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}
+            >
+              Custom HTML
+            </button>
+          </div>
+
+          {/* Dynamic Editors */}
+          <div className="mt-2 min-h-[300px]">
+            {contentType === 'richtext' && (
+              <ReactQuill
+                theme="snow"
+                value={content}
+                onChange={setContent}
+                className="bg-zinc-950/50 text-white rounded-xl overflow-hidden [&_.ql-toolbar]:bg-zinc-900 [&_.ql-toolbar]:border-zinc-800 [&_.ql-container]:border-zinc-800 [&_.ql-editor]:min-h-[300px]"
+                placeholder="Write your journal directly here. Use toolbar for bold, italic, etc..."
+              />
+            )}
+            {contentType === 'markdown' && (
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={16}
+                placeholder="# Heading&#10;&#10;Write your journal in **Markdown**..."
+                className={`${inputCls} resize-y font-mono text-xs leading-relaxed`}
+              />
+            )}
+            {contentType === 'html' && (
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={16}
+                placeholder="<div>&#10;  <h1>Custom HTML</h1>&#10;  <style> h1 { color: red; } </style>&#10;</div>"
+                className={`${inputCls} resize-y font-mono text-xs leading-relaxed text-blue-300`}
+              />
+            )}
+          </div>
         </div>
 
         <div
@@ -555,7 +616,7 @@ function JournalEditor({
       <AnimatePresence>
         {showPreview && (
           <JournalPreview
-            journal={{ title, summary, content, categoryName, readMinutes, images }}
+            journal={{ title, summary, content, contentType, categoryName, readMinutes, images }} // NAYA: yaha sirf "contentType," add hua hai
             onClose={() => setShowPreview(false)}
             onPublish={handlePublish}
             publishing={publishing}

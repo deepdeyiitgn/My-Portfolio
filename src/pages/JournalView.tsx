@@ -9,6 +9,7 @@ interface Journal {
   title: string;
   summary: string;
   content: string;
+  contentType?: string; // NAYA: Content Type yaha add hua
   categoryName: string;
   publishedAt: string | null;
   publishedAtIST: string | null;
@@ -168,6 +169,7 @@ export default function JournalView() {
           <span className="flex items-center gap-1"><Clock size={12} /> {journal.readMinutes} min read</span>
           <span className="flex items-center gap-1"><Eye size={12} /> {Number(journal.views || 0)} views</span>
           <span className="flex items-center gap-1"><Heart size={12} /> {Number(journal.likes || 0)} likes</span>
+          <span className="px-2 py-0.5 rounded-md border border-amber-500/20 text-amber-500/70">{journal.contentType || 'markdown'}</span>
         </div>
 
         <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white">{journal.title}</h1>
@@ -208,10 +210,15 @@ export default function JournalView() {
           </section>
         )}
 
-        <div
-          className="border-t border-zinc-800 pt-8 text-zinc-300"
-          dangerouslySetInnerHTML={{ __html: `<p class="text-zinc-300 leading-relaxed mb-4">${renderMarkdown(journal.content)}</p>` }}
-        />
+        <div className="border-t border-zinc-800 pt-8 text-zinc-300 prose prose-invert max-w-none">
+          {journal.contentType === 'html' || journal.contentType === 'richtext' ? (
+            // Rich Text aur HTML direct render honge taaki tags/iframes mast chalein
+            <div dangerouslySetInnerHTML={{ __html: journal.content }} />
+          ) : (
+            // Purane posts aur Markdown wale posts tere custom renderer se chalenge
+            <div dangerouslySetInnerHTML={{ __html: `<p class="text-zinc-300 leading-relaxed mb-4">${renderMarkdown(journal.content)}</p>` }} />
+          )}
+        </div>
       </article>
 
       <AnimatePresence>

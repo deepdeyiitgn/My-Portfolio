@@ -248,6 +248,7 @@ module.exports = async (req, res) => {
       const content = String(body.content || '').trim();
       const categorySlug = String(body.categorySlug || '').trim();
       const categoryName = String(body.categoryName || '').trim();
+      const contentType = String(body.contentType || 'richtext').trim(); // NAYA: Content Type add kiya
       const publish = Boolean(body.publish);
       const images = normalizeImages(body.images);
 
@@ -261,6 +262,7 @@ module.exports = async (req, res) => {
         slug,
         summary,
         content,
+        contentType, // NAYA: Database doc me save hoga
         categorySlug,
         categoryName,
         images,
@@ -292,6 +294,7 @@ module.exports = async (req, res) => {
       const title = body.title !== undefined ? String(body.title).trim() : existing.title;
       const content = body.content !== undefined ? String(body.content).trim() : existing.content;
       const publish = body.publish !== undefined ? Boolean(body.publish) : existing.published;
+      const contentType = body.contentType !== undefined ? String(body.contentType).trim() : (existing.contentType || 'richtext'); // NAYA: Update karte waqt content type check karega
 
       const now = new Date();
       const update = {
@@ -299,6 +302,7 @@ module.exports = async (req, res) => {
         slug: slugify(title),
         summary: body.summary !== undefined ? String(body.summary).trim() : existing.summary,
         content,
+        contentType, // NAYA: Database me string update karega
         categorySlug: body.categorySlug !== undefined ? String(body.categorySlug).trim() : existing.categorySlug,
         categoryName: body.categoryName !== undefined ? String(body.categoryName).trim() : existing.categoryName,
         images: body.images !== undefined ? normalizeImages(body.images) : normalizeImages(existing.images),

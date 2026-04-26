@@ -7,6 +7,7 @@ interface Journal {
   title: string;
   summary: string;
   content: string;
+  contentType?: string; // NAYA: Content Type support
   readMinutes: number;
   likes?: number;
   views?: number;
@@ -58,10 +59,12 @@ export default function JournalEmbed() {
     <div className="min-h-screen bg-zinc-950 text-zinc-300 p-4 md:p-6">
       <article className="max-w-4xl mx-auto space-y-4">
         <h1 className="text-xl md:text-3xl font-black text-white tracking-tight">{journal.title}</h1>
-        <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono text-zinc-500">
+        <div className="flex items-center gap-3 text-[10px] font-mono text-zinc-500">
           <span className="flex items-center gap-1"><Clock size={12} /> {journal.readMinutes} min read</span>
           <span className="flex items-center gap-1"><Heart size={12} /> {Number(journal.likes || 0)} likes</span>
           <span className="flex items-center gap-1"><Eye size={12} /> {Number(journal.views || 0)} views</span>
+          <span className="uppercase text-amber-500/50 border border-amber-500/20 px-1.5 rounded">{journal.contentType || 'markdown'}</span>
+        </div>
         </div>
         {journal.summary && <p className="text-zinc-400 text-sm">{journal.summary}</p>}
 
@@ -70,10 +73,13 @@ export default function JournalEmbed() {
             {journal.summary || journal.content.slice(0, 240)}
           </div>
         ) : (
-          <div
-            className="border-t border-zinc-800 pt-5 text-zinc-300"
-            dangerouslySetInnerHTML={{ __html: `<p class="text-zinc-300 text-sm mb-3">${renderMarkdown(journal.content)}</p>` }}
-          />
+          <div className="border-t border-zinc-800 pt-5 text-zinc-300 prose prose-invert max-w-none">
+            {journal.contentType === 'html' || journal.contentType === 'richtext' ? (
+              <div className="text-sm" dangerouslySetInnerHTML={{ __html: journal.content }} />
+            ) : (
+              <div dangerouslySetInnerHTML={{ __html: `<p class="text-zinc-300 text-sm mb-3">${renderMarkdown(journal.content)}</p>` }} />
+            )}
+          </div>
         )}
       </article>
 
