@@ -1,16 +1,36 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Clock, Eye, Heart, ExternalLink } from 'lucide-react';
+import { Clock, Eye, Heart, ExternalLink, Calendar } from 'lucide-react';
 
 interface Journal {
   _id: string;
   title: string;
   summary: string;
   content: string;
-  contentType?: string; // NAYA: Content Type support
+  contentType?: string;
+  publishedAt?: string | null;
+  publishedAtIST?: string | null;
   readMinutes: number;
   likes?: number;
   views?: number;
+}
+
+function timeAgo(dateString?: string | null) {
+  if (!dateString) return '';
+  const past = new Date(dateString);
+  const diffMs = Date.now() - past.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHr / 24);
+  const diffMonths = Math.floor(diffDays / 30);
+  const diffYears = Math.floor(diffDays / 365);
+
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin} min ago`;
+  if (diffHr < 24) return `${diffHr} ${diffHr === 1 ? 'hour' : 'hours'} ago`;
+  if (diffDays < 30) return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+  if (diffMonths < 12) return `${diffMonths} ${diffMonths === 1 ? 'month' : 'months'} ago`;
+  return `${diffYears} ${diffYears === 1 ? 'year' : 'years'} ago`;
 }
 
 function renderMarkdown(text: string) {
@@ -72,6 +92,11 @@ export default function JournalEmbed() {
 
         {/* NAYA CODE (Extra </div> hata diya) */}
         <div className="flex flex-wrap items-center gap-3 text-[10px] font-mono text-zinc-500">
+            {journal.publishedAtIST && (
+              <span className="flex items-center gap-1 w-full sm:w-auto">
+                <Calendar size={12} /> {journal.publishedAtIST} ({timeAgo(journal.publishedAt)})
+              </span>
+            )}
             <span className="flex items-center gap-1"><Clock size={12} /> {journal.readMinutes} min read</span>
             <span className="flex items-center gap-1"><Heart size={12} /> {Number(journal.likes || 0)} likes</span>
             <span className="flex items-center gap-1"><Eye size={12} /> {Number(journal.views || 0)} views</span>
