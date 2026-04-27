@@ -112,7 +112,7 @@ export default function JournalEmbed() {
         ) : (
           <div className="border-t border-zinc-800 pt-5 text-zinc-300 prose prose-invert max-w-none">
             {journal.contentType === 'html' || journal.contentType === 'richtext' ? (
-              <div className="text-sm w-full whitespace-pre-wrap [&_*]:max-w-full" dangerouslySetInnerHTML={{ __html: journal.content }} />
+              <div className="text-sm w-full overflow-x-auto break-words [word-break:normal]" dangerouslySetInnerHTML={{ __html: journal.content }} />
             ) : (
               <div dangerouslySetInnerHTML={{ __html: `<p class="text-zinc-300 text-sm mb-3">${renderMarkdown(journal.content)}</p>` }} />
             )}
