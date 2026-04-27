@@ -236,7 +236,7 @@ export default function JournalView() {
         <div className="border-t border-zinc-800 pt-8 text-zinc-300 prose prose-invert max-w-none">
           {journal.contentType === 'html' || journal.contentType === 'richtext' ? (
             // Rich Text aur HTML direct render honge taaki tags/iframes mast chalein
-            <div className="w-full break-words overflow-x-auto" dangerouslySetInnerHTML={{ __html: journal.content }} />
+            <div className="w-full overflow-x-auto" dangerouslySetInnerHTML={{ __html: journal.content }} />
           ) : (
             // Purane posts aur Markdown wale posts tere custom renderer se chalenge
             <div dangerouslySetInnerHTML={{ __html: `<p class="text-zinc-300 leading-relaxed mb-4">${renderMarkdown(journal.content)}</p>` }} />
