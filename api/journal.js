@@ -325,9 +325,26 @@ module.exports = async (req, res) => {
     // ==========================================
     if (req.method === 'PUT') {
       if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
-
+      const action = getParam(req, 'action');
       const body = await readBody(req);
       const id = body._id;
+      if (!id || !ObjectId.isValid(id)) return json(res, 400, { ok: false, message: '_id required' });
+
+      if (action === 'status') {
+        const update = {
+          isVisible: body.isVisible ?? true,
+          message: String(body.message || '').trim(),
+          hexColor: String(body.hexColor || '#22c55e').trim(),
+          icon: String(body.icon || 'Activity').trim(),
+          actionUrl: String(body.actionUrl || '').trim(),
+          glow: Boolean(body.glow),
+          freeBy: String(body.freeBy || '').trim(),
+          updatedAt: new Date()
+        };
+        await db.collection('live_status').updateOne({ _id: new ObjectId(id) }, { $set: update });
+        return json(res, 200, { ok: true, message: 'Status updated' });
+      }
+      // ... baki journal update ka code waisa hi rahega
       if (!id || !ObjectId.isValid(id)) return json(res, 400, { ok: false, message: '_id required' });
 
       const existing = await col.findOne({ _id: new ObjectId(id) });
@@ -362,7 +379,14 @@ module.exports = async (req, res) => {
     if (req.method === 'DELETE') {
       if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
       const id = getParam(req, 'id');
+      const action = getParam(req, 'action');
       if (!id || !ObjectId.isValid(id)) return json(res, 400, { ok: false, message: 'id required' });
+
+      if (action === 'status') {
+        await db.collection('live_status').deleteOne({ _id: new ObjectId(id) });
+        return json(res, 200, { ok: true, message: 'Status deleted' });
+      }
+
       await col.deleteOne({ _id: new ObjectId(id) });
       return json(res, 200, { ok: true, message: 'Deleted' });
     }

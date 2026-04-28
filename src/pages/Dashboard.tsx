@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Lock, LogIn, Eye, EyeOff, Plus, Trash2, Edit3, Send, X,
   ChevronLeft, ChevronRight, LogOut, Tag, BookOpen, Settings,
-  ToggleLeft, ToggleRight, Clock, Loader2, AlertCircle, CheckCircle2, Upload, ImagePlus, Clipboard, Layers, Activity
+  ToggleLeft, ToggleRight, Clock, Loader2, AlertCircle, CheckCircle2, Upload, ImagePlus, Clipboard, Layers, Activity, History
 } from 'lucide-react';
 import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
@@ -1172,6 +1172,60 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   const [statusFreeBy, setStatusFreeBy] = useState('');
   const [savingStatus, setSavingStatus] = useState(false);
 
+  const [statusHistory, setStatusHistory] = useState<any[]>([]);
+  const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
+
+  const fetchStatusHistory = useCallback(async () => {
+    try {
+      const r = await fetch('/api/journal?action=status');
+      const d = await r.json();
+      if (d.ok) {
+        const all = d.current ? [d.current, ...d.history] : d.history;
+        setStatusHistory(all);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'status' && authenticated) fetchStatusHistory();
+  }, [tab, authenticated, fetchStatusHistory]);
+
+  const handleStatusDelete = async (id: string) => {
+    if (!confirm('Delete this status from history?')) return;
+    try {
+      const r = await fetch(`/api/journal?action=status&id=${id}`, { method: 'DELETE' });
+      const d = await r.json();
+      if (d.ok) {
+        showToast('Status deleted');
+        fetchStatusHistory();
+      } else {
+        showToast(d.message || 'Error deleting status', 'error');
+      }
+    } catch { showToast('Network error', 'error'); }
+  };
+
+  const startEditStatus = (s: any) => {
+    setEditingStatusId(s._id);
+    setStatusIsVisible(s.isVisible !== false);
+    setStatusMessage(s.message);
+    setStatusHexColor(s.hexColor);
+    const isCustom = !['Activity', 'Coffee', 'BookOpen', 'Code', 'Monitor', 'Radio'].includes(s.icon);
+    setStatusIconType(isCustom ? 'custom' : s.icon);
+    if (isCustom) setStatusCustomIcon(s.icon);
+    setStatusActionUrl(s.actionUrl || '');
+    setStatusGlow(s.glow);
+    setStatusFreeBy(s.freeBy || '');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingStatusId(null);
+    setStatusMessage('');
+    setStatusFreeBy('');
+    setStatusActionUrl('');
+    setStatusIsVisible(true);
+  };
+
   const handleStatusSave = async (e: FormEvent) => {
     e.preventDefault();
     if (statusIsVisible && !statusMessage.trim()) {
@@ -1191,16 +1245,19 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
         freeBy: statusFreeBy.trim()
       };
 
+      const method = editingStatusId ? 'PUT' : 'POST';
+      const finalPayload = editingStatusId ? { ...payload, _id: editingStatusId } : payload;
+
       const r = await fetch('/api/journal?action=status', {
-        method: 'POST',
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(finalPayload),
       });
       const d = await r.json();
       if (d.ok) {
-        showToast('Live status updated!');
-        setStatusMessage('');
-        setStatusFreeBy('');
+        showToast(editingStatusId ? 'Status updated!' : 'Live status pushed!');
+        handleCancelEdit();
+        fetchStatusHistory();
       } else {
         showToast(d.message || 'Error updating status', 'error');
       }
@@ -2223,15 +2280,61 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                 </button>
               </div>
 
-              <button
-                type="submit"
-                disabled={savingStatus || (statusIsVisible && !statusMessage.trim())}
-                className={`${btnCls} flex items-center justify-center gap-2 w-full disabled:opacity-50 ${statusIsVisible ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
-              >
-                {savingStatus ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                {statusIsVisible ? 'Push Live Status' : 'Save & Hide Widget'}
-              </button>
+              <div className="flex gap-3">
+                {editingStatusId && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 w-1/3`}
+                  >
+                    Cancel Edit
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={savingStatus || (statusIsVisible && !statusMessage.trim())}
+                  className={`${btnCls} flex items-center justify-center gap-2 flex-1 disabled:opacity-50 ${statusIsVisible ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                >
+                  {savingStatus ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  {editingStatusId ? 'Update Status' : (statusIsVisible ? 'Push Live Status' : 'Save & Hide Widget')}
+                </button>
+              </div>
             </form>
+          </div>
+
+          {/* 🕒 Status History List */}
+          <div className="mt-8 space-y-4">
+            <h3 className="text-white font-bold text-base flex items-center gap-2">
+              <History size={18} className="text-zinc-500" /> Update History
+            </h3>
+            {statusHistory.length === 0 ? (
+              <p className="text-zinc-600 text-sm">No status history found.</p>
+            ) : (
+              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                {statusHistory.map((s, idx) => (
+                  <div key={s._id || idx} className={`bg-zinc-900/40 border rounded-2xl p-4 flex justify-between items-center transition-colors ${editingStatusId === s._id ? 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]' : 'border-zinc-800 hover:border-zinc-700'}`}>
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="relative shrink-0 flex items-center justify-center w-10 h-10 bg-zinc-950 border border-zinc-800 rounded-xl">
+                        {!s.isVisible && <div className="absolute inset-0 bg-black/60 rounded-xl z-10 flex items-center justify-center backdrop-blur-[1px]"><EyeOff size={14} className="text-zinc-500" /></div>}
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: s.hexColor || '#22c55e' }} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-sm font-medium truncate ${s.isVisible ? 'text-zinc-200' : 'text-zinc-600 line-through'}`}>{s.message || '(Hidden Status)'}</p>
+                        <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{s.createdAtIST}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button onClick={() => startEditStatus(s)} className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-amber-500 transition-colors">
+                        <Edit3 size={16} />
+                      </button>
+                      <button onClick={() => handleStatusDelete(s._id)} className="p-2 hover:bg-red-900/30 rounded-xl text-zinc-600 hover:text-red-400 transition-colors">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
