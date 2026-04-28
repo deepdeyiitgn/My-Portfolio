@@ -246,22 +246,28 @@ export default function StatusWidget() {
         </div>
       )}
 
-      {/* 🔴 Small Floating Button (Ball) */}
+      {/* 🔴 Small Floating Button (Ball) - Translucent Version */}
       <button
         onClick={handleToggle}
-        className={`flex items-center justify-center w-12 h-12 bg-zinc-900 border border-zinc-800 rounded-full transition-all hover:scale-105 active:scale-95 ${
+        className={`flex items-center justify-center w-12 h-12 rounded-full transition-all hover:scale-105 active:scale-95 backdrop-blur-sm ${
           current.glow ? 'shadow-lg' : ''
         }`}
-        style={{ 
-          boxShadow: current.glow ? `0 0 15px ${hexToRgba(current.hexColor, 0.4)}` : undefined,
-          borderColor: hexToRgba(current.hexColor, 0.3)
+        style={{
+          // Background ko pure black se hata kar translucent black (bg-black/70 jaisa) kiya
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          // Border ko tere choose kiye hue color ke sath match kiya translucent mode mein
+          border: `1px solid ${hexToRgba(current.hexColor, 0.3)}`,
+          // Glow shadow waisa hi rakha
+          boxShadow: current.glow ? `0 0 18px ${hexToRgba(current.hexColor, 0.45)}` : undefined,
         }}
       >
         <span className="relative flex h-3.5 w-3.5">
           {current.glow && (
+            // Ping (expanding circle) waisa hi glowing rahega attention ke liye
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: current.hexColor }}></span>
           )}
-          <span className="relative inline-flex rounded-full h-3.5 w-3.5" style={{ backgroundColor: current.hexColor }}></span>
+          {/* 👇 Main Central Dot: Iski opacity 0.85 (85%) ki taaki ye halka soft dikhe */}
+          <span className="relative inline-flex rounded-full h-3.5 w-3.5" style={{ backgroundColor: hexToRgba(current.hexColor, 0.85) }}></span>
         </span>
       </button>
       
