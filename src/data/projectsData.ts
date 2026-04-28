@@ -101,4 +101,25 @@ export const projectsData: Project[] = [
     architectureLayers: ['API Gateway', 'Storage Layer', 'Ingestion Bot', 'Security Policies'],
     screenshotUrl: '/69eb02bff3d3b01f6326a557.jpg' 
   },
+  {
+    id: 'personal-portfolio',
+    title: 'Deep Dey | Digital Ecosystem',
+    shortDescription: 'Advanced personal portfolio with a custom CMS and Live Status tracking.',
+    fullDescription: 'A highly optimized, full-stack personal portfolio acting as my central digital identity. It goes beyond a static site by featuring a highly secure, custom-built admin dashboard, MongoDB-backed journal publishing, and a real-time glowing "Live Status" widget that updates visitors on my current activities.',
+    techStack: ['React', 'TypeScript', 'Tailwind CSS', 'Vercel Serverless APIs', 'MongoDB'],
+    liveUrl: 'https://deepdey.vercel.app/',
+    githubUrl: 'https://github.com/deepdeyiitgn/My-Portfolio',
+    logoUrl: '/assets/images/myphoto.png',
+    category: 'Web Platform / CMS',
+    problem: 'Needed a centralized, zero-dependency platform to showcase projects, write journals, and broadcast live status with complete data ownership.',
+    solution: 'Engineered a React-based frontend with a protected Vercel serverless backend and MongoDB for dynamic, cost-effective content management.',
+    impact: 'Established an independent digital hub with absolute control over UI/UX, database storage, and real-time visitor engagement.',
+    metrics: [
+      { label: 'Architecture', value: 'Full-stack Custom CMS' },
+      { label: 'Database', value: 'MongoDB Storage' },
+      { label: 'Unique Feature', value: 'Live Status Ecosystem' },
+    ],
+    architectureLayers: ['React Frontend', 'Vercel Serverless API', 'MongoDB Data Layer', 'Admin Dashboard'],
+    screenshotUrl: '/69eb02bff3d3b01626326a557.jpg'
+  },
 ];
