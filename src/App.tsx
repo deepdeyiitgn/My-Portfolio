@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState, useEffect, Suspense, lazy } from 'react';
 import Layout from './components/Layout';
+import StatusWidget from './components/StatusWidget';
 import LoadingScreen from './components/LoadingScreen';
 
 // Lazy Loaded Pages
@@ -110,6 +111,7 @@ export default function App() {
     <BrowserRouter>
       <Layout>
         <AnimatedRoutes />
+        <StatusWidget />
       </Layout>
     </BrowserRouter>
   );

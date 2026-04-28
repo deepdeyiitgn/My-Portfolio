@@ -2,10 +2,12 @@
  * /api/journal
  * GET  ?page=1&limit=20&category=<slug>&published=true  → paginated list
  * GET  ?slug=<slug>|id=<id>&countView=true              → single journal entry
+ * GET  ?action=status                                   → FETCH LIVE STATUS & HISTORY (NAYA)
  * POST ?action=like&id=<id>&session=<sessionId>         → like a journal once/session
- * POST                                                   → create journal (auth required)
- * PUT                                                    → update journal (auth required); body must include _id
- * DELETE ?id=<id>                                        → delete (auth required)
+ * POST ?action=status                                   → CREATE LIVE STATUS (NAYA - auth required)
+ * POST                                                  → create journal (auth required)
+ * PUT                                                   → update journal (auth required); body must include _id
+ * DELETE ?id=<id>                                       → delete (auth required)
  */
 
 const { MongoClient, ObjectId } = require('mongodb');
@@ -73,9 +75,9 @@ function slugify(str) {
 
 function estimateReadMinutes(body) {
   const words = (body || '').trim().split(/\s+/).filter(Boolean).length;
-  // Dashboard ki tarah backend me bhi realistic read time 110 words/minute
   return Math.max(1, Math.ceil(words / 110));
 }
+
 function nowIST() {
   return new Date().toLocaleString('en-IN', {
     timeZone: 'Asia/Kolkata',
@@ -138,7 +140,23 @@ module.exports = async (req, res) => {
     const db = await getDb();
     const col = db.collection('journals');
 
+    // ==========================================
+    // GET REQUESTS
+    // ==========================================
     if (req.method === 'GET') {
+      const action = getParam(req, 'action');
+
+      // --- NAYA: Live Status Fetch Logic ---
+      if (action === 'status') {
+        const statusCol = db.collection('live_status');
+        // Pagination ke liye up to 50 records fetch karenge
+        const statuses = await statusCol.find({}).sort({ createdAt: -1 }).limit(50).toArray();
+        const current = statuses.length > 0 ? statuses[0] : null;
+        const history = statuses.length > 1 ? statuses.slice(1) : [];
+        return json(res, 200, { ok: true, current, history });
+      }
+
+      // --- EXISTING: Journal Fetch Logic ---
       const wantsSingle = Boolean(getParam(req, 'slug') || getParam(req, 'id'));
       if (wantsSingle) {
         const entry = await getJournalByIdOrSlug(col, req);
@@ -161,12 +179,10 @@ module.exports = async (req, res) => {
       const filter = {};
       if (onlyPublished) filter.published = true;
 
-      // 1. Multiple Categories Handle Karna
       const categoriesParam = getParam(req, 'categories');
-      const singleCategoryParam = getParam(req, 'category'); // Fallback purane code ke liye
-      
+      const singleCategoryParam = getParam(req, 'category');
+
       if (categoriesParam) {
-        // Agar comma separated list aati hai "tech,design" -> array banayega
         const cats = categoriesParam.split(',').map(c => c.trim()).filter(Boolean);
         if (cats.length > 0) {
           filter.categorySlug = { $in: cats };
@@ -175,9 +191,8 @@ module.exports = async (req, res) => {
         filter.categorySlug = singleCategoryParam;
       }
 
-      // 2. Sorting Handle Karna
       const sortParam = getParam(req, 'sort') || 'recent';
-      let sortObj = { publishedAt: -1, createdAt: -1 }; // Default Recent
+      let sortObj = { publishedAt: -1, createdAt: -1 };
 
       if (sortParam === 'old') {
         sortObj = { publishedAt: 1, createdAt: 1 };
@@ -186,8 +201,7 @@ module.exports = async (req, res) => {
       } else if (sortParam === 'most-viewed') {
         sortObj = { views: -1, publishedAt: -1 };
       } else if (sortParam === 'relevant') {
-        // 'relevant' ke liye database sort normal rakhenge, array ko JavaScript me randomly shuffle karenge
-        sortObj = { publishedAt: -1, createdAt: -1 }; 
+        sortObj = { publishedAt: -1, createdAt: -1 };
       }
 
       const total = await col.countDocuments(filter);
@@ -198,7 +212,6 @@ module.exports = async (req, res) => {
         .limit(limit)
         .toArray();
 
-      // Agar 'relevant' sort selected hai, toh array items ko randomly mix kar do
       if (sortParam === 'relevant') {
         journals = journals.sort(() => 0.5 - Math.random());
       }
@@ -206,17 +219,52 @@ module.exports = async (req, res) => {
       return json(res, 200, {
         ok: true,
         journals,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       });
     }
 
+    // ==========================================
+    // POST REQUESTS
+    // ==========================================
     if (req.method === 'POST') {
       const action = getParam(req, 'action');
+
+      // --- NAYA: Live Status Update Logic (Admin Only) ---
+      if (action === 'status') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const body = await readBody(req);
+
+        const isVisible = body.isVisible !== undefined ? Boolean(body.isVisible) : true;
+        const message = String(body.message || '').trim();
+        const hexColor = String(body.hexColor || '#22c55e').trim(); // Exact Hex code
+        const icon = String(body.icon || 'Activity').trim(); // Lucide icon name
+        const actionUrl = String(body.actionUrl || '').trim(); // Custom Link
+        const glow = Boolean(body.glow);
+        const freeBy = String(body.freeBy || '').trim();
+
+        // Agar visible hai toh message zaroori hai
+        if (isVisible && !message) return json(res, 400, { ok: false, message: 'Message is required' });
+
+        const statusCol = db.collection('live_status');
+        const now = new Date();
+        const doc = {
+          isVisible,
+          message,
+          hexColor,
+          icon,
+          actionUrl,
+          glow,
+          freeBy,
+          createdAt: now,
+          createdAtIST: nowIST()
+        };
+
+        // Old records ko delete NAHI karna hai, bas naya append karna hai
+        const result = await statusCol.insertOne(doc);
+        return json(res, 201, { ok: true, status: { ...doc, _id: result.insertedId } });
+      }
+
+      // --- EXISTING: Like Logic ---
       if (action === 'like') {
         const id = getParam(req, 'id');
         const session = String(getParam(req, 'session') || '').trim();
@@ -240,6 +288,7 @@ module.exports = async (req, res) => {
         return json(res, 200, { ok: true, likes: Number(existing.likes || 0) + 1, alreadyLiked: false });
       }
 
+      // --- EXISTING: Journal Creation Logic ---
       if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
 
       const body = await readBody(req);
@@ -248,7 +297,7 @@ module.exports = async (req, res) => {
       const content = String(body.content || '').trim();
       const categorySlug = String(body.categorySlug || '').trim();
       const categoryName = String(body.categoryName || '').trim();
-      const contentType = String(body.contentType || 'richtext').trim(); // NAYA: Content Type add kiya
+      const contentType = String(body.contentType || 'richtext').trim();
       const publish = Boolean(body.publish);
       const images = normalizeImages(body.images);
 
@@ -258,29 +307,22 @@ module.exports = async (req, res) => {
       const slug = slugify(title);
       const now = new Date();
       const doc = {
-        title,
-        slug,
-        summary,
-        content,
-        contentType, // NAYA: Database doc me save hoga
-        categorySlug,
-        categoryName,
-        images,
+        title, slug, summary, content, contentType, categorySlug, categoryName, images,
         published: publish,
         publishedAt: publish ? now : null,
         publishedAtIST: publish ? nowIST() : null,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: now, updatedAt: now,
         readMinutes: estimateReadMinutes(content),
-        views: 0,
-        likes: 0,
-        likedSessions: [],
+        views: 0, likes: 0, likedSessions: [],
       };
 
       const result = await col.insertOne(doc);
       return json(res, 201, { ok: true, journal: { ...doc, _id: result.insertedId } });
     }
 
+    // ==========================================
+    // PUT & DELETE (Existing Journal Logic)
+    // ==========================================
     if (req.method === 'PUT') {
       if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
 
@@ -294,7 +336,7 @@ module.exports = async (req, res) => {
       const title = body.title !== undefined ? String(body.title).trim() : existing.title;
       const content = body.content !== undefined ? String(body.content).trim() : existing.content;
       const publish = body.publish !== undefined ? Boolean(body.publish) : existing.published;
-      const contentType = body.contentType !== undefined ? String(body.contentType).trim() : (existing.contentType || 'richtext'); // NAYA: Update karte waqt content type check karega
+      const contentType = body.contentType !== undefined ? String(body.contentType).trim() : (existing.contentType || 'richtext');
 
       const now = new Date();
       const update = {
@@ -302,7 +344,7 @@ module.exports = async (req, res) => {
         slug: slugify(title),
         summary: body.summary !== undefined ? String(body.summary).trim() : existing.summary,
         content,
-        contentType, // NAYA: Database me string update karega
+        contentType,
         categorySlug: body.categorySlug !== undefined ? String(body.categorySlug).trim() : existing.categorySlug,
         categoryName: body.categoryName !== undefined ? String(body.categoryName).trim() : existing.categoryName,
         images: body.images !== undefined ? normalizeImages(body.images) : normalizeImages(existing.images),

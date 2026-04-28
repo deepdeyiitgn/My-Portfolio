@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Lock, LogIn, Eye, EyeOff, Plus, Trash2, Edit3, Send, X,
   ChevronLeft, ChevronRight, LogOut, Tag, BookOpen, Settings,
-  ToggleLeft, ToggleRight, Clock, Loader2, AlertCircle, CheckCircle2, Upload, ImagePlus, Clipboard, Layers
+  ToggleLeft, ToggleRight, Clock, Loader2, AlertCircle, CheckCircle2, Upload, ImagePlus, Clipboard, Layers, Activity
 } from 'lucide-react';
 import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
@@ -39,7 +39,7 @@ interface Journal {
   images?: string[];
 }
 
-type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects';
+type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'status';
 
 // ── Projects types ────────────────────────────────────────────────────────────
 export interface ProjectDB {
@@ -1158,8 +1158,55 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<ProjectDB[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [savingProjectMode, setSavingProjectMode] = useState(false);
-  const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | 'edit'>('none');
+const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | 'edit'>('none');
   const [editingProject, setEditingProject] = useState<ProjectDB | null>(null);
+
+  // ── Live Status state ───────────────────────────────────────────────────
+  const [statusIsVisible, setStatusIsVisible] = useState(true);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [statusHexColor, setStatusHexColor] = useState('#22c55e');
+  const [statusIconType, setStatusIconType] = useState('Activity');
+  const [statusCustomIcon, setStatusCustomIcon] = useState('');
+  const [statusActionUrl, setStatusActionUrl] = useState('');
+  const [statusGlow, setStatusGlow] = useState(true);
+  const [statusFreeBy, setStatusFreeBy] = useState('');
+  const [savingStatus, setSavingStatus] = useState(false);
+
+  const handleStatusSave = async (e: FormEvent) => {
+    e.preventDefault();
+    if (statusIsVisible && !statusMessage.trim()) {
+      showToast('Message is required when status is visible', 'error');
+      return;
+    }
+    setSavingStatus(true);
+    try {
+      const finalIcon = statusIconType === 'custom' ? statusCustomIcon.trim() : statusIconType;
+      const payload = {
+        isVisible: statusIsVisible,
+        message: statusMessage.trim(),
+        hexColor: statusHexColor,
+        icon: finalIcon || 'Activity',
+        actionUrl: statusActionUrl.trim(),
+        glow: statusGlow,
+        freeBy: statusFreeBy.trim()
+      };
+
+      const r = await fetch('/api/journal?action=status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        showToast('Live status updated!');
+        setStatusMessage('');
+        setStatusFreeBy('');
+      } else {
+        showToast(d.message || 'Error updating status', 'error');
+      }
+    } catch { showToast('Network error', 'error'); }
+    finally { setSavingStatus(false); }
+  };
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -1557,7 +1604,8 @@ export default function Dashboard() {
       <div className="flex gap-2 border-b border-zinc-800 pb-0 overflow-x-auto">
         {([
           { id: 'journals', label: 'Journals', icon: <BookOpen size={14} /> },
-          { id: 'projects', label: 'Projects', icon: <Layers size={14} /> }, // <-- YE NAYA TAB HAI
+          { id: 'projects', label: 'Projects', icon: <Layers size={14} /> },    // <-- YE NAYA TAB HAI
+          { id: 'status', label: 'Live Status', icon: <Activity size={14} /> },     // <-- YE NAYA TAB HAI v2
           { id: 'categories', label: 'Categories', icon: <Tag size={14} /> },
           { id: 'journey', label: 'Journey', icon: <Clock size={14} /> },
           { id: 'settings', label: 'Settings', icon: <Settings size={14} /> },
@@ -2050,6 +2098,141 @@ export default function Dashboard() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Live Status Tab ──────────────────────────────────────────────── */}
+      {tab === 'status' && (
+        <div className="space-y-6 max-w-2xl">
+          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6">
+
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-white font-bold text-lg mb-1">Update Live Status</h2>
+                <p className="text-zinc-500 text-xs">Instantly update the floating widget or hide it completely.</p>
+              </div>
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Widget Visibility</span>
+                <button
+                  type="button"
+                  onClick={() => setStatusIsVisible(!statusIsVisible)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-colors text-xs font-bold border ${statusIsVisible ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10' : 'border-zinc-700 text-zinc-500 bg-zinc-800'}`}
+                >
+                  {statusIsVisible ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                  {statusIsVisible ? 'ON (Visible)' : 'OFF (Hidden)'}
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleStatusSave} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Status Message *</label>
+                <input
+                  value={statusMessage}
+                  onChange={(e) => setStatusMessage(e.target.value)}
+                  placeholder="e.g., Solving Physics Limits, Coding, Free..."
+                  className={inputCls}
+                  disabled={!statusIsVisible}
+                />
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Color (Hex)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      value={statusHexColor}
+                      onChange={(e) => setStatusHexColor(e.target.value)}
+                      disabled={!statusIsVisible}
+                      className="w-12 h-[46px] bg-zinc-950/50 border border-zinc-800 rounded-xl p-1 cursor-pointer shrink-0 disabled:opacity-50"
+                    />
+                    <input
+                      type="text"
+                      value={statusHexColor}
+                      onChange={(e) => setStatusHexColor(e.target.value)}
+                      disabled={!statusIsVisible}
+                      className={`${inputCls} font-mono uppercase`}
+                      placeholder="#22C55E"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Icon Setup</label>
+                  <div className="flex gap-2">
+                    <select
+                      value={statusIconType}
+                      onChange={(e) => setStatusIconType(e.target.value)}
+                      disabled={!statusIsVisible}
+                      className={`${inputCls} cursor-pointer w-1/2 disabled:opacity-50`}
+                    >
+                      <option value="Activity">Pulse / Normal</option>
+                      <option value="Coffee">Coffee Break</option>
+                      <option value="BookOpen">Study / Focus</option>
+                      <option value="Code">Coding</option>
+                      <option value="Monitor">Computer</option>
+                      <option value="Radio">Live Stream</option>
+                      <option value="custom">-- Custom --</option>
+                    </select>
+                    {statusIconType === 'custom' && (
+                      <input
+                        value={statusCustomIcon}
+                        onChange={(e) => setStatusCustomIcon(e.target.value)}
+                        disabled={!statusIsVisible}
+                        placeholder="Lucide Name"
+                        className={`${inputCls} w-1/2`}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Action Link (Optional)</label>
+                  <input
+                    value={statusActionUrl}
+                    onChange={(e) => setStatusActionUrl(e.target.value)}
+                    disabled={!statusIsVisible}
+                    placeholder="https://..."
+                    className={inputCls}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Free By (Optional)</label>
+                  <input
+                    value={statusFreeBy}
+                    onChange={(e) => setStatusFreeBy(e.target.value)}
+                    disabled={!statusIsVisible}
+                    placeholder="e.g., 06:00 PM"
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 py-2 border-y border-zinc-800/50 my-4">
+                <label className={`text-[10px] font-mono text-zinc-500 uppercase tracking-widest flex-1 ${!statusIsVisible ? 'opacity-50' : ''}`}>Pulse / Glow Animation</label>
+                <button
+                  type="button"
+                  onClick={() => setStatusGlow(!statusGlow)}
+                  disabled={!statusIsVisible}
+                  className={`p-2 rounded-xl transition-colors disabled:opacity-50 ${statusGlow ? 'text-amber-500' : 'text-zinc-600'}`}
+                >
+                  {statusGlow ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                disabled={savingStatus || (statusIsVisible && !statusMessage.trim())}
+                className={`${btnCls} flex items-center justify-center gap-2 w-full disabled:opacity-50 ${statusIsVisible ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+              >
+                {savingStatus ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                {statusIsVisible ? 'Push Live Status' : 'Save & Hide Widget'}
+              </button>
+            </form>
+          </div>
         </div>
       )}
 
