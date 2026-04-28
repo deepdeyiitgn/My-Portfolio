@@ -31,6 +31,7 @@ function timeAgo(dateString: string) {
 
 export default function StatusWidget() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showHint, setShowHint] = useState(false); // <-- Naya Hint State
   const [activeTab, setActiveTab] = useState<'live' | 'history'>('live');
   const [historyPage, setHistoryPage] = useState(1);
   const itemsPerPage = 5;
@@ -40,7 +41,26 @@ export default function StatusWidget() {
   const [loading, setLoading] = useState(true);
   const popupRef = useRef<HTMLDivElement>(null);
 
-  // Fetch Logic
+  // Hint Logic: Session mein sirf ek baar dikhane ke liye
+  useEffect(() => {
+    const hasSeenHint = sessionStorage.getItem('dd_status_hint');
+    if (!hasSeenHint) {
+      // Page load hone ke 2 second baad hint dikhega (smoothness ke liye)
+      const timer = setTimeout(() => setShowHint(true), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Custom Toggle: Click karte hi hint hide aur session save
+  const handleToggle = () => {
+    setIsOpen(!isOpen);
+    if (showHint) {
+      setShowHint(false);
+      sessionStorage.setItem('dd_status_hint', 'true');
+    }
+  };
+
+  // Database se status aur history fetch karna  |  Fetch Logic
   useEffect(() => {
     fetch('/api/journal?action=status')
       .then(res => res.json())
@@ -207,9 +227,28 @@ export default function StatusWidget() {
         </div>
       )}
 
+      {/* 🗨️ The Hint Bubble (Tool-tip) */}
+      {showHint && !isOpen && (
+        <div className="absolute bottom-16 left-0 mb-1 w-max bg-zinc-800 text-zinc-200 text-xs px-3 py-2 rounded-xl border border-zinc-700 shadow-xl animate-in fade-in slide-in-from-bottom-2 flex items-center gap-2 z-50">
+          <span>👀 See what Deep is doing!</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowHint(false);
+              sessionStorage.setItem('dd_status_hint', 'true');
+            }}
+            className="text-zinc-500 hover:text-zinc-300 ml-1"
+          >
+            <X size={12} />
+          </button>
+          {/* Bottom Triangle Pointer */}
+          <div className="absolute -bottom-1.5 left-5 w-3 h-3 bg-zinc-800 border-b border-r border-zinc-700 transform rotate-45"></div>
+        </div>
+      )}
+
       {/* 🔴 Small Floating Button (Ball) */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className={`flex items-center justify-center w-12 h-12 bg-zinc-900 border border-zinc-800 rounded-full transition-all hover:scale-105 active:scale-95 ${
           current.glow ? 'shadow-lg' : ''
         }`}
