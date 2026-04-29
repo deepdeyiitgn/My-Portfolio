@@ -136,12 +136,12 @@ export default function JournalView() {
   const handleShare = async () => {
     const url = window.location.href;
     const title = journal?.title || 'Journal';
-    const text = journal?.summary || 'Read this journal post';
+    const text = `${title} by Deep Dey.\n\nRead the full post here: ${url}\n\nExplore more at: deepdey.vercel.app`;
     if (navigator.share) {
       await navigator.share({ title, text, url });
       return;
     }
-    await navigator.clipboard.writeText(url);
+    await navigator.clipboard.writeText(text);
     alert('Link copied to clipboard');
   };
 
@@ -242,7 +242,10 @@ export default function JournalView() {
         <div className="border-t border-zinc-800 pt-8 text-zinc-300 prose prose-invert max-w-none">
           {journal.contentType === 'html' || journal.contentType === 'richtext' ? (
             // Rich Text aur HTML direct render honge taaki tags/iframes mast chalein
-            <div className="w-full overflow-x-auto break-words [word-break:normal]" dangerouslySetInnerHTML={{ __html: journal.content }} />
+            <div
+              className="w-full overflow-x-auto break-words [word-break:normal] [&>p]:mb-4 [&>p]:leading-relaxed [&>h1]:text-3xl [&>h1]:font-black [&>h1]:text-white [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:text-amber-500 [&>h2]:mt-6 [&>h2]:mb-3 [&>h3]:text-xl [&>h3]:font-bold [&>h3]:text-white [&>h3]:mt-5 [&>h3]:mb-2 [&>ul]:list-disc [&>ul]:ml-5 [&>ul]:mb-4 [&>ol]:list-decimal [&>ol]:ml-5 [&>ol]:mb-4 [&>li]:mb-1 [&>strong]:text-white [&>blockquote]:border-l-4 [&>blockquote]:border-amber-500/50 [&>blockquote]:pl-4 [&>blockquote]:italic [&>blockquote]:text-zinc-400 [&>img]:rounded-xl [&>img]:my-4"
+              dangerouslySetInnerHTML={{ __html: journal.content }}
+            />
           ) : (
             // Purane posts aur Markdown wale posts tere custom renderer se chalenge
             <div dangerouslySetInnerHTML={{ __html: `<p class="text-zinc-300 leading-relaxed mb-4">${renderMarkdown(journal.content)}</p>` }} />

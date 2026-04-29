@@ -6,6 +6,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [3.2.0] — 2026-04-29
+
+### Added
+- **V3.0 Global Search Engine:** `/search` route added to sitemap for full search-engine indexing. Trending tags and history pills now use improved spacing (gap-3, py-2.5) for a perfectly balanced look on mobile and desktop.
+- **Live Status Ecosystem Refinements:** Floating status widget button background reduced to 40% opacity (`rgba(0,0,0,0.4)`) for a premium glassmorphism effect. Inner dot opacity tuned to exactly 80%. Glow ping and dot are now perfectly centered with `items-center justify-center`. History tab ExternalLink icon is now a fully clickable `<a target="_blank">` pointing to the status URL.
+- **CMS Rich Text Embed Upgrades:** Three new media-embed action buttons added to the Journal editor toolbar — **🖼️ Image** (inserts `<img>` with `w-full rounded-xl`), **🎬 Video** (auto-converts YouTube URLs to `<iframe>` or mp4 to `<video controls>`), and **🎵 Audio** (inserts `<audio controls>`). All use `window.prompt()` for zero-friction URL entry.
+- **Rich Typography Rendering:** `JournalView` and `JournalEmbed` HTML/richtext content divs now apply explicit Tailwind arbitrary-variant selectors (`[&>h1]`, `[&>h2]`, `[&>ul]`, `[&>p]`, `[&>blockquote]`, `[&>img]`) for premium Medium/Notion-style typography without requiring `@tailwindcss/typography` plugin.
+- **Share Button Enhancement:** Share payload in `JournalView` now sends `"{title} by Deep Dey.\n\nRead the full post here: {url}\n\nExplore more at: deepdey.vercel.app"`.
+
+---
+
 ## [3.1.5] — 2026-04-24 [LAST]
 
 ### Added

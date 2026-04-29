@@ -4,7 +4,8 @@ export default async function handler(req, res) {
     const staticPages = [
       '', '/projects', '/about', '/me', '/contact', '/faq', 
       '/portfolio', '/links', '/proof', '/journal', '/now', 
-      '/legal', '/terms', '/privacy', '/dmca', '/copyright', '/live'
+      '/legal', '/terms', '/privacy', '/dmca', '/copyright', '/live',
+      '/search'
     ];
 
     let dynamicRoutes = [];

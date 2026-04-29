@@ -463,6 +463,54 @@ function JournalEditor({
             </button>
           </div>
 
+          {/* Media Embed Actions */}
+          <div className="flex flex-wrap gap-2 pt-1 border-t border-zinc-800/50">
+            <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest self-center mr-1">Embed:</span>
+            <button
+              type="button"
+              onClick={() => {
+                const url = window.prompt('Enter Image URL:');
+                if (!url?.trim()) return;
+                const tag = `<img src="${url.trim()}" alt="image" class="w-full rounded-xl my-4" />`;
+                setContent((prev) => prev + tag);
+              }}
+              className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors flex items-center gap-1"
+            >
+              🖼️ Image
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const url = window.prompt('Enter Video URL (YouTube link or .mp4):');
+                if (!url?.trim()) return;
+                const trimmed = url.trim();
+                let tag: string;
+                const ytMatch = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+                if (ytMatch) {
+                  tag = `<iframe src="https://www.youtube.com/embed/${ytMatch[1]}" width="100%" height="400" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="rounded-xl my-4"></iframe>`;
+                } else {
+                  tag = `<video controls class="w-full rounded-xl my-4"><source src="${trimmed}" type="video/mp4" />Your browser does not support video.</video>`;
+                }
+                setContent((prev) => prev + tag);
+              }}
+              className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors flex items-center gap-1"
+            >
+              🎬 Video
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const url = window.prompt('Enter Audio URL:');
+                if (!url?.trim()) return;
+                const tag = `<audio controls src="${url.trim()}" class="w-full my-4">Your browser does not support audio.</audio>`;
+                setContent((prev) => prev + tag);
+              }}
+              className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors flex items-center gap-1"
+            >
+              🎵 Audio
+            </button>
+          </div>
+
           {/* Dynamic Editors */}
           <div className="mt-2 min-h-[300px]">
             {contentType === 'richtext' && (
