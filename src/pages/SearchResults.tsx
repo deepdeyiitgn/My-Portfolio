@@ -22,6 +22,25 @@ interface SearchResult {
   isMl?: boolean; // true if found via ML fallback
 }
 
+// ── Typewriter configuration ──────────────────────────────────────────────────
+const TYPEWRITER_FORWARD_DELAY = 110;   // ms per character when typing forward
+const TYPEWRITER_PAUSE_DURATION = 2400; // ms to pause when fully typed
+const TYPEWRITER_BACKWARD_DELAY = 55;   // ms per character when erasing
+
+// ── ML configuration ──────────────────────────────────────────────────────────
+/** Minimum cosine-similarity score for an ML result to be included */
+const ML_SIMILARITY_THRESHOLD = 0.08;
+/** When keyword search finds fewer than this many local results, ML fallback kicks in */
+const MIN_KEYWORD_RESULTS_THRESHOLD = 2;
+
+// ── Animation configuration ───────────────────────────────────────────────────
+const RESULT_STAGGER_DELAY = 0.04;  // seconds between each result card entering
+const RESULT_ANIM_DURATION = 0.25;  // seconds for each card fade-in
+
+// ── Scroll configuration ──────────────────────────────────────────────────────
+/** Pixels offset from top when scrolling to an element, accounts for the fixed header */
+const HEADER_SCROLL_OFFSET = 120;
+
 // ── Social triggers ───────────────────────────────────────────────────────────
 const SOCIAL_TRIGGERS = ['insta', 'instagram', 'github', 'twitter', 'x', 'social', 'contact', 'youtube', 'linkedin', 'links'];
 
@@ -124,7 +143,7 @@ function mlFallbackSearch(query: string, existingIds: Set<string>): SearchResult
 
   return corpus
     .map((c, i) => ({ result: c.result, score: cosine(qVec, buildVector(allTokenSets[i], vocab)) }))
-    .filter(x => x.score > 0.08)
+    .filter(x => x.score > ML_SIMILARITY_THRESHOLD)
     .sort((a, b) => b.score - a.score)
     .slice(0, 4)
     .map(x => x.result);
@@ -186,13 +205,13 @@ export default function SearchResults() {
     const full = SUGGESTIONS[tIdx];
     if (!tReverse) {
       if (tText.length < full.length) {
-        tRef.current = setTimeout(() => setTText(full.slice(0, tText.length + 1)), 110);
+        tRef.current = setTimeout(() => setTText(full.slice(0, tText.length + 1)), TYPEWRITER_FORWARD_DELAY);
       } else {
-        tRef.current = setTimeout(() => setTReverse(true), 2400);
+        tRef.current = setTimeout(() => setTReverse(true), TYPEWRITER_PAUSE_DURATION);
       }
     } else {
       if (tText.length > 0) {
-        tRef.current = setTimeout(() => setTText(tText.slice(0, -1)), 55);
+        tRef.current = setTimeout(() => setTText(tText.slice(0, -1)), TYPEWRITER_BACKWARD_DELAY);
       } else {
         setTReverse(false);
         setTIdx(i => (i + 1) % SUGGESTIONS.length);
@@ -300,7 +319,7 @@ export default function SearchResults() {
       // 3. ML fallback: if keyword search found few local results, supplement with TF-IDF
       const existingIds = new Set(combinedResults.map(r => r._id));
       const keywordLocalCount = combinedResults.filter(r => r.type === 'FAQ' || r.type === 'Project').length;
-      if (keywordLocalCount < 2) {
+      if (keywordLocalCount < MIN_KEYWORD_RESULTS_THRESHOLD) {
         const mlResults = mlFallbackSearch(q, existingIds);
         combinedResults = [...combinedResults, ...mlResults];
       }
@@ -360,7 +379,7 @@ export default function SearchResults() {
       <div className={`transition-all duration-700 ${!rawQuery ? 'mt-10 text-center' : 'mb-10'}`}>
         {!rawQuery && (
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="mb-10 space-y-5">
-            {/* Logo */}
+            {/* Logo — same image used as the site favicon (/assets/images/myphoto.png) */}
             <div className="flex justify-center">
               <div className="relative">
                 <img
@@ -541,7 +560,7 @@ export default function SearchResults() {
                     key={r._id}
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.04, duration: 0.25 }}
+                    transition={{ delay: i * RESULT_STAGGER_DELAY, duration: RESULT_ANIM_DURATION }}
                   >
                     <Link to={r.url} className="block group">
                       <div className="p-6 bg-zinc-900/30 border border-zinc-800 rounded-2xl group-hover:border-zinc-700 group-hover:bg-zinc-900/60 transition-all">

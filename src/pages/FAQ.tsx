@@ -5,6 +5,9 @@ import { faqData, FAQItem } from '../data/faqData';
 import { Link, useLocation } from 'react-router-dom';
 import SEO from '../components/SEO';
 
+/** Pixels offset from top when scrolling to an anchor, accounts for the fixed header */
+const HEADER_SCROLL_OFFSET = 120;
+
 export default function FAQ() {
   const [faqItems, setFaqItems] = useState<FAQItem[]>(faqData);
   const [searchQuery, setSearchQuery] = useState('');
@@ -54,7 +57,8 @@ export default function FAQ() {
     setTimeout(() => {
       const el = document.getElementById(`faq-${targetId}`);
       if (el) {
-        const topOffset = el.getBoundingClientRect().top + window.scrollY - 120;
+        // Offset accounts for the fixed header height (~120px)
+        const topOffset = el.getBoundingClientRect().top + window.scrollY - HEADER_SCROLL_OFFSET;
         window.scrollTo({ top: topOffset, behavior: 'smooth' });
       }
     }, 120);
