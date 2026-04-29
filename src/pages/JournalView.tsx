@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Clock, Eye, Heart, Share2, Code2, X, ChevronLeft, ChevronRight, Link2, ArrowLeft, Calendar } from 'lucide-react';
+import { marked } from 'marked';
 import SEO from '../components/SEO';
 
 interface Journal {
@@ -50,21 +51,11 @@ function timeAgo(dateString?: string | null) {
   return `${diffYears} ${diffYears === 1 ? 'year' : 'years'} ago`;
 }
 
-function renderMarkdown(text: string) {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/^### (.+)$/gm, '<h3 class="text-xl font-bold text-white mt-6 mb-2">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 class="text-2xl font-black text-amber-500 mt-8 mb-3">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 class="text-3xl font-black text-white mt-10 mb-4">$1</h1>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code class="bg-zinc-800 text-amber-400 px-1 py-0.5 rounded text-sm">$1</code>')
-    .replace(/^- (.+)$/gm, '<li class="ml-5 list-disc">$1</li>')
-    .replace(/^\d+\. (.+)$/gm, '<li class="ml-5 list-decimal">$1</li>')
-    .replace(/\n\n/g, '</p><p class="text-zinc-300 leading-relaxed mb-4">')
-    .replace(/\n/g, '<br />');
+// Configure marked for GitHub-flavored markdown
+marked.setOptions({ gfm: true, breaks: true });
+
+function renderMarkdown(text: string): string {
+  return marked.parse(text) as string;
 }
 
 function sanitizeImageUrl(value: string) {
@@ -241,14 +232,17 @@ export default function JournalView() {
 
         <div className="border-t border-zinc-800 pt-8 text-zinc-300 prose prose-invert max-w-none">
           {journal.contentType === 'html' || journal.contentType === 'richtext' ? (
-            // Rich Text aur HTML direct render honge taaki tags/iframes mast chalein
+            // Rich Text and HTML: direct render so tags/iframes work
             <div
-              className="w-full overflow-x-auto break-words [word-break:normal] [&>p]:mb-4 [&>p]:leading-relaxed [&>h1]:text-3xl [&>h1]:font-black [&>h1]:text-white [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:text-amber-500 [&>h2]:mt-6 [&>h2]:mb-3 [&>h3]:text-xl [&>h3]:font-bold [&>h3]:text-white [&>h3]:mt-5 [&>h3]:mb-2 [&>ul]:list-disc [&>ul]:ml-5 [&>ul]:mb-4 [&>ol]:list-decimal [&>ol]:ml-5 [&>ol]:mb-4 [&>li]:mb-1 [&>strong]:text-white [&>blockquote]:border-l-4 [&>blockquote]:border-amber-500/50 [&>blockquote]:pl-4 [&>blockquote]:italic [&>blockquote]:text-zinc-400 [&>img]:rounded-xl [&>img]:my-4"
+              className="w-full overflow-x-auto break-words [word-break:normal] [&_p]:mb-4 [&_p]:leading-relaxed [&_h1]:text-3xl [&_h1]:font-black [&_h1]:text-white [&_h1]:mt-8 [&_h1]:mb-4 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-amber-500 [&_h2]:mt-6 [&_h2]:mb-3 [&_h3]:text-xl [&_h3]:font-bold [&_h3]:text-white [&_h3]:mt-5 [&_h3]:mb-2 [&_h4]:text-lg [&_h4]:font-bold [&_h4]:text-white [&_h4]:mt-4 [&_h4]:mb-2 [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:ml-5 [&_ol]:mb-4 [&_li]:mb-1 [&_strong]:text-white [&_em]:italic [&_blockquote]:border-l-4 [&_blockquote]:border-amber-500/50 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-zinc-400 [&_blockquote]:my-4 [&_img]:rounded-xl [&_img]:my-4 [&_img]:max-w-full [&_a]:text-amber-400 [&_a]:underline [&_a:hover]:text-amber-300 [&_code]:bg-zinc-800 [&_code]:text-amber-400 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_pre]:bg-zinc-800 [&_pre]:rounded-xl [&_pre]:p-4 [&_pre]:overflow-x-auto [&_pre]:my-4 [&_pre_code]:bg-transparent [&_pre_code]:text-zinc-300 [&_pre_code]:p-0 [&_table]:w-full [&_table]:border-collapse [&_table]:my-4 [&_th]:border [&_th]:border-zinc-700 [&_th]:p-2 [&_th]:text-left [&_th]:bg-zinc-800 [&_td]:border [&_td]:border-zinc-700 [&_td]:p-2 [&_hr]:border-zinc-700 [&_hr]:my-6 [&_iframe]:w-full [&_iframe]:rounded-xl [&_iframe]:my-4 [&_iframe]:min-h-[240px] [&_video]:w-full [&_video]:rounded-xl [&_video]:my-4 [&_audio]:w-full [&_audio]:my-4"
               dangerouslySetInnerHTML={{ __html: journal.content }}
             />
           ) : (
-            // Purane posts aur Markdown wale posts tere custom renderer se chalenge
-            <div dangerouslySetInnerHTML={{ __html: `<p class="text-zinc-300 leading-relaxed mb-4">${renderMarkdown(journal.content)}</p>` }} />
+            // Markdown rendered with marked (GitHub-flavored)
+            <div
+              className="w-full overflow-x-auto break-words [word-break:normal] [&_p]:mb-4 [&_p]:leading-relaxed [&_p]:text-zinc-300 [&_h1]:text-3xl [&_h1]:font-black [&_h1]:text-white [&_h1]:mt-8 [&_h1]:mb-4 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-amber-500 [&_h2]:mt-6 [&_h2]:mb-3 [&_h3]:text-xl [&_h3]:font-bold [&_h3]:text-white [&_h3]:mt-5 [&_h3]:mb-2 [&_h4]:text-lg [&_h4]:font-bold [&_h4]:text-white [&_h4]:mt-4 [&_h4]:mb-2 [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:ml-5 [&_ol]:mb-4 [&_li]:mb-1 [&_li]:text-zinc-300 [&_strong]:text-white [&_em]:italic [&_del]:line-through [&_blockquote]:border-l-4 [&_blockquote]:border-amber-500/50 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-zinc-400 [&_blockquote]:my-4 [&_img]:rounded-xl [&_img]:my-4 [&_img]:max-w-full [&_a]:text-amber-400 [&_a]:underline [&_a:hover]:text-amber-300 [&_code]:bg-zinc-800 [&_code]:text-amber-400 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_pre]:bg-zinc-800 [&_pre]:rounded-xl [&_pre]:p-4 [&_pre]:overflow-x-auto [&_pre]:my-4 [&_pre_code]:bg-transparent [&_pre_code]:text-zinc-300 [&_pre_code]:p-0 [&_table]:w-full [&_table]:border-collapse [&_table]:my-4 [&_th]:border [&_th]:border-zinc-700 [&_th]:p-2 [&_th]:text-left [&_th]:bg-zinc-800 [&_td]:border [&_td]:border-zinc-700 [&_td]:p-2 [&_hr]:border-zinc-700 [&_hr]:my-6 [&_input[type=checkbox]]:mr-2 [&_iframe]:w-full [&_iframe]:rounded-xl [&_iframe]:my-4 [&_iframe]:min-h-[240px] [&_video]:w-full [&_video]:rounded-xl [&_video]:my-4 [&_audio]:w-full [&_audio]:my-4"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(journal.content) }}
+            />
           )}
         </div>
       </article>
