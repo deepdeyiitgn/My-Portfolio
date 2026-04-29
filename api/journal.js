@@ -251,7 +251,6 @@ module.exports = async (req, res) => {
           _id: j._id,
           type: 'Journal',
           title: j.title,
-          slug: j.slug, // included so the frontend can construct the correct route
           url: `/journal/view/${j.slug}`, // fixed: was /journal/${j.slug}
           category: j.categoryName,
           snippets: getSnippets(

@@ -4,9 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Search, History, Clock, ArrowRight, ExternalLink, Loader2, Sparkles, X, ChevronLeft, ChevronRight, Activity, TrendingUp } from 'lucide-react';
 import SEO from '../components/SEO';
 import { faqData } from '../data/faqData';
-import { projectsData } from '../data/projectsData';
-import { linksData } from '../data/linksData';
-import { renderIcon } from '../utils/iconMap';
+import { projectsData } from '../data/projectsData';import { renderIcon } from '../utils/iconMap';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface SearchResult {
@@ -192,6 +190,8 @@ export default function SearchResults() {
       setEasterEgg(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // performSearch and saveToHistory are intentionally excluded: they read
+    // localHistory at call-time and should only re-run when rawQuery changes.
   }, [rawQuery]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
