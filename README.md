@@ -45,23 +45,26 @@ All while the author simultaneously prepares for **JEE Advanced 2027** targeting
 
 ## 🎯 Feature Highlights
 
+### 🔭 Global Command Palette Search
+Full-stack search engine at `/search` with typewriter-animated suggestions, trending query tracking, localStorage history, and a TF-IDF ML fallback. Searches journals, projects, FAQs, social links, and live status simultaneously. Fully indexed in the sitemap.
+
 ### 🎬 Cinematic Loading Engine
 A system-parsing intro screen with a live progress bar and 50-quote rotating archive. Masks lazy-loaded asset hydration with an AAA-grade first impression.
 
-### �� Kinetic 3D PDF Portfolio Viewer
+### 🎞️ Kinetic 3D PDF Portfolio Viewer
 Custom `react-pdf` viewer wrapped in a Motion 3D physics engine (`rotateY`). Includes A4 aspect-ratio lock, zoom controls, and an external-URL fallback chain.
 
 ### 📬 Smart Contact Routing Matrix
 Backend-less intelligent intake. Routes 15 inquiry categories to the right email node with pre-filled mailto tickets and auto-generated ticket IDs.
 
-### �� Journal CMS with Embed Support
-Full markdown journal system backed by MongoDB. Features per-visit view counting, one-like-per-session enforcement, native share API, image galleries, and embeddable iframe output (`/journal/embed/:id`).
+### 📓 Journal CMS with Embed Support
+Full markdown/HTML journal system backed by MongoDB. Features per-visit view counting, one-like-per-session enforcement, native share API, image galleries, and embeddable iframe output (`/journal/embed/:id`). Rich text renders headings, lists, bold, blockquotes, and media with premium typography.
 
 ### 📺 YouTube Live Hub
 Auto-loads the current live stream. Sidebar shows all channel content filtered by **All / Stream / Video / Shorts** tabs with newest-first sorting, views count, and Prev/Next pagination (20 per page).
 
-### 🖼️ CDN Image Upload (Dashboard)
-Owner-only dashboard uploads images to `static.qlynk.me` via `/api/upload-image` proxy. Supports file picker, drag-and-drop, clipboard paste, and URL links — one image at a time, unlimited per post.
+### 🖼️ CDN Image Upload & Media CMS (Dashboard)
+Owner-only dashboard uploads images to `static.qlynk.me` via `/api/upload-image` proxy. Supports file picker, drag-and-drop, clipboard paste, and URL links. Rich text editor includes one-click embed buttons for **Images**, **YouTube/MP4 Videos**, and **Audio** — no manual HTML required.
 
 ### 🌐 Data-Driven Link-in-Bio Engine
 A JSON-driven hub mapping 30+ internal/external nodes with dynamic inline SVG icons that auto-adapt to the Dark-Amber theme.
@@ -70,7 +73,7 @@ A JSON-driven hub mapping 30+ internal/external nodes with dynamic inline SVG ic
 The milestone timeline uses `new Date().getFullYear()` to auto-highlight the current active phase with a glowing amber radar pulse (extends to 2035).
 
 ### 🔍 Max-Level SEO
-`react-helmet-async` drives per-route metadata injection: Canonical URLs, OpenGraph/Twitter cards, and `Schema.org` JSON-LD (Person, FAQPage, SoftwareApplication).
+`react-helmet-async` drives per-route metadata injection: Canonical URLs, OpenGraph/Twitter cards, and `Schema.org` JSON-LD (Person, FAQPage, SoftwareApplication). All routes including `/search` are included in the XML sitemap.
 
 ### 🌍 12-Language i18n
 Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · JA · KO · ZH via a custom React Context provider.
@@ -81,7 +84,7 @@ Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · 
 * **Overpowered Screenshot Bot:** A custom 3-Layer backend architecture that automatically captures live website screenshots. 
   * Uses Google's PageSpeed API, Global Geo-Proxies, and rotating Human-Agent headers to completely bypass bot protection (Cloudflare, CAPTCHAs) and Vercel's strict serverless timeout limits.
 * **Smart UI Previews:** Auto-crops and formats dynamic Base64 images directly on the client side to maintain perfect aspect ratios without overloading the backend.
-
+* **Media Embeds:** Insert images, YouTube iframes, MP4 videos, and audio tracks directly into journal posts via toolbar prompt buttons.
 
 ---
 

@@ -446,14 +446,14 @@ export default function SearchResults() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
-            className="mt-10 space-y-8"
+            className="mt-12 space-y-10"
           >
             {/* Trending */}
             <div>
-              <p className="flex items-center justify-center gap-1.5 text-[10px] font-mono text-zinc-600 uppercase tracking-widest mb-3">
+              <p className="flex items-center justify-center gap-1.5 text-[10px] font-mono text-zinc-600 uppercase tracking-widest mb-4">
                 <TrendingUp size={10} /> Trending
               </p>
-              <div className="flex flex-wrap justify-center gap-2">
+              <div className="flex flex-wrap justify-center gap-3">
                 {(trending.length > 0
                   ? trending
                   : ["deep's status", "iit kharagpur", "magic bite", "projects", "resume"]
@@ -461,7 +461,7 @@ export default function SearchResults() {
                   <button
                     key={tag}
                     onClick={() => jumpToQuery(tag)}
-                    className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-full text-xs text-zinc-400 hover:border-amber-500/50 hover:text-white transition-all"
+                    className="px-5 py-2.5 bg-zinc-900 border border-zinc-800 rounded-full text-xs text-zinc-400 hover:border-amber-500/50 hover:text-white transition-all"
                   >
                     {tag}
                   </button>
@@ -478,7 +478,7 @@ export default function SearchResults() {
                   </h3>
                   <button onClick={clearHistory} className="text-[10px] text-zinc-700 hover:text-zinc-500 transition-colors font-mono">clear</button>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {localHistory.map((h, i) => (
                     <button
                       key={i}

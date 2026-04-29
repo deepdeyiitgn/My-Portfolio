@@ -112,7 +112,10 @@ export default function JournalEmbed() {
         ) : (
           <div className="border-t border-zinc-800 pt-5 text-zinc-300 prose prose-invert max-w-none">
             {journal.contentType === 'html' || journal.contentType === 'richtext' ? (
-              <div className="text-sm w-full overflow-x-auto break-words [word-break:normal]" dangerouslySetInnerHTML={{ __html: journal.content }} />
+              <div
+                className="text-sm w-full overflow-x-auto break-words [word-break:normal] [&>p]:mb-3 [&>p]:leading-relaxed [&>h1]:text-xl [&>h1]:font-black [&>h1]:text-white [&>h1]:mt-6 [&>h1]:mb-3 [&>h2]:text-lg [&>h2]:font-bold [&>h2]:text-amber-500 [&>h2]:mt-5 [&>h2]:mb-2 [&>h3]:text-base [&>h3]:font-bold [&>h3]:text-white [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:list-disc [&>ul]:ml-5 [&>ul]:mb-3 [&>ol]:list-decimal [&>ol]:ml-5 [&>ol]:mb-3 [&>li]:mb-1 [&>strong]:text-white [&>blockquote]:border-l-4 [&>blockquote]:border-amber-500/50 [&>blockquote]:pl-4 [&>blockquote]:italic [&>blockquote]:text-zinc-400 [&>img]:rounded-xl [&>img]:my-3"
+                dangerouslySetInnerHTML={{ __html: journal.content }}
+              />
             ) : (
               <div dangerouslySetInnerHTML={{ __html: `<p class="text-zinc-300 text-sm mb-3">${renderMarkdown(journal.content)}</p>` }} />
             )}

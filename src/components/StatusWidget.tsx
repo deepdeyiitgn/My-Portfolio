@@ -94,9 +94,12 @@ export default function StatusWidget() {
 
   // Hex color safely convert for shadows (adds opacity)
   const hexToRgba = (hex: string, alpha: number) => {
-    const r = parseInt(hex.slice(1, 3), 16) || 34;
-    const g = parseInt(hex.slice(3, 5), 16) || 197;
-    const b = parseInt(hex.slice(5, 7), 16) || 94;
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    // Fall back to a neutral green only if the hex string was actually unparseable (NaN),
+    // NOT when a channel is legitimately 0 (e.g. #ff0000 has g=0 and b=0).
+    if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(34, 197, 94, ${alpha})`;
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
@@ -192,7 +195,11 @@ export default function StatusWidget() {
                             <p className="text-xs text-zinc-300 leading-tight mb-1">{hist.message}</p>
                             <div className="flex gap-2 items-center">
                               <span className="text-[10px] font-mono text-zinc-600">{timeAgo(hist.createdAt)}</span>
-                              {hist.actionUrl && <ExternalLink size={10} className="text-zinc-600" />}
+                              {hist.actionUrl && (
+                                <a href={hist.actionUrl} target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:text-amber-500 transition-colors">
+                                  <ExternalLink size={10} />
+                                </a>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -253,21 +260,21 @@ export default function StatusWidget() {
           current.glow ? 'shadow-lg' : ''
         }`}
         style={{
-          // Background ko pure black se hata kar translucent black (bg-black/70 jaisa) kiya
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          // Background ko pure black se hata kar translucent black (bg-black/40 jaisa) kiya
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
           // Border ko tere choose kiye hue color ke sath match kiya translucent mode mein
           border: `1px solid ${hexToRgba(current.hexColor, 0.3)}`,
           // Glow shadow waisa hi rakha
           boxShadow: current.glow ? `0 0 18px ${hexToRgba(current.hexColor, 0.45)}` : undefined,
         }}
       >
-        <span className="relative flex h-3.5 w-3.5">
+        <span className="relative flex items-center justify-center h-3.5 w-3.5">
           {current.glow && (
             // Ping (expanding circle) waisa hi glowing rahega attention ke liye
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: current.hexColor }}></span>
           )}
-          {/* 👇 Main Central Dot: Iski opacity 0.85 (85%) ki taaki ye halka soft dikhe */}
-          <span className="relative inline-flex rounded-full h-3.5 w-3.5" style={{ backgroundColor: hexToRgba(current.hexColor, 0.85) }}></span>
+          {/* 👇 Main Central Dot: Iski opacity 0.80 (80%) ki taaki ye halka soft dikhe */}
+          <span className="relative inline-flex rounded-full h-3.5 w-3.5" style={{ backgroundColor: hexToRgba(current.hexColor, 0.80) }}></span>
         </span>
       </button>
       
