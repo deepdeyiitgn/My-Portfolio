@@ -487,7 +487,7 @@ function JournalEditor({
                 let tag: string;
                 const ytMatch = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
                 if (ytMatch) {
-                  tag = `<iframe src="https://www.youtube.com/embed/${ytMatch[1]}" width="100%" height="400" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="rounded-xl my-4"></iframe>`;
+                  tag = `<iframe src="https://www.youtube.com/embed/${ytMatch[1]}" width="100%" height="400" style="border:0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="rounded-xl my-4"></iframe>`;
                 } else {
                   tag = `<video controls class="w-full rounded-xl my-4"><source src="${trimmed}" type="video/mp4" />Your browser does not support video.</video>`;
                 }
