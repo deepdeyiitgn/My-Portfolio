@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, HelpCircle, Plus, Minus, ArrowRight, MessageSquareOff, ChevronLeft, ChevronRight } from 'lucide-react';
 import { faqData, FAQItem } from '../data/faqData';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import SEO from '../components/SEO';
 
 export default function FAQ() {
@@ -10,8 +10,10 @@ export default function FAQ() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [focusedId, setFocusedId] = useState<number | null>(null); // item highlighted via hash
   const itemsPerPage = 10;
   const listTopRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
 
   useEffect(() => {
     const loadFaqs = async () => {
@@ -27,6 +29,36 @@ export default function FAQ() {
     };
     loadFaqs();
   }, []);
+
+  // ── Hash-based auto-navigation: /faq#faq-5 → correct page + auto-expand ──
+  useEffect(() => {
+    const hash = location.hash; // e.g. "#faq-5"
+    if (!hash.startsWith('#faq-')) return;
+
+    const targetId = parseInt(hash.replace('#faq-', ''), 10);
+    if (!targetId || isNaN(targetId)) return;
+
+    // Find position in the unfiltered list (searchQuery is empty when coming from search)
+    const allItems = faqItems.length > 0 ? faqItems : faqData;
+    const idx = allItems.findIndex(item => item.id === targetId);
+    if (idx === -1) return;
+
+    // Compute which page this item is on (1-indexed)
+    const targetPage = Math.floor(idx / itemsPerPage) + 1;
+
+    setCurrentPage(targetPage);
+    setActiveIndex(targetId);   // auto-expand the item
+    setFocusedId(targetId);     // highlight it
+
+    // Wait for the page state to render, then scroll to the element
+    setTimeout(() => {
+      const el = document.getElementById(`faq-${targetId}`);
+      if (el) {
+        const topOffset = el.getBoundingClientRect().top + window.scrollY - 120;
+        window.scrollTo({ top: topOffset, behavior: 'smooth' });
+      }
+    }, 120);
+  }, [location.hash, faqItems]); // re-run when items are loaded from API
 
   // Advanced Search Logic with Match Percentage
   const filteredFaqs = useMemo(() => {
@@ -155,7 +187,11 @@ export default function FAQ() {
                   key={faq.id}
                   id={`faq-${faq.id}`}
                   layout
-                  className="group border border-zinc-800 bg-zinc-900/10 rounded-[2rem] overflow-hidden hover:border-amber-500/30 transition-all shadow-lg shadow-black/40"
+                  className={`group border rounded-[2rem] overflow-hidden transition-all shadow-lg shadow-black/40 ${
+                    focusedId === faq.id
+                      ? 'border-amber-500/60 bg-amber-500/5 shadow-amber-500/10'
+                      : 'border-zinc-800 bg-zinc-900/10 hover:border-amber-500/30'
+                  }`}
                 >
                   <button
                     onClick={() => toggleFAQ(faq.id)}
