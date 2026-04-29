@@ -102,7 +102,13 @@ export default function JournalView() {
       setLoading(true);
       setError('');
       try {
-        const r = await fetch(`/api/journal?id=${encodeURIComponent(id)}&countView=true`);
+        // If id looks like a MongoDB ObjectId (24 hex chars) use ?id=, otherwise
+        // the value is a human-readable slug — use ?slug= so the API resolves it.
+        const isObjectId = /^[a-f\d]{24}$/i.test(id);
+        const apiUrl = isObjectId
+          ? `/api/journal?id=${encodeURIComponent(id)}&countView=true`
+          : `/api/journal?slug=${encodeURIComponent(id)}&countView=true`;
+        const r = await fetch(apiUrl);
         const d = await r.json();
         if (!mounted) return;
         if (!r.ok || !d.ok) {

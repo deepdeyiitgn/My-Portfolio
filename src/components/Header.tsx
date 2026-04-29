@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, FormEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Menu, X, Radio, Search } from 'lucide-react';
@@ -21,32 +21,21 @@ const NAV_LINKS = [
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const { language, setLanguage, t } = useLanguage();
 
-  // Ctrl+K Shortcut to focus Search Bar
+  // Ctrl+K / Cmd+K — navigate to the Search page
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
-        searchInputRef.current?.focus();
+        navigate('/search');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  const handleSearch = (e: FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery('');
-      setIsOpen(false); // Close mobile menu if open
-    }
-  };
+  }, [navigate]);
 
   // Close menu on route change
 
@@ -104,18 +93,14 @@ export default function Header() {
           </div>
 
           <div className="hidden lg:flex items-center gap-3 shrink-0">
-            {/* 🔍 Global Search Bar (Desktop) */}
-            <form onSubmit={handleSearch} className="relative flex items-center group hidden xl:flex">
-              <Search size={14} className="absolute left-2.5 text-zinc-500 group-focus-within:text-amber-500 transition-colors" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search... (Ctrl+K)"
-                className="bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs rounded-xl pl-8 pr-3 py-1.5 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all w-48 placeholder:text-zinc-600"
-              />
-            </form>
+            {/* 🔍 Search Icon Button (Desktop) — navigates to /search, Ctrl+K */}
+            <button
+              onClick={() => navigate('/search')}
+              aria-label="Search (Ctrl+K)"
+              className="hidden xl:flex items-center justify-center w-9 h-9 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 text-amber-500 transition-all duration-300 shadow-[0_0_12px_rgba(245,158,11,0.15)] hover:shadow-[0_0_20px_rgba(245,158,11,0.3)]"
+            >
+              <Search size={16} />
+            </button>
 
             <label className="sr-only" htmlFor="language-switcher">Language</label>
             <select
@@ -193,17 +178,14 @@ export default function Header() {
               </div>
 
               <div className="flex flex-col items-center gap-2.5 py-8 mt-10 w-full max-w-xs">
-                {/* 🔍 Global Search Bar (Mobile) */}
-                <form onSubmit={handleSearch} className="relative flex items-center w-full mb-6">
-                  <Search size={16} className="absolute left-3 text-zinc-500" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search anything..."
-                    className="w-full bg-zinc-900 border border-zinc-800 text-zinc-300 text-sm rounded-xl pl-9 pr-4 py-3 focus:outline-none focus:border-amber-500/50 transition-all placeholder:text-zinc-600"
-                  />
-                </form>
+                {/* 🔍 Search Button (Mobile) — navigates to /search */}
+                <button
+                  onClick={() => { navigate('/search'); setIsOpen(false); }}
+                  className="flex items-center gap-2 w-full justify-center mb-6 px-5 py-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 text-amber-500 rounded-xl transition-all duration-300 font-mono text-sm tracking-wider"
+                >
+                  <Search size={16} />
+                  Search Anything...
+                </button>
 
                 {NAV_LINKS.map((link, index) => (
                   <motion.div
