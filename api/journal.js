@@ -156,6 +156,80 @@ module.exports = async (req, res) => {
         return json(res, 200, { ok: true, current, history });
       }
 
+      // --- NAYA: Global Search & Easter Egg Engine ---
+      if (action === 'search') {
+        const q = getParam(req, 'q') || '';
+        if (!q.trim()) return json(res, 200, { ok: true, results: [], easterEgg: null });
+
+        // Case-insensitive pattern match
+        const queryRegex = new RegExp(q.trim(), 'i');
+
+        // 1. Fetch Matching Journals (Title, Summary, Content, Category)
+        const journalsCol = db.collection('journals');
+        const matchedJournals = await journalsCol.find({
+          published: true,
+          $or: [
+            { title: queryRegex },
+            { summary: queryRegex },
+            { content: queryRegex },
+            { categoryName: queryRegex }
+          ]
+        }).sort({ createdAt: -1 }).toArray();
+
+        // Snippet Generator: Finds multiple matches in the SAME page
+        const getSnippets = (text, query) => {
+          if (!text) return [];
+          const plainText = text.replace(/<[^>]+>/g, ' '); // Strip HTML/Markdown tags
+          const regex = new RegExp(query, 'gi');
+          let match;
+          const snippets = [];
+          let count = 0;
+
+          // Max 3 unique snippets per document
+          while ((match = regex.exec(plainText)) !== null && count < 3) {
+            const start = Math.max(0, match.index - 40);
+            const end = Math.min(plainText.length, match.index + query.length + 40);
+            let snippet = plainText.substring(start, end);
+
+            if (start > 0) snippet = '...' + snippet;
+            if (end < plainText.length) snippet = snippet + '...';
+
+            // Wrap matched word in <mark> for UI highlight
+            snippet = snippet.replace(new RegExp(`(${query})`, 'gi'), '<mark class="bg-amber-500/20 text-amber-500 rounded px-1 font-bold">$1</mark>');
+            snippets.push(snippet);
+            count++;
+          }
+          return snippets.length > 0 ? snippets : [plainText.substring(0, 100) + '...'];
+        };
+
+        const results = matchedJournals.map(j => ({
+          _id: j._id,
+          type: 'Journal',
+          title: j.title,
+          url: `/journal/${j.slug}`,
+          category: j.categoryName,
+          // Combine all text to search for all possible snippets
+          snippets: getSnippets([j.title, j.summary, j.content].filter(Boolean).join(' | '), q.trim()),
+          createdAtIST: j.createdAtIST
+        }));
+
+        // 2. Easter Egg Logic (Trigger Custom Status Card)
+        const easterEggTriggers = ['status', 'deep', 'doing', 'free', 'author', 'deep dey', 'admin'];
+        let easterEgg = null;
+        if (easterEggTriggers.some(t => q.toLowerCase().includes(t))) {
+          const statusCol = db.collection('live_status');
+          const latestStatus = await statusCol.find({ isVisible: true }).sort({ createdAt: -1 }).limit(1).toArray();
+          if (latestStatus.length > 0) {
+            easterEgg = latestStatus[0];
+          }
+        }
+
+        return json(res, 200, { ok: true, results, easterEgg });
+      }
+
+      const slug = getParam(req, 'slug');
+      const id = getParam(req, 'id');
+
       // --- EXISTING: Journal Fetch Logic ---
       const wantsSingle = Boolean(getParam(req, 'slug') || getParam(req, 'id'));
       if (wantsSingle) {

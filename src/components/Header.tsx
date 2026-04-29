@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect, useRef, FormEvent } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, Radio } from 'lucide-react';
+import { Menu, X, Radio, Search } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 const NAV_LINKS = [
@@ -21,8 +21,34 @@ const NAV_LINKS = [
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const location = useLocation();
+  const navigate = useNavigate();
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const { language, setLanguage, t } = useLanguage();
+
+  // Ctrl+K Shortcut to focus Search Bar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleSearch = (e: FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery('');
+      setIsOpen(false); // Close mobile menu if open
+    }
+  };
+
+  // Close menu on route change
 
   // Close menu on route change
   useEffect(() => {
@@ -77,7 +103,20 @@ export default function Header() {
             ))}
           </div>
 
-          <div className="hidden lg:flex items-center gap-2 shrink-0">
+          <div className="hidden lg:flex items-center gap-3 shrink-0">
+            {/* 🔍 Global Search Bar (Desktop) */}
+            <form onSubmit={handleSearch} className="relative flex items-center group hidden xl:flex">
+              <Search size={14} className="absolute left-2.5 text-zinc-500 group-focus-within:text-amber-500 transition-colors" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search... (Ctrl+K)"
+                className="bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs rounded-xl pl-8 pr-3 py-1.5 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all w-48 placeholder:text-zinc-600"
+              />
+            </form>
+
             <label className="sr-only" htmlFor="language-switcher">Language</label>
             <select
               id="language-switcher"
@@ -153,7 +192,19 @@ export default function Header() {
                 </select>
               </div>
 
-              <div className="flex flex-col items-center gap-2.5 py-8">
+              <div className="flex flex-col items-center gap-2.5 py-8 mt-10 w-full max-w-xs">
+                {/* 🔍 Global Search Bar (Mobile) */}
+                <form onSubmit={handleSearch} className="relative flex items-center w-full mb-6">
+                  <Search size={16} className="absolute left-3 text-zinc-500" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search anything..."
+                    className="w-full bg-zinc-900 border border-zinc-800 text-zinc-300 text-sm rounded-xl pl-9 pr-4 py-3 focus:outline-none focus:border-amber-500/50 transition-all placeholder:text-zinc-600"
+                  />
+                </form>
+
                 {NAV_LINKS.map((link, index) => (
                   <motion.div
                     key={link.path}

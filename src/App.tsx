@@ -27,6 +27,7 @@ const DMCA = lazy(() => import('./pages/DMCA'));
 const Copyright = lazy(() => import('./pages/Copyright'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Live = lazy(() => import('./pages/Live'));
+const SearchResults = lazy(() => import('./pages/SearchResults')); // <-- NAYA
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 /**
@@ -97,6 +98,7 @@ function AnimatedRoutes() {
             <Route path="/copyright" element={<Copyright />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/live" element={<Live />} />
+            <Route path="/search" element={<SearchResults />} /> {/* <-- NAYA ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
