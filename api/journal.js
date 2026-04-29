@@ -159,72 +159,124 @@ module.exports = async (req, res) => {
       // --- NAYA: Global Search & Easter Egg Engine ---
       if (action === 'search') {
         const q = getParam(req, 'q') || '';
-        if (!q.trim()) return json(res, 200, { ok: true, results: [], easterEgg: null });
+        const analyticsCol = db.collection('search_analytics');
 
-        // Case-insensitive pattern match
-        const queryRegex = new RegExp(q.trim(), 'i');
+        // Always fetch the top 5 trending queries so the UI can show them even on empty state
+        const trendingDocs = await analyticsCol
+          .find({})
+          .sort({ count: -1 })
+          .limit(5)
+          .toArray();
+        const trending = trendingDocs.map(t => ({ query: t.query, count: t.count }));
 
-        // 1. Fetch Matching Journals (Title, Summary, Content, Category)
+        // If no query, just return trending data with empty results
+        if (!q.trim()) {
+          return json(res, 200, { ok: true, results: [], easterEgg: null, trending });
+        }
+
+        // --- Search Analytics: upsert query counter ---
+        const normalizedQuery = q.trim().toLowerCase();
+        await analyticsCol.updateOne(
+          { query: normalizedQuery },
+          {
+            $inc: { count: 1 },
+            $set: { lastSearched: new Date() },
+            $setOnInsert: { query: normalizedQuery }
+          },
+          { upsert: true }
+        );
+
+        // --- Loose Multi-Keyword Matching ---
+        // Escape each keyword for safe regex use, then build an $and clause so
+        // every keyword must appear in at least one of the indexed fields.
+        const keywords = normalizedQuery.split(/\s+/).filter(Boolean);
+        const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        const keywordConditions = keywords.map(kw => {
+          const kwRegex = new RegExp(escapeRegex(kw), 'i');
+          return {
+            $or: [
+              { title: kwRegex },
+              { summary: kwRegex },
+              { content: kwRegex },
+              { categoryName: kwRegex }
+            ]
+          };
+        });
+
         const journalsCol = db.collection('journals');
         const matchedJournals = await journalsCol.find({
           published: true,
-          $or: [
-            { title: queryRegex },
-            { summary: queryRegex },
-            { content: queryRegex },
-            { categoryName: queryRegex }
-          ]
+          $and: keywordConditions
         }).sort({ createdAt: -1 }).toArray();
 
-        // Snippet Generator: Finds multiple matches in the SAME page
-        const getSnippets = (text, query) => {
-          if (!text) return [];
-          const plainText = text.replace(/<[^>]+>/g, ' '); // Strip HTML/Markdown tags
-          const regex = new RegExp(query, 'gi');
-          let match;
+        // --- Multi-Keyword Snippet Generator ---
+        // Strips HTML, locates each keyword, and highlights ALL keywords in every snippet.
+        const getSnippets = (text, kws) => {
+          if (!text || !kws.length) return [];
+          const plainText = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
           const snippets = [];
           let count = 0;
 
-          // Max 3 unique snippets per document
-          while ((match = regex.exec(plainText)) !== null && count < 3) {
-            const start = Math.max(0, match.index - 40);
-            const end = Math.min(plainText.length, match.index + query.length + 40);
-            let snippet = plainText.substring(start, end);
+          for (const kw of kws) {
+            if (count >= 3) break;
+            const regex = new RegExp(escapeRegex(kw), 'gi');
+            let match;
+            while ((match = regex.exec(plainText)) !== null && count < 3) {
+              const start = Math.max(0, match.index - 40);
+              const end = Math.min(plainText.length, match.index + kw.length + 40);
+              let snippet = plainText.substring(start, end);
+              if (start > 0) snippet = '...' + snippet;
+              if (end < plainText.length) snippet += '...';
 
-            if (start > 0) snippet = '...' + snippet;
-            if (end < plainText.length) snippet = snippet + '...';
-
-            // Wrap matched word in <mark> for UI highlight
-            snippet = snippet.replace(new RegExp(`(${query})`, 'gi'), '<mark class="bg-amber-500/20 text-amber-500 rounded px-1 font-bold">$1</mark>');
-            snippets.push(snippet);
-            count++;
+              // Highlight every matched keyword in this snippet
+              for (const hw of kws) {
+                snippet = snippet.replace(
+                  new RegExp(`(${escapeRegex(hw)})`, 'gi'),
+                  '<mark class="bg-amber-500/20 text-amber-500 rounded px-1 font-bold">$1</mark>'
+                );
+              }
+              snippets.push(snippet);
+              count++;
+            }
           }
-          return snippets.length > 0 ? snippets : [plainText.substring(0, 100) + '...'];
+
+          return snippets.length > 0
+            ? snippets
+            : [plainText.substring(0, 120) + (plainText.length > 120 ? '...' : '')];
         };
 
         const results = matchedJournals.map(j => ({
           _id: j._id,
           type: 'Journal',
           title: j.title,
-          url: `/journal/${j.slug}`,
+          slug: j.slug, // included so the frontend can construct the correct route
+          url: `/journal/view/${j.slug}`, // fixed: was /journal/${j.slug}
           category: j.categoryName,
-          // Combine all text to search for all possible snippets
-          snippets: getSnippets([j.title, j.summary, j.content].filter(Boolean).join(' | '), q.trim()),
+          snippets: getSnippets(
+            [j.title, j.summary, j.content].filter(Boolean).join(' | '),
+            keywords
+          ),
           createdAtIST: j.createdAtIST
         }));
 
-        // 2. Easter Egg Logic (Trigger Custom Status Card)
+        // --- Easter Egg Logic (Trigger Custom Status Card) ---
         const easterEggTriggers = ['status', 'deep', 'doing', 'free', 'author', 'deep dey', 'admin'];
         let easterEgg = null;
-        if (easterEggTriggers.some(t => q.toLowerCase().includes(t))) {
+        if (easterEggTriggers.some(t => normalizedQuery.includes(t))) {
           const statusCol = db.collection('live_status');
-          const latestStatus = await statusCol.find({ isVisible: true }).sort({ createdAt: -1 }).limit(1).toArray();
+          const latestStatus = await statusCol
+            .find({ isVisible: true })
+            .sort({ createdAt: -1 })
+            .limit(1)
+            .toArray();
           if (latestStatus.length > 0) {
             easterEgg = latestStatus[0];
           }
         }
 
-        return json(res, 200, { ok: true, results, easterEgg });
+        return json(res, 200, { ok: true, results, easterEgg, trending });
       }
 
       const slug = getParam(req, 'slug');

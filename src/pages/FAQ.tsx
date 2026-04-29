@@ -153,6 +153,7 @@ export default function FAQ() {
               paginatedFaqs.map((faq) => (
                 <motion.div
                   key={faq.id}
+                  id={`faq-${faq.id}`}
                   layout
                   className="group border border-zinc-800 bg-zinc-900/10 rounded-[2rem] overflow-hidden hover:border-amber-500/30 transition-all shadow-lg shadow-black/40"
                 >
