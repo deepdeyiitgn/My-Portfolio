@@ -94,9 +94,12 @@ export default function StatusWidget() {
 
   // Hex color safely convert for shadows (adds opacity)
   const hexToRgba = (hex: string, alpha: number) => {
-    const r = parseInt(hex.slice(1, 3), 16) || 34;
-    const g = parseInt(hex.slice(3, 5), 16) || 197;
-    const b = parseInt(hex.slice(5, 7), 16) || 94;
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    // Fall back to a neutral green only if the hex string was actually unparseable (NaN),
+    // NOT when a channel is legitimately 0 (e.g. #ff0000 has g=0 and b=0).
+    if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(34, 197, 94, ${alpha})`;
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
