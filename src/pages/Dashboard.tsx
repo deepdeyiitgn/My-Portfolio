@@ -100,6 +100,8 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
+const MONGODB_FREE_TIER_LIMIT_BYTES = 512 * 1024 * 1024; // 512 MB
+
 function Toast({ message, type }: { message: string; type: 'success' | 'error' }) {
   return (
     <motion.div
@@ -1770,10 +1772,10 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
               <div className="mt-2 h-1 bg-zinc-800 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-amber-500 rounded-full"
-                  style={{ width: `${Math.min(100, (storageStats.storageSize / (512 * 1024 * 1024)) * 100).toFixed(1)}%` }}
+                  style={{ width: `${Math.min(100, (storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(1)}%` }}
                 />
               </div>
-              <p className="text-zinc-600 text-[9px] font-mono mt-1">{((storageStats.storageSize / (512 * 1024 * 1024)) * 100).toFixed(2)}% of 512 MB</p>
+              <p className="text-zinc-600 text-[9px] font-mono mt-1">{((storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}% of 512 MB</p>
             </>
           ) : (
             <p className="text-zinc-600 text-sm mt-1">—</p>
@@ -2511,11 +2513,11 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                       <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all"
-                          style={{ width: `${Math.min(100, (storageStats.storageSize / (512 * 1024 * 1024)) * 100).toFixed(2)}%` }}
+                          style={{ width: `${Math.min(100, (storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}%` }}
                         />
                       </div>
                       <p className="text-zinc-500 text-xs font-mono text-right">
-                        {((storageStats.storageSize / (512 * 1024 * 1024)) * 100).toFixed(2)}% of 512 MB used
+                        {((storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}% of 512 MB used
                       </p>
                     </div>
 
@@ -2580,7 +2582,8 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                         <div className="space-y-2">
                           {storageJournals.slice((storageJournalPage - 1) * STORAGE_PAGE_SIZE, storageJournalPage * STORAGE_PAGE_SIZE).map(j => {
                             const approxSize = JSON.stringify(j).length;
-                            const pct = storageStats ? Math.min(100, (approxSize / Math.max(1, storageStats.storageSize)) * 100) : 0;
+                            const colSize = storageStats?.collections['journals']?.storageSize || 0;
+                            const pct = colSize > 0 ? Math.min(100, (approxSize / colSize) * 100) : 0;
                             return (
                               <div key={j._id} className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 flex items-center justify-between gap-4">
                                 <div className="flex-1 min-w-0">
@@ -2628,7 +2631,8 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                         <div className="space-y-2">
                           {projects.slice((storageProjectPage - 1) * STORAGE_PAGE_SIZE, storageProjectPage * STORAGE_PAGE_SIZE).map(p => {
                             const approxSize = JSON.stringify(p).length;
-                            const pct = storageStats ? Math.min(100, (approxSize / Math.max(1, storageStats.storageSize)) * 100) : 0;
+                            const colSize = storageStats?.collections['projects']?.storageSize || 0;
+                            const pct = colSize > 0 ? Math.min(100, (approxSize / colSize) * 100) : 0;
                             return (
                               <div key={p._id} className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 flex items-center justify-between gap-4">
                                 <div className="flex-1 min-w-0">
@@ -2673,7 +2677,8 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                         <div className="space-y-2">
                           {journeyItems.slice((storageJourneyPage - 1) * STORAGE_PAGE_SIZE, storageJourneyPage * STORAGE_PAGE_SIZE).map(item => {
                             const approxSize = JSON.stringify(item).length;
-                            const pct = storageStats ? Math.min(100, (approxSize / Math.max(1, storageStats.storageSize)) * 100) : 0;
+                            const colSize = storageStats?.collections['timeline']?.storageSize || 0;
+                            const pct = colSize > 0 ? Math.min(100, (approxSize / colSize) * 100) : 0;
                             return (
                               <div key={item._id} className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 flex items-center justify-between gap-4">
                                 <div className="flex-1 min-w-0">
