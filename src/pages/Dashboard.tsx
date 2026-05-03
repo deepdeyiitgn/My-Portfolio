@@ -2752,7 +2752,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
               </div>
               <div className="flex justify-between">
                 <span className="font-mono text-zinc-600 uppercase text-[10px] tracking-widest self-center">API Files</span>
-                <span>7 / 12 (Vercel free tier)</span>
+                <span>11 / 12 (Vercel free tier)</span>
               </div>
             </div>
             <button
