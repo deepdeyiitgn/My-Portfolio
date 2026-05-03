@@ -149,11 +149,20 @@ module.exports = async (req, res) => {
       // --- DB Stats: Storage usage for dashboard ---
       if (action === 'dbstats') {
         if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+
+        // Website DB stats (current database only)
         let overallStats = { dataSize: 0, storageSize: 0, indexSize: 0 };
         try {
           const s = await db.command({ dbStats: 1 });
           overallStats = { dataSize: s.dataSize || 0, storageSize: s.storageSize || 0, indexSize: s.indexSize || 0 };
         } catch { /* ignore */ }
+
+        // Full cluster total (all databases on this Atlas cluster)
+        let clusterTotalSize = 0;
+        try {
+          const listResult = await cachedClient.db('admin').command({ listDatabases: 1 });
+          clusterTotalSize = listResult.totalSize || 0;
+        } catch { /* Atlas M0 may not allow this — fall back to current DB size */ }
 
         const collectionNames = ['journals', 'projects', 'timeline', 'categories', 'live_status', 'settings', 'config', 'search_analytics'];
         const collections = {};
@@ -174,7 +183,7 @@ module.exports = async (req, res) => {
             } catch { collections[name] = { count: 0, size: 0, storageSize: 0 }; }
           }
         }
-        return json(res, 200, { ok: true, ...overallStats, collections });
+        return json(res, 200, { ok: true, ...overallStats, clusterTotalSize, collections });
       }
 
       // --- NAYA: Live Status Fetch Logic ---

@@ -67,6 +67,7 @@ interface StorageStats {
   dataSize: number;
   storageSize: number;
   indexSize: number;
+  clusterTotalSize: number; // all databases on this Atlas cluster
   collections: Record<string, CollectionStat>;
 }
 
@@ -1757,25 +1758,25 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
             <p className="text-amber-500 text-2xl font-black mt-1">{stat.value}</p>
           </div>
         ))}
-        {/* Storage card */}
+        {/* Storage card — shows full cluster total */}
         <div
           className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 cursor-pointer hover:border-zinc-700 transition-colors"
           onClick={() => setTab('storage')}
           title="Click to view storage details"
         >
           <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono flex items-center gap-1">
-            <HardDrive size={10} /> DB Storage
+            <HardDrive size={10} /> Cluster Storage
           </p>
           {storageStats ? (
             <>
-              <p className="text-amber-500 text-2xl font-black mt-1">{formatBytes(storageStats.storageSize)}</p>
+              <p className="text-amber-500 text-2xl font-black mt-1">{formatBytes(storageStats.clusterTotalSize || storageStats.storageSize)}</p>
               <div className="mt-2 h-1 bg-zinc-800 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-amber-500 rounded-full"
-                  style={{ width: `${Math.min(100, (storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(1)}%` }}
+                  style={{ width: `${Math.min(100, ((storageStats.clusterTotalSize || storageStats.storageSize) / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(1)}%` }}
                 />
               </div>
-              <p className="text-zinc-600 text-[9px] font-mono mt-1">{((storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}% of 512 MB</p>
+              <p className="text-zinc-600 text-[9px] font-mono mt-1">{(((storageStats.clusterTotalSize || storageStats.storageSize) / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}% of 512 MB</p>
             </>
           ) : (
             <p className="text-zinc-600 text-sm mt-1">—</p>
@@ -2497,42 +2498,60 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                   <div className="p-3 bg-amber-500/10 rounded-2xl text-amber-500"><HardDrive size={20} /></div>
                   <div>
                     <h3 className="text-white font-bold text-base">MongoDB Atlas Cluster Storage</h3>
-                    <p className="text-zinc-500 text-xs mt-0.5">Free tier — 512 MB total</p>
+                    <p className="text-zinc-500 text-xs mt-0.5">Free tier — 512 MB total cluster limit</p>
                   </div>
                   <button onClick={fetchStorageStats} className={`ml-auto ${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 text-xs`}>Refresh</button>
                 </div>
 
                 {storageStats ? (
                   <>
-                    {/* Progress bar */}
+                    {/* Cluster total progress bar */}
                     <div className="space-y-2">
+                      <p className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest">Full Cluster Usage (All Databases)</p>
                       <div className="flex justify-between text-xs font-mono">
-                        <span className="text-zinc-400">Used: <span className="text-amber-500 font-bold">{formatBytes(storageStats.storageSize)}</span></span>
-                        <span className="text-zinc-500">Available: <span className="text-emerald-400 font-bold">{formatBytes(Math.max(0, 512 * 1024 * 1024 - storageStats.storageSize))}</span></span>
+                        <span className="text-zinc-400">Cluster Used: <span className="text-amber-500 font-bold">{formatBytes(storageStats.clusterTotalSize || storageStats.storageSize)}</span></span>
+                        <span className="text-zinc-500">Available: <span className="text-emerald-400 font-bold">{formatBytes(Math.max(0, MONGODB_FREE_TIER_LIMIT_BYTES - (storageStats.clusterTotalSize || storageStats.storageSize)))}</span></span>
                       </div>
                       <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all"
-                          style={{ width: `${Math.min(100, (storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}%` }}
+                          style={{ width: `${Math.min(100, ((storageStats.clusterTotalSize || storageStats.storageSize) / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}%` }}
                         />
                       </div>
                       <p className="text-zinc-500 text-xs font-mono text-right">
-                        {((storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}% of 512 MB used
+                        {(((storageStats.clusterTotalSize || storageStats.storageSize) / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}% of 512 MB cluster limit
                       </p>
                     </div>
 
-                    {/* Stats grid */}
-                    <div className="grid grid-cols-3 gap-3">
-                      {[
-                        { label: 'Data Size', value: formatBytes(storageStats.dataSize) },
-                        { label: 'Storage Size', value: formatBytes(storageStats.storageSize) },
-                        { label: 'Index Size', value: formatBytes(storageStats.indexSize) },
-                      ].map(s => (
-                        <div key={s.label} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-center">
-                          <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">{s.label}</p>
-                          <p className="text-amber-500 font-black text-base mt-1">{s.value}</p>
-                        </div>
-                      ))}
+                    {/* Cluster vs website split */}
+                    <div className="grid grid-cols-2 gap-3 pt-1 border-t border-zinc-800">
+                      <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-1">
+                        <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">Full Cluster Total</p>
+                        <p className="text-amber-500 font-black text-xl">{formatBytes(storageStats.clusterTotalSize || storageStats.storageSize)}</p>
+                        <p className="text-zinc-600 text-[10px] font-mono">All DBs on this cluster</p>
+                      </div>
+                      <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-1">
+                        <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">This Website's DB</p>
+                        <p className="text-emerald-400 font-black text-xl">{formatBytes(storageStats.storageSize)}</p>
+                        <p className="text-zinc-600 text-[10px] font-mono">Portfolio DB only</p>
+                      </div>
+                    </div>
+
+                    {/* Website DB detail */}
+                    <div className="space-y-2 pt-1 border-t border-zinc-800">
+                      <p className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest">Website Database Breakdown</p>
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { label: 'Data Size', value: formatBytes(storageStats.dataSize) },
+                          { label: 'Storage Size', value: formatBytes(storageStats.storageSize) },
+                          { label: 'Index Size', value: formatBytes(storageStats.indexSize) },
+                        ].map(s => (
+                          <div key={s.label} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-center">
+                            <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">{s.label}</p>
+                            <p className="text-amber-500 font-black text-base mt-1">{s.value}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
                     {/* Collection breakdown */}
