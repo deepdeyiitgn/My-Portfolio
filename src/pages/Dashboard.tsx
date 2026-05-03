@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Lock, LogIn, Eye, EyeOff, Plus, Trash2, Edit3, Send, X,
   ChevronLeft, ChevronRight, LogOut, Tag, BookOpen, Settings,
-  ToggleLeft, ToggleRight, Clock, Loader2, AlertCircle, CheckCircle2, Upload, ImagePlus, Clipboard, Layers, Activity, History
+  ToggleLeft, ToggleRight, Clock, Loader2, AlertCircle, CheckCircle2, Upload, ImagePlus, Clipboard, Layers, Activity, History, HardDrive
 } from 'lucide-react';
 import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
@@ -39,7 +39,7 @@ interface Journal {
   images?: string[];
 }
 
-type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'status';
+type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'status' | 'storage';
 
 // ── Projects types ────────────────────────────────────────────────────────────
 export interface ProjectDB {
@@ -59,6 +59,15 @@ export interface ProjectDB {
   metrics: Array<{ label: string; value: string }>;
   architectureLayers: string[];
   screenshotUrl?: string;
+}
+
+// ── Storage types ─────────────────────────────────────────────────────────────
+interface CollectionStat { count: number; size: number; storageSize: number }
+interface StorageStats {
+  dataSize: number;
+  storageSize: number;
+  indexSize: number;
+  collections: Record<string, CollectionStat>;
 }
 
 // ── Journey (Timeline) types ──────────────────────────────────────────────────
@@ -82,6 +91,14 @@ const inputCls =
 
 const btnCls =
   'px-4 py-2 rounded-xl font-bold text-sm transition-all active:scale-95';
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
 
 function Toast({ message, type }: { message: string; type: 'success' | 'error' }) {
   return (
@@ -1223,6 +1240,22 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   const [statusHistory, setStatusHistory] = useState<any[]>([]);
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
 
+  // ── Storage state ────────────────────────────────────────────────────────
+  const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
+  const [storageLoading, setStorageLoading] = useState(false);
+  const [storageSubTab, setStorageSubTab] = useState<'journals' | 'projects' | 'journey'>('journals');
+  const [storageJournals, setStorageJournals] = useState<Journal[]>([]);
+  const [storageJournalPage, setStorageJournalPage] = useState(1);
+  const [storageProjectPage, setStorageProjectPage] = useState(1);
+  const [storageJourneyPage, setStorageJourneyPage] = useState(1);
+  const STORAGE_PAGE_SIZE = 5;
+
+  // ── Client-side pagination for Projects & Journey ────────────────────────
+  const [projectPage, setProjectPage] = useState(1);
+  const PROJECT_PAGE_SIZE = 10;
+  const [journeyPage, setJourneyPage] = useState(1);
+  const JOURNEY_PAGE_SIZE = 10;
+
   const fetchStatusHistory = useCallback(async () => {
     try {
       const r = await fetch('/api/journal?action=status');
@@ -1234,9 +1267,28 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
     } catch { /* ignore */ }
   }, []);
 
+  const fetchStorageStats = useCallback(async () => {
+    setStorageLoading(true);
+    try {
+      const [statsRes, journalsRes] = await Promise.all([
+        fetch('/api/journal?action=dbstats'),
+        fetch('/api/journal?page=1&limit=100'),
+      ]);
+      const statsData = await statsRes.json();
+      if (statsData.ok) setStorageStats(statsData);
+      const journalsData = await journalsRes.json();
+      if (journalsData.ok) setStorageJournals(journalsData.journals);
+    } catch { /* ignore */ }
+    finally { setStorageLoading(false); }
+  }, []);
+
   useEffect(() => {
     if (tab === 'status' && authenticated) fetchStatusHistory();
   }, [tab, authenticated, fetchStatusHistory]);
+
+  useEffect(() => {
+    if (tab === 'storage' && authenticated) fetchStorageStats();
+  }, [tab, authenticated, fetchStorageStats]);
 
   const handleStatusDelete = async (id: string) => {
     if (!confirm('Delete this status from history?')) return;
@@ -1367,7 +1419,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   const fetchJournals = useCallback(async (page = 1, catFilter = '') => {
     setLoadingJournals(true);
     try {
-      const params = new URLSearchParams({ page: String(page), limit: '20' });
+      const params = new URLSearchParams({ page: String(page), limit: '10' });
       if (catFilter) params.set('category', catFilter);
       const r = await fetch(`/api/journal?${params.toString()}`);
       const d = await r.json();
@@ -1690,7 +1742,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       </div>
 
       {/* Stats bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {[
           { label: 'Total Journals', value: journalTotal },
           { label: 'Published', value: journals.filter((j) => j.published).length },
@@ -1703,6 +1755,30 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
             <p className="text-amber-500 text-2xl font-black mt-1">{stat.value}</p>
           </div>
         ))}
+        {/* Storage card */}
+        <div
+          className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 cursor-pointer hover:border-zinc-700 transition-colors"
+          onClick={() => setTab('storage')}
+          title="Click to view storage details"
+        >
+          <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono flex items-center gap-1">
+            <HardDrive size={10} /> DB Storage
+          </p>
+          {storageStats ? (
+            <>
+              <p className="text-amber-500 text-2xl font-black mt-1">{formatBytes(storageStats.storageSize)}</p>
+              <div className="mt-2 h-1 bg-zinc-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-amber-500 rounded-full"
+                  style={{ width: `${Math.min(100, (storageStats.storageSize / (512 * 1024 * 1024)) * 100).toFixed(1)}%` }}
+                />
+              </div>
+              <p className="text-zinc-600 text-[9px] font-mono mt-1">{((storageStats.storageSize / (512 * 1024 * 1024)) * 100).toFixed(2)}% of 512 MB</p>
+            </>
+          ) : (
+            <p className="text-zinc-600 text-sm mt-1">—</p>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
@@ -1713,6 +1789,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
           { id: 'status', label: 'Live Status', icon: <Activity size={14} /> },     // <-- YE NAYA TAB HAI v2
           { id: 'categories', label: 'Categories', icon: <Tag size={14} /> },
           { id: 'journey', label: 'Journey', icon: <Clock size={14} /> },
+          { id: 'storage', label: 'Storage', icon: <HardDrive size={14} /> },
           { id: 'settings', label: 'Settings', icon: <Settings size={14} /> },
         ] as { id: Tab; label: string; icon: ReactNode }[]).map((t) => (
           <button
@@ -1909,25 +1986,34 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                        <p className="text-sm">No custom projects yet.</p>
                      </div>
                    ) : (
-                     <div className="space-y-3">
-                       {projects.map(p => (
-                         <div key={p._id} className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition-all flex justify-between items-center gap-4">
-                           <div className="flex gap-4 items-center min-w-0">
-                             <div className="w-12 h-12 bg-zinc-950 rounded-xl overflow-hidden p-2 border border-zinc-800 shrink-0">
-                               {p.logoUrl ? <img src={p.logoUrl} className="w-full h-full object-contain" /> : <Layers className="w-full h-full text-zinc-700 p-1"/>}
-                             </div>
-                             <div className="min-w-0">
-                               <p className="text-white font-bold text-base truncate">{p.title}</p>
-                               <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest">{p.category}</p>
-                             </div>
-                           </div>
-                           <div className="flex gap-2 shrink-0">
-                             <button onClick={() => { setProjectEditorMode('edit'); setEditingProject(p); }} className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-400 transition-colors"><Edit3 size={16} /></button>
-                             <button onClick={() => handleProjectDelete(p._id!)} className="p-2 hover:bg-red-900/30 rounded-xl text-zinc-600 hover:text-red-400 transition-colors"><Trash2 size={16} /></button>
-                           </div>
+                     <>
+                       <div className="space-y-3">
+                         {projects.slice((projectPage - 1) * PROJECT_PAGE_SIZE, projectPage * PROJECT_PAGE_SIZE).map(p => (
+                          <div key={p._id} className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition-all flex justify-between items-center gap-4">
+                            <div className="flex gap-4 items-center min-w-0">
+                              <div className="w-12 h-12 bg-zinc-950 rounded-xl overflow-hidden p-2 border border-zinc-800 shrink-0">
+                                {p.logoUrl ? <img src={p.logoUrl} className="w-full h-full object-contain" /> : <Layers className="w-full h-full text-zinc-700 p-1"/>}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-white font-bold text-base truncate">{p.title}</p>
+                                <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest">{p.category}</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 shrink-0">
+                              <button onClick={() => { setProjectEditorMode('edit'); setEditingProject(p); }} className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-400 transition-colors"><Edit3 size={16} /></button>
+                              <button onClick={() => handleProjectDelete(p._id!)} className="p-2 hover:bg-red-900/30 rounded-xl text-zinc-600 hover:text-red-400 transition-colors"><Trash2 size={16} /></button>
+                            </div>
+                          </div>
+                         ))}
+                       </div>
+                       {Math.ceil(projects.length / PROJECT_PAGE_SIZE) > 1 && (
+                         <div className="flex items-center justify-center gap-3 pt-2">
+                           <button onClick={() => setProjectPage(p => Math.max(1, p - 1))} disabled={projectPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}><ChevronLeft size={14} /> Prev</button>
+                           <span className="text-zinc-500 text-sm">Page {projectPage} / {Math.ceil(projects.length / PROJECT_PAGE_SIZE)}</span>
+                           <button onClick={() => setProjectPage(p => Math.min(Math.ceil(projects.length / PROJECT_PAGE_SIZE), p + 1))} disabled={projectPage >= Math.ceil(projects.length / PROJECT_PAGE_SIZE)} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}>Next <ChevronRight size={14} /></button>
                          </div>
-                       ))}
-                     </div>
+                       )}
+                     </>
                    )}
                  </>
                ) : (
@@ -2085,67 +2171,76 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                       <p className="text-xs mt-1">Click "Add Journey Item" to create your first milestone.</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {journeyItems.map((item) => {
-                        const isActive = new Date().getFullYear() === item.year;
-                        return (
-                          <motion.div
-                            key={item._id}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className={`bg-zinc-900/40 border rounded-2xl p-5 hover:border-zinc-700 transition-all ${
-                              isActive ? 'border-amber-500/50' : 'border-zinc-800'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <div className={`p-2 bg-zinc-950 border rounded-xl shrink-0 ${
-                                  isActive ? 'border-amber-500 text-amber-500' : 'border-zinc-800 text-zinc-500'
-                                }`}>
-                                  {renderIcon(item.iconName, item.iconSize)}
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2 mb-0.5">
-                                    <span className="text-[10px] font-mono text-zinc-600 uppercase">
-                                      {item.dateStr}
-                                    </span>
-                                    {isActive && (
-                                      <span className="text-[9px] font-black uppercase tracking-tighter text-amber-500/80 flex items-center gap-1">
-                                        <span className="relative flex h-1.5 w-1.5">
-                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
-                                        </span>
-                                        Active
-                                      </span>
-                                    )}
+                    <>
+                      <div className="space-y-3">
+                        {journeyItems.slice((journeyPage - 1) * JOURNEY_PAGE_SIZE, journeyPage * JOURNEY_PAGE_SIZE).map((item) => {
+                          const isActive = new Date().getFullYear() === item.year;
+                          return (
+                            <motion.div
+                              key={item._id}
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              className={`bg-zinc-900/40 border rounded-2xl p-5 hover:border-zinc-700 transition-all ${
+                                isActive ? 'border-amber-500/50' : 'border-zinc-800'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                  <div className={`p-2 bg-zinc-950 border rounded-xl shrink-0 ${
+                                    isActive ? 'border-amber-500 text-amber-500' : 'border-zinc-800 text-zinc-500'
+                                  }`}>
+                                    {renderIcon(item.iconName, item.iconSize)}
                                   </div>
-                                  <h3 className={`font-bold text-sm truncate ${isActive ? 'text-amber-500' : 'text-white'}`}>
-                                    {item.title}
-                                  </h3>
-                                  <p className="text-zinc-600 text-[10px] font-mono">{item.school}</p>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                      <span className="text-[10px] font-mono text-zinc-600 uppercase">
+                                        {item.dateStr}
+                                      </span>
+                                      {isActive && (
+                                        <span className="text-[9px] font-black uppercase tracking-tighter text-amber-500/80 flex items-center gap-1">
+                                          <span className="relative flex h-1.5 w-1.5">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
+                                          </span>
+                                          Active
+                                        </span>
+                                      )}
+                                    </div>
+                                    <h3 className={`font-bold text-sm truncate ${isActive ? 'text-amber-500' : 'text-white'}`}>
+                                      {item.title}
+                                    </h3>
+                                    <p className="text-zinc-600 text-[10px] font-mono">{item.school}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    onClick={() => { setJourneyEditorMode('edit'); setEditingJourneyItem(item); }}
+                                    className="p-2 rounded-xl hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-amber-500"
+                                    title="Edit"
+                                  >
+                                    <Edit3 size={15} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleJourneyItemDelete(item._id)}
+                                    className="p-2 rounded-xl hover:bg-red-900/30 transition-colors text-zinc-600 hover:text-red-400"
+                                    title="Delete"
+                                  >
+                                    <Trash2 size={15} />
+                                  </button>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1 shrink-0">
-                                <button
-                                  onClick={() => { setJourneyEditorMode('edit'); setEditingJourneyItem(item); }}
-                                  className="p-2 rounded-xl hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-amber-500"
-                                  title="Edit"
-                                >
-                                  <Edit3 size={15} />
-                                </button>
-                                <button
-                                  onClick={() => handleJourneyItemDelete(item._id)}
-                                  className="p-2 rounded-xl hover:bg-red-900/30 transition-colors text-zinc-600 hover:text-red-400"
-                                  title="Delete"
-                                >
-                                  <Trash2 size={15} />
-                                </button>
-                              </div>
-                            </div>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                      {Math.ceil(journeyItems.length / JOURNEY_PAGE_SIZE) > 1 && (
+                        <div className="flex items-center justify-center gap-3 pt-2">
+                          <button onClick={() => setJourneyPage(p => Math.max(1, p - 1))} disabled={journeyPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}><ChevronLeft size={14} /> Prev</button>
+                          <span className="text-zinc-500 text-sm">Page {journeyPage} / {Math.ceil(journeyItems.length / JOURNEY_PAGE_SIZE)}</span>
+                          <button onClick={() => setJourneyPage(p => Math.min(Math.ceil(journeyItems.length / JOURNEY_PAGE_SIZE), p + 1))} disabled={journeyPage >= Math.ceil(journeyItems.length / JOURNEY_PAGE_SIZE)} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}>Next <ChevronRight size={14} /></button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </>
               ) : (
@@ -2384,6 +2479,232 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Storage Tab ──────────────────────────────────────────────────── */}
+      {tab === 'storage' && (
+        <div className="space-y-6">
+          {storageLoading ? (
+            <div className="flex justify-center py-16"><Loader2 size={28} className="animate-spin text-amber-500" /></div>
+          ) : (
+            <>
+              {/* DB Overview Card */}
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-5">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-amber-500/10 rounded-2xl text-amber-500"><HardDrive size={20} /></div>
+                  <div>
+                    <h3 className="text-white font-bold text-base">MongoDB Atlas Cluster Storage</h3>
+                    <p className="text-zinc-500 text-xs mt-0.5">Free tier — 512 MB total</p>
+                  </div>
+                  <button onClick={fetchStorageStats} className={`ml-auto ${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 text-xs`}>Refresh</button>
+                </div>
+
+                {storageStats ? (
+                  <>
+                    {/* Progress bar */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs font-mono">
+                        <span className="text-zinc-400">Used: <span className="text-amber-500 font-bold">{formatBytes(storageStats.storageSize)}</span></span>
+                        <span className="text-zinc-500">Available: <span className="text-emerald-400 font-bold">{formatBytes(Math.max(0, 512 * 1024 * 1024 - storageStats.storageSize))}</span></span>
+                      </div>
+                      <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all"
+                          style={{ width: `${Math.min(100, (storageStats.storageSize / (512 * 1024 * 1024)) * 100).toFixed(2)}%` }}
+                        />
+                      </div>
+                      <p className="text-zinc-500 text-xs font-mono text-right">
+                        {((storageStats.storageSize / (512 * 1024 * 1024)) * 100).toFixed(2)}% of 512 MB used
+                      </p>
+                    </div>
+
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { label: 'Data Size', value: formatBytes(storageStats.dataSize) },
+                        { label: 'Storage Size', value: formatBytes(storageStats.storageSize) },
+                        { label: 'Index Size', value: formatBytes(storageStats.indexSize) },
+                      ].map(s => (
+                        <div key={s.label} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-center">
+                          <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">{s.label}</p>
+                          <p className="text-amber-500 font-black text-base mt-1">{s.value}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Collection breakdown */}
+                    <div className="space-y-2">
+                      <p className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest">Collection Breakdown</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {Object.entries(storageStats.collections).map(([name, cs]) => {
+                            const stat = cs as CollectionStat;
+                            return (
+                              <div key={name} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
+                                <p className="text-zinc-500 text-[10px] font-mono uppercase truncate">{name}</p>
+                                <p className="text-white text-sm font-bold mt-0.5">{stat.count} docs</p>
+                                {stat.storageSize > 0 && <p className="text-zinc-600 text-[10px] font-mono">{formatBytes(stat.storageSize)}</p>}
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-zinc-600 text-sm text-center py-4">No storage data available. Click Refresh to load.</p>
+                )}
+              </div>
+
+              {/* Sub-tabs: per-item breakdown */}
+              <div className="space-y-4">
+                <div className="flex gap-2 border-b border-zinc-800">
+                  {(['journals', 'projects', 'journey'] as const).map(st => (
+                    <button
+                      key={st}
+                      onClick={() => { setStorageSubTab(st); setStorageJournalPage(1); setStorageProjectPage(1); setStorageJourneyPage(1); }}
+                      className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-colors capitalize ${storageSubTab === st ? 'border-amber-500 text-amber-500' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Journals sub-tab */}
+                {storageSubTab === 'journals' && (
+                  <div className="space-y-3">
+                    <p className="text-zinc-600 text-xs font-mono">Showing approximate document size (JSON bytes) · {storageJournals.length} total</p>
+                    {storageJournals.length === 0 ? (
+                      <p className="text-zinc-600 text-sm text-center py-8">No journal data loaded.</p>
+                    ) : (
+                      <>
+                        <div className="space-y-2">
+                          {storageJournals.slice((storageJournalPage - 1) * STORAGE_PAGE_SIZE, storageJournalPage * STORAGE_PAGE_SIZE).map(j => {
+                            const approxSize = JSON.stringify(j).length;
+                            const pct = storageStats ? Math.min(100, (approxSize / Math.max(1, storageStats.storageSize)) * 100) : 0;
+                            return (
+                              <div key={j._id} className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 flex items-center justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-white text-sm font-medium truncate">{j.title}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${j.published ? 'text-emerald-400 bg-emerald-500/10' : 'text-zinc-500 bg-zinc-800'}`}>{j.published ? 'Published' : 'Draft'}</span>
+                                    <span className="text-zinc-600 text-[10px] font-mono">{j.categoryName || '—'}</span>
+                                  </div>
+                                  <div className="mt-2 h-1 bg-zinc-800 rounded-full overflow-hidden w-full max-w-xs">
+                                    <div className="h-full bg-amber-500/60 rounded-full" style={{ width: `${pct.toFixed(1)}%` }} />
+                                  </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-amber-500 font-bold text-sm">{formatBytes(approxSize)}</p>
+                                  <p className="text-zinc-600 text-[10px] font-mono">~est.</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {Math.ceil(storageJournals.length / STORAGE_PAGE_SIZE) > 1 && (
+                          <div className="flex items-center justify-center gap-3 pt-1">
+                            <button onClick={() => setStorageJournalPage(p => Math.max(1, p - 1))} disabled={storageJournalPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}><ChevronLeft size={14} /> Prev</button>
+                            <span className="text-zinc-500 text-sm">Page {storageJournalPage} / {Math.ceil(storageJournals.length / STORAGE_PAGE_SIZE)}</span>
+                            <button onClick={() => setStorageJournalPage(p => Math.min(Math.ceil(storageJournals.length / STORAGE_PAGE_SIZE), p + 1))} disabled={storageJournalPage >= Math.ceil(storageJournals.length / STORAGE_PAGE_SIZE)} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}>Next <ChevronRight size={14} /></button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Projects sub-tab */}
+                {storageSubTab === 'projects' && (
+                  <div className="space-y-3">
+                    <p className="text-zinc-600 text-xs font-mono">Approximate document size (JSON bytes) · {projects.length} total</p>
+                    {projectMode !== 'custom' && (
+                      <div className="bg-zinc-900/20 border border-zinc-800 rounded-xl p-4 text-zinc-500 text-sm">Projects are on Default (local file) mode — no MongoDB data to show.</div>
+                    )}
+                    {projectMode === 'custom' && projects.length === 0 && (
+                      <p className="text-zinc-600 text-sm text-center py-8">No projects in MongoDB.</p>
+                    )}
+                    {projectMode === 'custom' && projects.length > 0 && (
+                      <>
+                        <div className="space-y-2">
+                          {projects.slice((storageProjectPage - 1) * STORAGE_PAGE_SIZE, storageProjectPage * STORAGE_PAGE_SIZE).map(p => {
+                            const approxSize = JSON.stringify(p).length;
+                            const pct = storageStats ? Math.min(100, (approxSize / Math.max(1, storageStats.storageSize)) * 100) : 0;
+                            return (
+                              <div key={p._id} className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 flex items-center justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-white text-sm font-medium truncate">{p.title}</p>
+                                  <p className="text-zinc-600 text-[10px] font-mono uppercase mt-0.5">{p.category || '—'}</p>
+                                  <div className="mt-2 h-1 bg-zinc-800 rounded-full overflow-hidden w-full max-w-xs">
+                                    <div className="h-full bg-amber-500/60 rounded-full" style={{ width: `${pct.toFixed(1)}%` }} />
+                                  </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-amber-500 font-bold text-sm">{formatBytes(approxSize)}</p>
+                                  <p className="text-zinc-600 text-[10px] font-mono">~est.</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {Math.ceil(projects.length / STORAGE_PAGE_SIZE) > 1 && (
+                          <div className="flex items-center justify-center gap-3 pt-1">
+                            <button onClick={() => setStorageProjectPage(p => Math.max(1, p - 1))} disabled={storageProjectPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}><ChevronLeft size={14} /> Prev</button>
+                            <span className="text-zinc-500 text-sm">Page {storageProjectPage} / {Math.ceil(projects.length / STORAGE_PAGE_SIZE)}</span>
+                            <button onClick={() => setStorageProjectPage(p => Math.min(Math.ceil(projects.length / STORAGE_PAGE_SIZE), p + 1))} disabled={storageProjectPage >= Math.ceil(projects.length / STORAGE_PAGE_SIZE)} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}>Next <ChevronRight size={14} /></button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Journey sub-tab */}
+                {storageSubTab === 'journey' && (
+                  <div className="space-y-3">
+                    <p className="text-zinc-600 text-xs font-mono">Approximate document size (JSON bytes) · {journeyItems.length} total</p>
+                    {journeyMode !== 'custom' && (
+                      <div className="bg-zinc-900/20 border border-zinc-800 rounded-xl p-4 text-zinc-500 text-sm">Journey is on Default (local file) mode — no MongoDB data to show.</div>
+                    )}
+                    {journeyMode === 'custom' && journeyItems.length === 0 && (
+                      <p className="text-zinc-600 text-sm text-center py-8">No custom journey items in MongoDB.</p>
+                    )}
+                    {journeyMode === 'custom' && journeyItems.length > 0 && (
+                      <>
+                        <div className="space-y-2">
+                          {journeyItems.slice((storageJourneyPage - 1) * STORAGE_PAGE_SIZE, storageJourneyPage * STORAGE_PAGE_SIZE).map(item => {
+                            const approxSize = JSON.stringify(item).length;
+                            const pct = storageStats ? Math.min(100, (approxSize / Math.max(1, storageStats.storageSize)) * 100) : 0;
+                            return (
+                              <div key={item._id} className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 flex items-center justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-white text-sm font-medium truncate">{item.title}</p>
+                                  <p className="text-zinc-600 text-[10px] font-mono mt-0.5">{item.dateStr} · {item.school || '—'}</p>
+                                  <div className="mt-2 h-1 bg-zinc-800 rounded-full overflow-hidden w-full max-w-xs">
+                                    <div className="h-full bg-amber-500/60 rounded-full" style={{ width: `${pct.toFixed(1)}%` }} />
+                                  </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-amber-500 font-bold text-sm">{formatBytes(approxSize)}</p>
+                                  <p className="text-zinc-600 text-[10px] font-mono">~est.</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {Math.ceil(journeyItems.length / STORAGE_PAGE_SIZE) > 1 && (
+                          <div className="flex items-center justify-center gap-3 pt-1">
+                            <button onClick={() => setStorageJourneyPage(p => Math.max(1, p - 1))} disabled={storageJourneyPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}><ChevronLeft size={14} /> Prev</button>
+                            <span className="text-zinc-500 text-sm">Page {storageJourneyPage} / {Math.ceil(journeyItems.length / STORAGE_PAGE_SIZE)}</span>
+                            <button onClick={() => setStorageJourneyPage(p => Math.min(Math.ceil(journeyItems.length / STORAGE_PAGE_SIZE), p + 1))} disabled={storageJourneyPage >= Math.ceil(journeyItems.length / STORAGE_PAGE_SIZE)} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}>Next <ChevronRight size={14} /></button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
 

@@ -146,6 +146,37 @@ module.exports = async (req, res) => {
     if (req.method === 'GET') {
       const action = getParam(req, 'action');
 
+      // --- DB Stats: Storage usage for dashboard ---
+      if (action === 'dbstats') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        let overallStats = { dataSize: 0, storageSize: 0, indexSize: 0 };
+        try {
+          const s = await db.command({ dbStats: 1 });
+          overallStats = { dataSize: s.dataSize || 0, storageSize: s.storageSize || 0, indexSize: s.indexSize || 0 };
+        } catch { /* ignore */ }
+
+        const collectionNames = ['journals', 'projects', 'timeline', 'categories', 'live_status', 'settings', 'config', 'search_analytics'];
+        const collections = {};
+        for (const name of collectionNames) {
+          try {
+            const cursor = db.collection(name).aggregate([{ $collStats: { storageStats: {} } }]);
+            const arr = await cursor.toArray();
+            const cs = arr[0];
+            collections[name] = {
+              count: cs?.storageStats?.count || 0,
+              size: cs?.storageStats?.size || 0,
+              storageSize: cs?.storageStats?.storageSize || 0,
+            };
+          } catch {
+            try {
+              const count = await db.collection(name).countDocuments();
+              collections[name] = { count, size: 0, storageSize: 0 };
+            } catch { collections[name] = { count: 0, size: 0, storageSize: 0 }; }
+          }
+        }
+        return json(res, 200, { ok: true, ...overallStats, collections });
+      }
+
       // --- NAYA: Live Status Fetch Logic ---
       if (action === 'status') {
         const statusCol = db.collection('live_status');
