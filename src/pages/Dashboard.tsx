@@ -1773,7 +1773,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
               <div className="mt-2 h-1 bg-zinc-800 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-amber-500 rounded-full"
-                  style={{ width: `${Math.min(100, (storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(1)}%` }}
+                  style={{ width: `${Math.min(100, (storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100)}%` }}
                 />
               </div>
               <p className="text-zinc-600 text-[9px] font-mono mt-1">{((storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}% of 512 MB</p>
@@ -2515,7 +2515,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                       <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all"
-                          style={{ width: `${Math.min(100, (storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}%` }}
+                          style={{ width: `${Math.min(100, (storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100)}%` }}
                         />
                       </div>
                       <p className="text-zinc-500 text-xs font-mono text-right">

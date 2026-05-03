@@ -152,7 +152,7 @@ export default function Status() {
   const probeEndpoint = useCallback(async (ep: EndpointDef) => {
     const t0 = performance.now();
     try {
-      const r = await fetch(ep.path, { method: ep.method === 'GET' ? 'GET' : 'POST', cache: 'no-store' });
+      const r = await fetch(ep.path, { method: ep.method, cache: 'no-store' });
       const latencyMs = Math.round(performance.now() - t0);
       setResults(prev => ({
         ...prev,
