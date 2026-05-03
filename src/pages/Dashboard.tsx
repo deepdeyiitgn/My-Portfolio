@@ -1769,14 +1769,14 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
           </p>
           {storageStats ? (
             <>
-              <p className="text-amber-500 text-2xl font-black mt-1">{formatBytes(storageStats.clusterTotalSize || storageStats.storageSize)}</p>
+              <p className="text-amber-500 text-2xl font-black mt-1">{formatBytes(storageStats.storageSize)}</p>
               <div className="mt-2 h-1 bg-zinc-800 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-amber-500 rounded-full"
-                  style={{ width: `${Math.min(100, ((storageStats.clusterTotalSize || storageStats.storageSize) / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(1)}%` }}
+                  style={{ width: `${Math.min(100, (storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(1)}%` }}
                 />
               </div>
-              <p className="text-zinc-600 text-[9px] font-mono mt-1">{(((storageStats.clusterTotalSize || storageStats.storageSize) / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}% of 512 MB</p>
+              <p className="text-zinc-600 text-[9px] font-mono mt-1">{((storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}% of 512 MB</p>
             </>
           ) : (
             <p className="text-zinc-600 text-sm mt-1">—</p>
@@ -2507,33 +2507,33 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                   <>
                     {/* Cluster total progress bar */}
                     <div className="space-y-2">
-                      <p className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest">Full Cluster Usage (All Databases)</p>
+                      <p className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest">Database Storage Usage</p>
                       <div className="flex justify-between text-xs font-mono">
-                        <span className="text-zinc-400">Cluster Used: <span className="text-amber-500 font-bold">{formatBytes(storageStats.clusterTotalSize || storageStats.storageSize)}</span></span>
-                        <span className="text-zinc-500">Available: <span className="text-emerald-400 font-bold">{formatBytes(Math.max(0, MONGODB_FREE_TIER_LIMIT_BYTES - (storageStats.clusterTotalSize || storageStats.storageSize)))}</span></span>
+                        <span className="text-zinc-400">Used: <span className="text-amber-500 font-bold">{formatBytes(storageStats.storageSize)}</span></span>
+                        <span className="text-zinc-500">Available: <span className="text-emerald-400 font-bold">{formatBytes(Math.max(0, MONGODB_FREE_TIER_LIMIT_BYTES - storageStats.storageSize))}</span></span>
                       </div>
                       <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all"
-                          style={{ width: `${Math.min(100, ((storageStats.clusterTotalSize || storageStats.storageSize) / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}%` }}
+                          style={{ width: `${Math.min(100, (storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}%` }}
                         />
                       </div>
                       <p className="text-zinc-500 text-xs font-mono text-right">
-                        {(((storageStats.clusterTotalSize || storageStats.storageSize) / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}% of 512 MB cluster limit
+                        {((storageStats.storageSize / MONGODB_FREE_TIER_LIMIT_BYTES) * 100).toFixed(2)}% of 512 MB cluster limit
                       </p>
                     </div>
 
-                    {/* Cluster vs website split */}
+                    {/* DB stats split */}
                     <div className="grid grid-cols-2 gap-3 pt-1 border-t border-zinc-800">
                       <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-1">
-                        <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">Full Cluster Total</p>
-                        <p className="text-amber-500 font-black text-xl">{formatBytes(storageStats.clusterTotalSize || storageStats.storageSize)}</p>
-                        <p className="text-zinc-600 text-[10px] font-mono">All DBs on this cluster</p>
+                        <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">Storage Size (on disk)</p>
+                        <p className="text-amber-500 font-black text-xl">{formatBytes(storageStats.storageSize)}</p>
+                        <p className="text-zinc-600 text-[10px] font-mono">Allocated on disk</p>
                       </div>
                       <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-1">
-                        <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">This Website's DB</p>
-                        <p className="text-emerald-400 font-black text-xl">{formatBytes(storageStats.storageSize)}</p>
-                        <p className="text-zinc-600 text-[10px] font-mono">Portfolio DB only</p>
+                        <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">Data Size (documents)</p>
+                        <p className="text-emerald-400 font-black text-xl">{formatBytes(storageStats.dataSize)}</p>
+                        <p className="text-zinc-600 text-[10px] font-mono">Actual document data</p>
                       </div>
                     </div>
 

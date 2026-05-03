@@ -186,6 +186,33 @@ module.exports = async (req, res) => {
         return json(res, 200, { ok: true, ...overallStats, clusterTotalSize, collections });
       }
 
+      // --- Public Health Check (no auth) — used by /status page ---
+      if (action === 'health') {
+        const os = require('os');
+        const dbPingStart = Date.now();
+        try { await db.command({ ping: 1 }); } catch { /* ignore */ }
+        const dbPingMs = Date.now() - dbPingStart;
+
+        const mem = process.memoryUsage();
+        const cpus = os.cpus();
+
+        return json(res, 200, {
+          ok: true,
+          timestamp: Date.now(),
+          uptime: process.uptime(),
+          nodeVersion: process.version,
+          platform: os.platform(),
+          arch: os.arch(),
+          totalMemory: os.totalmem(),
+          freeMemory: os.freemem(),
+          cpus: cpus.map((c) => ({ model: c.model, speedMHz: c.speed, times: c.times })),
+          cpuCount: cpus.length,
+          processMemory: { rss: mem.rss, heapUsed: mem.heapUsed, heapTotal: mem.heapTotal, external: mem.external },
+          dbPingMs,
+          loadAverage: os.loadavg(),
+        });
+      }
+
       // --- NAYA: Live Status Fetch Logic ---
       if (action === 'status') {
         const statusCol = db.collection('live_status');

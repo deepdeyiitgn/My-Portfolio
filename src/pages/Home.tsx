@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Target, Lightbulb, GraduationCap, ArrowRight, Zap, History, Milestone, Lock } from 'lucide-react';
+import { Target, Lightbulb, GraduationCap, ArrowRight, Zap, History, Milestone, Lock, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import TechGalaxy from '../components/TechGalaxy';
 import JourneyMarquee from '../components/JourneyMarquee';
@@ -291,6 +291,35 @@ export default function Home() {
       </motion.section>
 
       <SocialProof />
+
+      {/* System Status Banner */}
+      <motion.section
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.3 }}
+        className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6"
+      >
+        <div className="relative overflow-hidden bg-zinc-950 border border-zinc-900 rounded-3xl p-6 md:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-transparent pointer-events-none" />
+          <div className="relative z-10 flex items-center gap-4">
+            <div className="p-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-emerald-400 shrink-0">
+              <Activity size={20} />
+            </div>
+            <div>
+              <p className="text-[10px] font-mono text-emerald-500 uppercase tracking-[0.4em] mb-0.5">Live Monitor</p>
+              <h3 className="text-lg font-black text-white tracking-tight">System Status</h3>
+              <p className="text-zinc-500 text-sm">Real-time API health, server metrics &amp; latency data</p>
+            </div>
+          </div>
+          <Link
+            to="/status"
+            className="relative z-10 shrink-0 px-6 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 text-emerald-400 font-black uppercase tracking-widest rounded-2xl transition-all active:scale-95 text-xs flex items-center gap-2"
+          >
+            <Activity size={14} />
+            View Status
+          </Link>
+        </div>
+      </motion.section>
 
       {/* Owner-only Dashboard Access */}
       <motion.section

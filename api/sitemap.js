@@ -5,7 +5,7 @@ export default async function handler(req, res) {
       '', '/projects', '/about', '/me', '/contact', '/faq', 
       '/portfolio', '/links', '/proof', '/journal', '/now', 
       '/legal', '/terms', '/privacy', '/dmca', '/copyright', '/live',
-      '/search'
+      '/search', '/status'
     ];
 
     let dynamicRoutes = [];

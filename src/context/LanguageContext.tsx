@@ -17,6 +17,7 @@ const dictionary: Dict = {
   'nav.faq': { en: 'FAQ', bn: 'জিজ্ঞাসা', hi: 'प्रश्न' },
   'nav.contact': { en: 'Contact', bn: 'যোগাযোগ', hi: 'संपर्क' },
   'nav.live': { en: 'Live', bn: 'লাইভ', hi: 'लाइव' },
+  'nav.status': { en: 'Status', bn: 'স্ট্যাটাস', hi: 'स्थिति' },
   'home.cta.contact': { en: 'Get in Touch', bn: 'যোগাযোগ করুন', hi: 'संपर्क करें' },
   'home.cta.journal': { en: 'Read Build Journal', bn: 'বিল্ড জার্নাল পড়ুন', hi: 'बिल्ड जर्नल पढ़ें' },
   'home.cta.proof': { en: 'View Proof of Work', bn: 'প্রুফ অব ওয়ার্ক দেখুন', hi: 'प्रूफ ऑफ वर्क देखें' },

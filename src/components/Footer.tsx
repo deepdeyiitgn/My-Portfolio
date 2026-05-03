@@ -35,6 +35,7 @@ export default function Footer() {
                 { name: 'Proof Dashboard', path: '/proof' },
                 { name: 'Build Journal', path: '/journal' },
                 { name: 'Now / Roadmap', path: '/now' },
+                { name: 'System Status', path: '/status' },
                 { name: 'Contact Engine', path: '/contact' },
                 { name: 'Portfolio V2', path: 'https://qlynk.vercel.app/v2/portfolio', external: true },
               ].map((item) => (
