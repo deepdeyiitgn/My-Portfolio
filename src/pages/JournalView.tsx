@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Clock, Eye, Heart, Share2, Code2, X, ChevronLeft, ChevronRight, Link2, ArrowLeft, Calendar } from 'lucide-react';
 import { marked } from 'marked';
 import SEO from '../components/SEO';
+import CommentSection from '../components/CommentSection';
 
 interface Journal {
   _id: string;
@@ -246,6 +247,11 @@ export default function JournalView() {
           )}
         </div>
       </article>
+
+      {/* Comment Section */}
+      <div className="max-w-3xl">
+        <CommentSection journalId={id} />
+      </div>
 
       <AnimatePresence>
         {embedOpen && (

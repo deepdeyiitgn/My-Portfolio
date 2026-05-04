@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { BookOpen, ChevronLeft, ChevronRight, Clock, Tag, Loader2, AlertCircle, RefreshCw, Eye, Heart, X } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, Clock, Tag, Loader2, AlertCircle, RefreshCw, Eye, Heart, X, MessageSquare } from 'lucide-react';
 import SEO from '../components/SEO';
 
 interface JournalItem {
@@ -17,6 +17,7 @@ interface JournalItem {
   readMinutes: number;
   likes?: number;
   views?: number;
+  commentCount?: number;
 }
 
 interface Category {
@@ -39,10 +40,10 @@ export default function Journal() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Naye States: Filter aur Sort ke liye
   const [filterCategories, setFilterCategories] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('recent');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   
   // Modal ke andar use hone wale temp states (jab tak Apply na ho)
   const [tempCategories, setTempCategories] = useState<string[]>([]);
@@ -78,6 +79,14 @@ export default function Journal() {
       if (d.ok) {
         setJournals(d.journals);
         setPagination(d.pagination);
+        // Fetch comment counts for loaded journals
+        const ids = d.journals.map((j: JournalItem) => j._id).filter(Boolean).join(',');
+        if (ids) {
+          fetch(`/api/journal?action=comment-count&journalIds=${encodeURIComponent(ids)}`)
+            .then(r2 => r2.json())
+            .then(d2 => { if (d2.ok) setCommentCounts(d2.counts || {}); })
+            .catch(() => {});
+        }
       } else {
         setError(d.message || 'Failed to load journals');
       }
@@ -232,7 +241,10 @@ export default function Journal() {
                 <span className="flex items-center gap-1">
                   <Eye size={10} /> {Number(item.views || 0)} views
                 </span>
-                <span>
+                <span className="flex items-center gap-1">
+                  <MessageSquare size={10} /> {commentCounts[item._id] || 0} comments
+                </span>
+                <span className="col-span-2">
                   {item.publishedAtIST
                     ? item.publishedAtIST.slice(0, 10)
                     : item.publishedAt

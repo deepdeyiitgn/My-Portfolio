@@ -2,12 +2,23 @@
  * /api/journal
  * GET  ?page=1&limit=20&category=<slug>&published=true  → paginated list
  * GET  ?slug=<slug>|id=<id>&countView=true              → single journal entry
- * GET  ?action=status                                   → FETCH LIVE STATUS & HISTORY (NAYA)
+ * GET  ?action=status                                   → FETCH LIVE STATUS & HISTORY
+ * GET  ?action=comments&journalId=X&page=1&sort=top     → paginated comments (top-level or replies)
+ * GET  ?action=comment-count&journalIds=X,Y             → comment counts for multiple journals
+ * GET  ?action=top-journals&limit=6                     → top N most-liked published journals
+ * GET  ?action=blacklist                                → get blacklist words (auth required)
  * POST ?action=like&id=<id>&session=<sessionId>         → like a journal once/session
- * POST ?action=status                                   → CREATE LIVE STATUS (NAYA - auth required)
+ * POST ?action=status                                   → CREATE LIVE STATUS (auth required)
+ * POST ?action=comment                                  → add comment (Google token or owner cookie)
+ * POST ?action=comment-like&id=<id>&session=<s>         → like a comment once/session
+ * POST ?action=comment-pin                              → pin/unpin comment (auth required)
+ * POST ?action=blacklist                                → add blacklist word (auth required)
  * POST                                                  → create journal (auth required)
+ * PUT  ?action=comment                                  → edit own comment (Google token or owner cookie)
  * PUT                                                   → update journal (auth required); body must include _id
- * DELETE ?id=<id>                                       → delete (auth required)
+ * DELETE ?action=comment&id=<id>                        → delete comment (Google token or owner cookie)
+ * DELETE ?action=blacklist&id=<id>                      → delete blacklist word (auth required)
+ * DELETE ?id=<id>                                       → delete journal (auth required)
  */
 
 const { MongoClient, ObjectId } = require('mongodb');
@@ -117,6 +128,41 @@ function normalizeImages(images) {
     if (value) unique.add(value);
   }
   return Array.from(unique);
+}
+
+// ── Comment helpers ──────────────────────────────────────────────────────────
+
+async function verifyGoogleToken(token) {
+  if (!token) return null;
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  try {
+    const r = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(token)}`);
+    const data = await r.json();
+    if (data.error || data.error_description || !data.sub) return null;
+    if (clientId && data.aud !== clientId) return null;
+    return {
+      userId: data.sub,
+      name: data.name || data.given_name || 'Anonymous',
+      email: data.email || '',
+      picture: data.picture || '',
+    };
+  } catch { return null; }
+}
+
+async function censorText(db, text) {
+  try {
+    const blacklist = await db.collection('comment_blacklist').find({}).toArray();
+    if (!blacklist.length) return text;
+    let result = text;
+    for (const item of blacklist) {
+      const word = String(item.word || '').trim();
+      if (!word) continue;
+      const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'gi');
+      result = result.replace(regex, (match) => '*'.repeat(match.length));
+    }
+    return result;
+  } catch { return text; }
 }
 
 async function getJournalByIdOrSlug(col, req) {
@@ -368,6 +414,117 @@ module.exports = async (req, res) => {
         return json(res, 200, { ok: true, results, easterEgg, trending });
       }
 
+      // --- Comments: Get paginated comments ---
+      if (action === 'comments') {
+        const journalId = getParam(req, 'journalId');
+        if (!journalId || !ObjectId.isValid(journalId)) return json(res, 400, { ok: false, message: 'journalId required' });
+
+        const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
+        const limit = 10;
+        const sort = getParam(req, 'sort') || 'top';
+        const parentIdParam = getParam(req, 'parentId');
+        const isReply = Boolean(parentIdParam && ObjectId.isValid(parentIdParam));
+
+        const commentsCol = db.collection('comments');
+
+        // Pinned comments (top-level only, always returned regardless of page)
+        let pinnedComments = [];
+        if (!isReply) {
+          pinnedComments = await commentsCol.find({
+            journalId: new ObjectId(journalId),
+            parentId: null,
+            isPinned: true,
+            isDeleted: { $ne: true },
+          }).sort({ pinnedOrder: 1 }).toArray();
+        }
+
+        // Build filter for regular (non-pinned) comments
+        const pinnedIds = pinnedComments.map(p => p._id);
+        const filter = {
+          journalId: new ObjectId(journalId),
+          parentId: isReply ? new ObjectId(parentIdParam) : null,
+          isDeleted: { $ne: true },
+        };
+        if (!isReply && pinnedIds.length > 0) {
+          filter._id = { $nin: pinnedIds };
+        }
+
+        let sortObj;
+        if (sort === 'new') sortObj = { createdAt: -1 };
+        else if (sort === 'old') sortObj = { createdAt: 1 };
+        else sortObj = { likes: -1, createdAt: -1 }; // top (default)
+
+        const total = await commentsCol.countDocuments({
+          journalId: new ObjectId(journalId),
+          parentId: isReply ? new ObjectId(parentIdParam) : null,
+          isDeleted: { $ne: true },
+        });
+
+        const comments = await commentsCol
+          .find(filter)
+          .sort(sortObj)
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .toArray();
+
+        // Get reply counts for all returned comments
+        const allCommentIds = [...pinnedIds, ...comments.map(c => c._id)];
+        let replyCountMap = {};
+        if (allCommentIds.length > 0) {
+          const replyAgg = await commentsCol.aggregate([
+            { $match: { parentId: { $in: allCommentIds }, isDeleted: { $ne: true } } },
+            { $group: { _id: '$parentId', count: { $sum: 1 } } },
+          ]).toArray();
+          replyAgg.forEach(r => { replyCountMap[r._id.toString()] = r.count; });
+        }
+
+        const addMeta = (c) => ({ ...c, replyCount: replyCountMap[c._id.toString()] || 0 });
+
+        return json(res, 200, {
+          ok: true,
+          pinnedComments: pinnedComments.map(addMeta),
+          comments: comments.map(addMeta),
+          pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+        });
+      }
+
+      // --- Comment Count for multiple journals ---
+      if (action === 'comment-count') {
+        const journalIdsParam = getParam(req, 'journalIds');
+        if (!journalIdsParam) return json(res, 400, { ok: false, message: 'journalIds required' });
+        const ids = journalIdsParam.split(',')
+          .map(s => s.trim())
+          .filter(s => ObjectId.isValid(s))
+          .map(s => new ObjectId(s));
+        if (!ids.length) return json(res, 200, { ok: true, counts: {} });
+        const commentsCol = db.collection('comments');
+        const agg = await commentsCol.aggregate([
+          { $match: { journalId: { $in: ids }, isDeleted: { $ne: true } } },
+          { $group: { _id: '$journalId', count: { $sum: 1 } } },
+        ]).toArray();
+        const counts = {};
+        agg.forEach(a => { counts[a._id.toString()] = a.count; });
+        return json(res, 200, { ok: true, counts });
+      }
+
+      // --- Top journals for home page ---
+      if (action === 'top-journals') {
+        const limitN = Math.min(20, Math.max(1, parseInt(getParam(req, 'limit') || '6', 10)));
+        const topJournals = await col
+          .find({ published: true })
+          .sort({ likes: -1, views: -1, publishedAt: -1 })
+          .limit(limitN)
+          .toArray();
+        return json(res, 200, { ok: true, journals: topJournals });
+      }
+
+      // --- Blacklist words (admin only) ---
+      if (action === 'blacklist') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const blacklist = await db.collection('comment_blacklist').find({}).sort({ createdAt: -1 }).toArray();
+        return json(res, 200, { ok: true, blacklist });
+      }
+
       const slug = getParam(req, 'slug');
       const id = getParam(req, 'id');
 
@@ -578,6 +735,127 @@ module.exports = async (req, res) => {
         return json(res, 200, { ok: true, likes: Number(existing.likes || 0) + 1, alreadyLiked: false });
       }
 
+      // --- Comment: Add new comment (Google user or owner) ---
+      if (action === 'comment') {
+        const body = await readBody(req);
+        const credential = String(body.credential || '').trim();
+        const ownerPosting = isAuthenticated(req);
+
+        let userInfo;
+        if (ownerPosting) {
+          userInfo = { userId: 'owner', name: 'Deep Dey (Owner)', email: '', picture: '' };
+        } else {
+          userInfo = await verifyGoogleToken(credential);
+          if (!userInfo) return json(res, 401, { ok: false, message: 'Invalid or expired Google token. Please sign in again.' });
+        }
+
+        const journalId = String(body.journalId || '').trim();
+        if (!journalId || !ObjectId.isValid(journalId)) return json(res, 400, { ok: false, message: 'journalId required' });
+
+        const text = String(body.text || '').trim();
+        if (!text) return json(res, 400, { ok: false, message: 'Comment text is required' });
+        if (text.length > 2000) return json(res, 400, { ok: false, message: 'Comment too long (max 2000 chars)' });
+
+        const parentIdParam = body.parentId ? String(body.parentId) : null;
+        const parentId = parentIdParam && ObjectId.isValid(parentIdParam) ? new ObjectId(parentIdParam) : null;
+
+        const journalExists = await col.findOne({ _id: new ObjectId(journalId), published: true });
+        if (!journalExists) return json(res, 404, { ok: false, message: 'Journal not found' });
+
+        const censoredText = await censorText(db, text);
+        const now = new Date();
+        const commentDoc = {
+          journalId: new ObjectId(journalId),
+          userId: userInfo.userId,
+          userName: userInfo.name,
+          userPic: userInfo.picture,
+          text: censoredText,
+          likes: 0,
+          likedSessions: [],
+          parentId,
+          isPinned: false,
+          pinnedOrder: 0,
+          isDeleted: false,
+          editedAt: null,
+          createdAt: now,
+          createdAtIST: nowIST(),
+        };
+
+        const result = await db.collection('comments').insertOne(commentDoc);
+        return json(res, 201, { ok: true, comment: { ...commentDoc, _id: result.insertedId, replyCount: 0 } });
+      }
+
+      // --- Comment Like (session-based, same as journal like) ---
+      if (action === 'comment-like') {
+        const commentId = getParam(req, 'id');
+        const session = String(getParam(req, 'session') || '').trim();
+        if (!commentId || !ObjectId.isValid(commentId)) return json(res, 400, { ok: false, message: 'Valid id required' });
+        if (!session) return json(res, 400, { ok: false, message: 'session required' });
+
+        const commentsCol = db.collection('comments');
+        const comment = await commentsCol.findOne({ _id: new ObjectId(commentId), isDeleted: { $ne: true } });
+        if (!comment) return json(res, 404, { ok: false, message: 'Comment not found' });
+
+        const likedSessions = Array.isArray(comment.likedSessions) ? comment.likedSessions : [];
+        if (likedSessions.includes(session)) {
+          return json(res, 200, { ok: true, alreadyLiked: true, likes: Number(comment.likes || 0) });
+        }
+
+        const nextSessions = [...likedSessions, session].slice(-5000);
+        await commentsCol.updateOne(
+          { _id: new ObjectId(commentId) },
+          { $inc: { likes: 1 }, $set: { likedSessions: nextSessions } },
+        );
+        return json(res, 200, { ok: true, likes: Number(comment.likes || 0) + 1, alreadyLiked: false });
+      }
+
+      // --- Comment Pin/Unpin (admin only, max 3 per journal) ---
+      if (action === 'comment-pin') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const body = await readBody(req);
+        const commentId = String(body.commentId || '').trim();
+        const pin = body.pin !== false; // default true
+
+        if (!commentId || !ObjectId.isValid(commentId)) return json(res, 400, { ok: false, message: 'commentId required' });
+
+        const commentsCol = db.collection('comments');
+        const comment = await commentsCol.findOne({ _id: new ObjectId(commentId), isDeleted: { $ne: true } });
+        if (!comment) return json(res, 404, { ok: false, message: 'Comment not found' });
+
+        if (pin) {
+          const pinnedCount = await commentsCol.countDocuments({
+            journalId: comment.journalId,
+            parentId: null,
+            isPinned: true,
+            isDeleted: { $ne: true },
+          });
+          if (pinnedCount >= 3) return json(res, 400, { ok: false, message: 'Max 3 pinned comments per post' });
+          await commentsCol.updateOne(
+            { _id: new ObjectId(commentId) },
+            { $set: { isPinned: true, pinnedOrder: pinnedCount + 1 } },
+          );
+        } else {
+          await commentsCol.updateOne(
+            { _id: new ObjectId(commentId) },
+            { $set: { isPinned: false, pinnedOrder: 0 } },
+          );
+        }
+        return json(res, 200, { ok: true });
+      }
+
+      // --- Blacklist: Add word (admin only) ---
+      if (action === 'blacklist') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const body = await readBody(req);
+        const word = String(body.word || '').trim().toLowerCase();
+        if (!word) return json(res, 400, { ok: false, message: 'word required' });
+        const blCol = db.collection('comment_blacklist');
+        const exists = await blCol.findOne({ word });
+        if (exists) return json(res, 200, { ok: true, message: 'Word already in blacklist', item: exists });
+        const result = await blCol.insertOne({ word, createdAt: new Date(), createdAtIST: nowIST() });
+        return json(res, 201, { ok: true, item: { _id: result.insertedId, word } });
+      }
+
       // --- EXISTING: Journal Creation Logic ---
       if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
 
@@ -611,12 +889,45 @@ module.exports = async (req, res) => {
     }
 
     // ==========================================
-    // PUT & DELETE (Existing Journal Logic)
+    // PUT & DELETE (Journal + Comments)
     // ==========================================
     if (req.method === 'PUT') {
-      if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
       const action = getParam(req, 'action');
       const body = await readBody(req);
+
+      // --- Comment Edit (Google user or owner) ---
+      if (action === 'comment') {
+        const commentId = String(body.commentId || '').trim();
+        const newText = String(body.text || '').trim();
+        const credential = String(body.credential || '').trim();
+
+        if (!commentId || !ObjectId.isValid(commentId)) return json(res, 400, { ok: false, message: 'commentId required' });
+        if (!newText) return json(res, 400, { ok: false, message: 'text required' });
+        if (newText.length > 2000) return json(res, 400, { ok: false, message: 'Comment too long (max 2000 chars)' });
+
+        const commentsCol = db.collection('comments');
+        const comment = await commentsCol.findOne({ _id: new ObjectId(commentId), isDeleted: { $ne: true } });
+        if (!comment) return json(res, 404, { ok: false, message: 'Comment not found' });
+
+        const ownerEditing = isAuthenticated(req);
+        if (!ownerEditing) {
+          const userInfo = await verifyGoogleToken(credential);
+          if (!userInfo || userInfo.userId !== comment.userId) {
+            return json(res, 403, { ok: false, message: 'Not authorized to edit this comment' });
+          }
+        }
+
+        const censoredText = await censorText(db, newText);
+        await commentsCol.updateOne(
+          { _id: new ObjectId(commentId) },
+          { $set: { text: censoredText, editedAt: new Date() } },
+        );
+        return json(res, 200, { ok: true, comment: { ...comment, text: censoredText, editedAt: new Date() } });
+      }
+
+      // Admin-only operations below
+      if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+
       const id = body._id;
       if (!id || !ObjectId.isValid(id)) return json(res, 400, { ok: false, message: '_id required' });
 
@@ -667,9 +978,44 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'DELETE') {
+      const action = getParam(req, 'action');
+
+      // --- Comment Delete (Google user or owner) ---
+      if (action === 'comment') {
+        const commentId = getParam(req, 'id');
+        const body = await readBody(req);
+        const credential = String(body.credential || getParam(req, 'credential') || '').trim();
+
+        if (!commentId || !ObjectId.isValid(commentId)) return json(res, 400, { ok: false, message: 'id required' });
+
+        const commentsCol = db.collection('comments');
+        const comment = await commentsCol.findOne({ _id: new ObjectId(commentId), isDeleted: { $ne: true } });
+        if (!comment) return json(res, 404, { ok: false, message: 'Comment not found' });
+
+        const ownerDeleting = isAuthenticated(req);
+        if (!ownerDeleting) {
+          const userInfo = await verifyGoogleToken(credential);
+          if (!userInfo || userInfo.userId !== comment.userId) {
+            return json(res, 403, { ok: false, message: 'Not authorized to delete this comment' });
+          }
+        }
+
+        await commentsCol.updateOne({ _id: new ObjectId(commentId) }, { $set: { isDeleted: true } });
+        return json(res, 200, { ok: true, message: 'Comment deleted' });
+      }
+
+      // --- Blacklist: Delete word (admin only) ---
+      if (action === 'blacklist') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const blId = getParam(req, 'id');
+        if (!blId || !ObjectId.isValid(blId)) return json(res, 400, { ok: false, message: 'id required' });
+        await db.collection('comment_blacklist').deleteOne({ _id: new ObjectId(blId) });
+        return json(res, 200, { ok: true, message: 'Word removed from blacklist' });
+      }
+
+      // Existing: Delete journal (admin only)
       if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
       const id = getParam(req, 'id');
-      const action = getParam(req, 'action');
       if (!id || !ObjectId.isValid(id)) return json(res, 400, { ok: false, message: 'id required' });
 
       if (action === 'status') {

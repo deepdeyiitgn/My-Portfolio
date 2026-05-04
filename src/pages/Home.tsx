@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Target, Lightbulb, GraduationCap, ArrowRight, Zap, History, Milestone, Lock, Activity } from 'lucide-react';
+import { Target, Lightbulb, GraduationCap, ArrowRight, Zap, History, Milestone, Lock, Activity, BookOpen, Heart, Eye, Clock, Tag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import TechGalaxy from '../components/TechGalaxy';
 import JourneyMarquee from '../components/JourneyMarquee';
@@ -10,10 +10,25 @@ import SocialProof from '../components/SocialProof';
 import { useLanguage } from '../context/LanguageContext';
 import { renderIcon } from '../utils/iconMap';
 
+interface TopJournal {
+  _id: string;
+  title: string;
+  slug: string;
+  summary: string;
+  categoryName: string;
+  readMinutes: number;
+  likes: number;
+  views: number;
+  publishedAt: string | null;
+  publishedAtIST: string | null;
+}
+
 export default function Home() {
   const [isHoverable, setIsHoverable] = useState(true);
   const currentYear = new Date().getFullYear();
   const { t } = useLanguage();
+
+  const [topJournals, setTopJournals] = useState<TopJournal[]>([]);
 
   // Timeline — default is local data; replaced with MongoDB items when mode='custom'
   const [activeTimeline, setActiveTimeline] = useState<TimelineItem[]>(timelineData);
@@ -50,6 +65,14 @@ export default function Home() {
         // If default mode or fetch empty → keep local timelineData
       })
       .catch(() => { /* keep default */ });
+  }, []);
+
+  // Fetch top 6 most-liked journals for home page section
+  useEffect(() => {
+    fetch('/api/journal?action=top-journals&limit=6')
+      .then(r => r.json())
+      .then(d => { if (d.ok && Array.isArray(d.journals)) setTopJournals(d.journals); })
+      .catch(() => {});
   }, []);
 
   return (
@@ -234,6 +257,91 @@ export default function Home() {
               </motion.div>
             );
           })}
+        </div>
+      </motion.section>
+
+      {/* ── Journal Spotlight Section ─────────────────────────────────────── */}
+      <motion.section
+        initial={{ opacity: 0, y: 50 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.1 }}
+        className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6"
+      >
+        <div className="space-y-10">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div className="space-y-3">
+              <h2 className="text-amber-500 font-mono tracking-[0.4em] uppercase text-[10px] font-black">Build Journal</h2>
+              <h3 className="text-4xl md:text-5xl font-black tracking-tighter text-white">
+                TOP READS.
+              </h3>
+              <p className="text-zinc-500 max-w-xl text-sm">
+                Engineering notes, build logs &amp; deep dives — a new post drops every week.
+              </p>
+            </div>
+            <Link
+              to="/journal"
+              className="shrink-0 px-6 py-3 bg-amber-500 text-black font-black uppercase tracking-widest rounded-2xl hover:bg-amber-400 transition-all active:scale-95 text-xs flex items-center gap-2"
+            >
+              <BookOpen size={14} /> Visit Journal
+            </Link>
+          </div>
+
+          {/* Cards */}
+          {topJournals.length > 0 ? (
+            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+              {topJournals.map((item, i) => (
+                <motion.article
+                  key={item._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.06 }}
+                  className="group p-5 rounded-2xl border border-zinc-800 bg-zinc-900/20 space-y-3 hover:border-amber-500/30 hover:bg-zinc-900/40 transition-all"
+                >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {item.categoryName && (
+                      <span className="flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-amber-500">
+                        <Tag size={9} /> {item.categoryName}
+                      </span>
+                    )}
+                  </div>
+                  <h4 className="text-base font-bold text-white tracking-tight group-hover:text-amber-100 transition-colors line-clamp-2">
+                    {item.title}
+                  </h4>
+                  {item.summary && (
+                    <p className="text-zinc-400 text-xs line-clamp-2">{item.summary}</p>
+                  )}
+                  <div className="flex flex-wrap gap-3 text-[10px] text-zinc-600 font-mono">
+                    <span className="flex items-center gap-1"><Heart size={9} /> {Number(item.likes || 0)}</span>
+                    <span className="flex items-center gap-1"><Eye size={9} /> {Number(item.views || 0)}</span>
+                    <span className="flex items-center gap-1"><Clock size={9} /> {item.readMinutes}m</span>
+                  </div>
+                  <Link
+                    to={`/journal/view/${item._id}`}
+                    className="inline-flex items-center gap-1 text-xs text-amber-500 hover:text-amber-400 font-bold transition-colors"
+                  >
+                    Read post <ArrowRight size={12} />
+                  </Link>
+                </motion.article>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-zinc-700">
+              <BookOpen size={32} className="mx-auto mb-3 opacity-30" />
+              <p className="text-sm">Journal posts are loading…</p>
+            </div>
+          )}
+
+          {/* Footer CTA */}
+          <div className="text-center">
+            <Link
+              to="/journal"
+              className="inline-flex items-center gap-2 px-6 py-3 border border-amber-500/30 text-amber-500 text-sm font-bold rounded-2xl hover:bg-amber-500/10 transition-colors"
+            >
+              <BookOpen size={16} /> See All Journal Posts <ArrowRight size={14} />
+            </Link>
+          </div>
         </div>
       </motion.section>
 

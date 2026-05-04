@@ -1253,6 +1253,12 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   const [storageJourneyPage, setStorageJourneyPage] = useState(1);
   const STORAGE_PAGE_SIZE = 5;
 
+  // ── Blacklist state ──────────────────────────────────────────────────────
+  const [blacklist, setBlacklist] = useState<Array<{ _id: string; word: string }>>([]);
+  const [blacklistLoading, setBlacklistLoading] = useState(false);
+  const [newBlacklistWord, setNewBlacklistWord] = useState('');
+  const [addingBlacklistWord, setAddingBlacklistWord] = useState(false);
+
   // ── Client-side pagination for Projects & Journey ────────────────────────
   const [projectPage, setProjectPage] = useState(1);
   const PROJECT_PAGE_SIZE = 10;
@@ -1292,6 +1298,52 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   useEffect(() => {
     if (tab === 'storage' && authenticated) fetchStorageStats();
   }, [tab, authenticated, fetchStorageStats]);
+
+  useEffect(() => {
+    if (tab === 'settings' && authenticated) {
+      setBlacklistLoading(true);
+      fetch('/api/journal?action=blacklist')
+        .then(r => r.json())
+        .then(d => { if (d.ok) setBlacklist(d.blacklist || []); })
+        .catch(() => {})
+        .finally(() => setBlacklistLoading(false));
+    }
+  }, [tab, authenticated]);
+
+  const handleAddBlacklistWord = async () => {
+    const word = newBlacklistWord.trim().toLowerCase();
+    if (!word) return;
+    setAddingBlacklistWord(true);
+    try {
+      const r = await fetch('/api/journal?action=blacklist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word }),
+      });
+      const d = await r.json();
+      if (d.ok && d.item) {
+        setBlacklist(prev => [d.item, ...prev.filter(b => b.word !== word)]);
+        setNewBlacklistWord('');
+        showToast('Word added to blacklist');
+      } else {
+        showToast(d.message || 'Error', 'error');
+      }
+    } catch { showToast('Network error', 'error'); }
+    finally { setAddingBlacklistWord(false); }
+  };
+
+  const handleRemoveBlacklistWord = async (id: string) => {
+    try {
+      const r = await fetch(`/api/journal?action=blacklist&id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const d = await r.json();
+      if (d.ok) {
+        setBlacklist(prev => prev.filter(b => b._id !== id));
+        showToast('Word removed from blacklist');
+      } else {
+        showToast(d.message || 'Error', 'error');
+      }
+    } catch { showToast('Network error', 'error'); }
+  };
 
   const handleStatusDelete = async (id: string) => {
     if (!confirm('Delete this status from history?')) return;
@@ -2734,7 +2786,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
 
       {/* ── Settings Tab ─────────────────────────────────────────────────── */}
       {tab === 'settings' && (
-        <div className="space-y-4 max-w-lg">
+        <div className="space-y-6 max-w-lg">
           <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-4">
             <h3 className="text-white font-bold text-base flex items-center gap-2"><Settings size={16} /> Dashboard Settings</h3>
             <div className="space-y-3 text-sm text-zinc-400">
@@ -2762,6 +2814,52 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
               <LogOut size={14} />
               Sign Out of Dashboard
             </button>
+          </div>
+
+          {/* Comment Blacklist Management */}
+          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-4">
+            <h3 className="text-white font-bold text-base flex items-center gap-2">
+              <BookOpen size={16} /> Comment Blacklist
+            </h3>
+            <p className="text-zinc-500 text-xs">Words in this list will be automatically censored in all new and edited comments (replaced with asterisks).</p>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newBlacklistWord}
+                onChange={(e) => setNewBlacklistWord(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAddBlacklistWord(); }}
+                placeholder="Add a word to block..."
+                className={`${inputCls} flex-1`}
+              />
+              <button
+                onClick={handleAddBlacklistWord}
+                disabled={addingBlacklistWord || !newBlacklistWord.trim()}
+                className={`${btnCls} bg-amber-500 text-black hover:bg-amber-400 disabled:opacity-50 px-4 flex items-center gap-1`}
+              >
+                {addingBlacklistWord ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add
+              </button>
+            </div>
+
+            {blacklistLoading ? (
+              <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-amber-500" /></div>
+            ) : blacklist.length === 0 ? (
+              <p className="text-zinc-600 text-xs text-center py-4">No blacklisted words yet.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
+                {blacklist.map((item) => (
+                  <div key={item._id} className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-sm">
+                    <span className="text-zinc-300 font-mono">{item.word}</span>
+                    <button
+                      onClick={() => handleRemoveBlacklistWord(item._id)}
+                      className="text-zinc-600 hover:text-red-400 transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
