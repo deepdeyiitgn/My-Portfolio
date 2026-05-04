@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -344,7 +344,7 @@ export default function SearchResults() {
     // performSearch and saveToHistory are excluded intentionally; they only need rawQuery as trigger
   }, [rawQuery]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
+  const handleSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (inputValue.trim()) navigate(`/search?q=${encodeURIComponent(inputValue.trim())}`);
   };
