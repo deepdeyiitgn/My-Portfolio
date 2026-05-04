@@ -32,6 +32,11 @@ interface ServerHealth {
   nodeVersion: string;
   platform: string;
   arch: string;
+  osType: string;
+  osRelease: string;
+  hostname: string;
+  serverRegion: string;
+  diskInfo: { total: number; free: number; available: number } | null;
   totalMemory: number;
   freeMemory: number;
   cpus: { model: string; speedMHz: number; times: { user: number; nice: number; sys: number; idle: number; irq: number } }[];
@@ -39,6 +44,10 @@ interface ServerHealth {
   processMemory: { rss: number; heapUsed: number; heapTotal: number; external: number };
   dbPingMs: number;
   loadAverage: number[];
+  globalUsed?: number;
+  globalLimit?: number;
+  ipUsed?: number;
+  ipLimit?: number;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -140,6 +149,8 @@ export default function Status() {
   const [lightCountdown, setLightCountdown] = useState(LIGHT_INTERVAL_MS / 1000);
   const [heavyCountdown, setHeavyCountdown] = useState(HEAVY_INTERVAL_MS / 1000);
   const [cpuExpanded, setCpuExpanded] = useState(false);
+  const [rateLimitErr, setRateLimitErr] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Client-side connection timing
   const [clientPing, setClientPing] = useState<number | null>(null);
@@ -244,15 +255,28 @@ export default function Status() {
   }, []);
 
   // ── Manual full refresh ────────────────────────────────────────────────────
-  const handleManualRefresh = () => {
+  const handleManualRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    setRateLimitErr(null);
+    try {
+      const r = await fetch('/api/journal?action=refresh', { method: 'POST', cache: 'no-store' });
+      const d = await r.json();
+      if (!r.ok) {
+        setRateLimitErr(d.message || 'Rate limited. Try again shortly.');
+        setIsRefreshing(false);
+        return;
+      }
+      if (d.ok) setHealth(d as ServerHealth);
+    } catch { /* ignore — still probe endpoints below */ }
+
     setResults(initResults());
-    setHealth(null);
     probeLight();
     probeHeavy();
-    fetchHealth();
     measureClientPing();
     setLightCountdown(LIGHT_INTERVAL_MS / 1000);
     setHeavyCountdown(HEAVY_INTERVAL_MS / 1000);
+    setIsRefreshing(false);
   };
 
   // ── Derived stats ──────────────────────────────────────────────────────────
@@ -288,13 +312,19 @@ export default function Status() {
             </h1>
             <p className="text-zinc-500 text-sm mt-1">Real-time health check of all API endpoints and server resources</p>
           </div>
-          <button
-            onClick={handleManualRefresh}
-            className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 text-amber-500 rounded-xl transition-all text-sm font-bold"
-          >
-            <RefreshCw size={14} />
-            Refresh Now
-          </button>
+          <div className="flex flex-col items-end gap-1.5">
+            <button
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 text-amber-500 rounded-xl transition-all text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+              {isRefreshing ? 'Refreshing…' : 'Refresh Now'}
+            </button>
+            {rateLimitErr && (
+              <p className="text-red-400 text-[10px] font-mono max-w-[220px] text-right leading-tight">{rateLimitErr}</p>
+            )}
+          </div>
         </div>
 
         {/* ── Overall Banner ─────────────────────────────────────────────────── */}
@@ -443,6 +473,34 @@ export default function Status() {
 
           {health && (
             <div className="grid gap-4">
+              {/* System Specifications */}
+              <div className="bg-zinc-900/40 border border-amber-500/20 rounded-2xl p-5 space-y-4">
+                <h3 className="text-zinc-300 font-bold flex items-center gap-2 text-sm">
+                  <Server size={16} className="text-amber-500" /> System Specifications
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    { label: 'RAM',              value: fmtBytes(health.totalMemory),                              color: 'text-amber-400' },
+                    { label: 'RAM (Free)',        value: fmtBytes(health.freeMemory),                               color: 'text-emerald-400' },
+                    { label: 'Storage (/tmp)',   value: health.diskInfo ? fmtBytes(health.diskInfo.total) : 'Serverless (ephemeral)', color: 'text-purple-400' },
+                    { label: 'Processor',        value: health.cpus[0]?.model ?? '—',                              color: 'text-blue-400' },
+                    { label: 'CPU Cores',        value: `${health.cpuCount} logical cores`,                        color: 'text-blue-400' },
+                    { label: 'CPU Speed',        value: health.cpus[0] ? `${health.cpus[0].speedMHz} MHz` : '—',  color: 'text-yellow-400' },
+                    { label: 'Operating System', value: `${health.osType ?? health.platform} (${health.platform})`, color: 'text-zinc-200' },
+                    { label: 'OS Kernel',        value: health.osRelease ?? '—',                                   color: 'text-zinc-400' },
+                    { label: 'Architecture',     value: health.arch,                                               color: 'text-zinc-300' },
+                    { label: 'Runtime',          value: health.nodeVersion,                                        color: 'text-green-400' },
+                    { label: 'Server Region',    value: health.serverRegion ?? '—',                                color: 'text-cyan-400' },
+                    { label: 'Hostname',         value: health.hostname ?? '—',                                    color: 'text-zinc-400' },
+                  ].map(s => (
+                    <div key={s.label} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
+                      <p className="text-zinc-600 text-[9px] font-mono uppercase tracking-widest">{s.label}</p>
+                      <p className={`${s.color} font-bold text-sm mt-0.5 truncate`} title={String(s.value)}>{s.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Memory Overview */}
               <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5 space-y-4">
                 <h3 className="text-zinc-300 font-bold flex items-center gap-2 text-sm">
@@ -579,14 +637,17 @@ export default function Status() {
                   {[
                     { label: 'Node.js',    value: health.nodeVersion },
                     { label: 'Platform',   value: `${health.platform}/${health.arch}` },
+                    { label: 'OS Type',    value: health.osType ?? health.platform },
+                    { label: 'OS Release', value: health.osRelease ?? '—' },
                     { label: 'Uptime',     value: fmtUptime(health.uptime) },
                     { label: 'DB Latency', value: `${health.dbPingMs}ms` },
+                    { label: 'Region',     value: health.serverRegion ?? '—' },
                     { label: 'Load 1m',    value: health.loadAverage[0]?.toFixed(2) ?? '—' },
                     { label: 'Load 5m',    value: health.loadAverage[1]?.toFixed(2) ?? '—' },
                   ].map(s => (
                     <div key={s.label} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
                       <p className="text-zinc-600 text-[9px] font-mono uppercase tracking-widest">{s.label}</p>
-                      <p className="text-zinc-300 font-bold text-sm mt-0.5 font-mono">{s.value}</p>
+                      <p className="text-zinc-300 font-bold text-sm mt-0.5 font-mono truncate" title={String(s.value)}>{s.value}</p>
                     </div>
                   ))}
                 </div>
