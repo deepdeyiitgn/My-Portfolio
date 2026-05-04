@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, Radio, Search } from 'lucide-react';
+import { Menu, X, Radio, Search, Activity } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 const NAV_LINKS = [
@@ -17,6 +17,7 @@ const NAV_LINKS = [
   { key: 'nav.faq', path: '/faq' },
   { key: 'nav.contact', path: '/contact' },
   { key: 'nav.live', path: '/live', isLive: true },
+  { key: 'nav.status', path: '/status', isStatus: true },
 ];
 
 export default function Header() {
@@ -86,6 +87,9 @@ export default function Header() {
               >
                 {'isLive' in link && link.isLive && (
                   <Radio size={8} className="animate-pulse shrink-0" />
+                )}
+                {'isStatus' in link && link.isStatus && (
+                  <Activity size={8} className="shrink-0" />
                 )}
                 {t(link.key)}
               </Link>
@@ -205,6 +209,9 @@ export default function Header() {
                       } ${'isLive' in link && link.isLive ? '!text-red-500' : ''}`}>
                         {'isLive' in link && link.isLive && (
                           <Radio size={16} className="animate-pulse" />
+                        )}
+                        {'isStatus' in link && link.isStatus && (
+                          <Activity size={16} />
                         )}
                         {t(link.key)}
                       </span>

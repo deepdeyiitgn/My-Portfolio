@@ -5,7 +5,7 @@ export default async function handler(req, res) {
       '', '/projects', '/about', '/me', '/contact', '/faq', 
       '/portfolio', '/links', '/proof', '/journal', '/now', 
       '/legal', '/terms', '/privacy', '/dmca', '/copyright', '/live',
-      '/search'
+      '/search', '/status'
     ];
 
     let dynamicRoutes = [];
@@ -46,8 +46,11 @@ export default async function handler(req, res) {
     // Saare pages ek array mein combine kar do
     const allRoutes = [...staticPages, ...dynamicRoutes];
 
-    // 3. DONO DOMAINS jinpe tera portfolio chal raha hai
-    const domains = ['https://just.qlynk.me', 'https://deepdey.vercel.app'];
+    // 3. DOMAINS — add more entries to the array to include additional domains in the sitemap
+    const domains = [
+      'https://deepdey.vercel.app',
+      // 'https://just.qlynk.me',  // uncomment to re-add this domain
+    ];
 
     let xmlUrls = '';
     

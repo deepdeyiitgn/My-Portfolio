@@ -78,6 +78,15 @@ function estimateReadMinutes(body) {
   return Math.max(1, Math.ceil(words / 110));
 }
 
+function getClientIp(req) {
+  return (
+    req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+    req.headers['x-real-ip'] ||
+    req.socket?.remoteAddress ||
+    'unknown'
+  );
+}
+
 function nowIST() {
   return new Date().toLocaleString('en-IN', {
     timeZone: 'Asia/Kolkata',
@@ -145,6 +154,87 @@ module.exports = async (req, res) => {
     // ==========================================
     if (req.method === 'GET') {
       const action = getParam(req, 'action');
+
+      // --- DB Stats: Storage usage for dashboard ---
+      if (action === 'dbstats') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+
+        // Website DB stats (current database only)
+        let overallStats = { dataSize: 0, storageSize: 0, indexSize: 0 };
+        try {
+          const s = await db.command({ dbStats: 1 });
+          overallStats = { dataSize: s.dataSize || 0, storageSize: s.storageSize || 0, indexSize: s.indexSize || 0 };
+        } catch { /* ignore */ }
+
+        // Full cluster total (all databases on this Atlas cluster)
+        let clusterTotalSize = 0;
+        try {
+          const listResult = await cachedClient.db('admin').command({ listDatabases: 1 });
+          clusterTotalSize = listResult.totalSize || 0;
+        } catch { /* Atlas M0 may not allow this — fall back to current DB size */ }
+
+        const collectionNames = ['journals', 'projects', 'timeline', 'categories', 'live_status', 'settings', 'config', 'search_analytics'];
+        const collections = {};
+        for (const name of collectionNames) {
+          try {
+            const cursor = db.collection(name).aggregate([{ $collStats: { storageStats: {} } }]);
+            const arr = await cursor.toArray();
+            const cs = arr[0];
+            collections[name] = {
+              count: cs?.storageStats?.count || 0,
+              size: cs?.storageStats?.size || 0,
+              storageSize: cs?.storageStats?.storageSize || 0,
+            };
+          } catch {
+            try {
+              const count = await db.collection(name).countDocuments();
+              collections[name] = { count, size: 0, storageSize: 0 };
+            } catch { collections[name] = { count: 0, size: 0, storageSize: 0 }; }
+          }
+        }
+        return json(res, 200, { ok: true, ...overallStats, clusterTotalSize, collections });
+      }
+
+      // --- Public Health Check (no auth) — used by /status page ---
+      if (action === 'health') {
+        const os = require('os');
+        const dbPingStart = Date.now();
+        try { await db.command({ ping: 1 }); } catch { /* ignore */ }
+        const dbPingMs = Date.now() - dbPingStart;
+
+        const mem = process.memoryUsage();
+        const cpus = os.cpus();
+
+        let diskInfo = null;
+        try {
+          const fsModule = require('fs');
+          if (typeof fsModule.statfsSync === 'function') {
+            const st = fsModule.statfsSync('/tmp');
+            diskInfo = { total: st.blocks * st.bsize, free: st.bfree * st.bsize, available: st.bavail * st.bsize };
+          }
+        } catch { /* ignore — not available on all runtimes */ }
+
+        return json(res, 200, {
+          ok: true,
+          timestamp: Date.now(),
+          uptime: process.uptime(),
+          nodeVersion: process.version,
+          platform: os.platform(),
+          arch: os.arch(),
+          osType: os.type(),
+          osRelease: os.release(),
+          hostname: os.hostname(),
+          serverRegion: process.env.VERCEL_REGION || process.env.AWS_REGION || process.env.FLY_REGION || '—',
+          totalMemory: os.totalmem(),
+          freeMemory: os.freemem(),
+          cpus: cpus.map((c) => ({ model: c.model, speedMHz: c.speed, times: c.times })),
+          cpuCount: cpus.length,
+          processMemory: { rss: mem.rss, heapUsed: mem.heapUsed, heapTotal: mem.heapTotal, external: mem.external },
+          dbPingMs,
+          loadAverage: os.loadavg(),
+          diskInfo,
+        });
+      }
 
       // --- NAYA: Live Status Fetch Logic ---
       if (action === 'status') {
@@ -353,6 +443,81 @@ module.exports = async (req, res) => {
     // ==========================================
     if (req.method === 'POST') {
       const action = getParam(req, 'action');
+
+      // --- Manual Refresh: Rate-limited health snapshot (public) ---
+      if (action === 'refresh') {
+        const clientIp = getClientIp(req);
+        const rlCol = db.collection('refresh_rate_limits');
+        const windowStart = new Date(Date.now() - 60_000);
+
+        // Cleanup records older than 2 minutes (fire-and-forget)
+        rlCol.deleteMany({ createdAt: { $lt: new Date(Date.now() - 120_000) } }).catch(() => {});
+
+        const [globalCount, ipCount] = await Promise.all([
+          rlCol.countDocuments({ createdAt: { $gte: windowStart } }),
+          rlCol.countDocuments({ ip: clientIp, createdAt: { $gte: windowStart } }),
+        ]);
+
+        if (globalCount >= 20) {
+          return json(res, 429, { ok: false, message: 'Global rate limit reached (20/min). Try again shortly.', globalUsed: globalCount, globalLimit: 20, ipUsed: ipCount, ipLimit: 2 });
+        }
+        if (ipCount >= 2) {
+          return json(res, 429, { ok: false, message: 'Rate limited: max 2 manual refreshes per minute per IP.', globalUsed: globalCount, globalLimit: 20, ipUsed: ipCount, ipLimit: 2 });
+        }
+
+        // Record this refresh
+        await rlCol.insertOne({ ip: clientIp, createdAt: new Date() });
+
+        // Collect health data
+        const os = require('os');
+        const dbPingStart = Date.now();
+        try { await db.command({ ping: 1 }); } catch { /* ignore */ }
+        const dbPingMs = Date.now() - dbPingStart;
+        const mem = process.memoryUsage();
+        const cpus = os.cpus();
+
+        let diskInfo = null;
+        try {
+          const fsModule = require('fs');
+          if (typeof fsModule.statfsSync === 'function') {
+            const st = fsModule.statfsSync('/tmp');
+            diskInfo = { total: st.blocks * st.bsize, free: st.bfree * st.bsize, available: st.bavail * st.bsize };
+          }
+        } catch { /* ignore */ }
+
+        const healthData = {
+          timestamp: Date.now(),
+          uptime: process.uptime(),
+          nodeVersion: process.version,
+          platform: os.platform(),
+          arch: os.arch(),
+          osType: os.type(),
+          osRelease: os.release(),
+          hostname: os.hostname(),
+          serverRegion: process.env.VERCEL_REGION || process.env.AWS_REGION || process.env.FLY_REGION || '—',
+          totalMemory: os.totalmem(),
+          freeMemory: os.freemem(),
+          cpus: cpus.map((c) => ({ model: c.model, speedMHz: c.speed, times: c.times })),
+          cpuCount: cpus.length,
+          processMemory: { rss: mem.rss, heapUsed: mem.heapUsed, heapTotal: mem.heapTotal, external: mem.external },
+          dbPingMs,
+          loadAverage: os.loadavg(),
+          diskInfo,
+        };
+
+        // Save health snapshot to DB
+        const snapshotsCol = db.collection('health_snapshots');
+        await snapshotsCol.insertOne({ ...healthData, ip: clientIp, createdAtIST: nowIST() });
+
+        return json(res, 200, {
+          ok: true,
+          ...healthData,
+          globalUsed: globalCount + 1,
+          globalLimit: 20,
+          ipUsed: ipCount + 1,
+          ipLimit: 2,
+        });
+      }
 
       // --- NAYA: Live Status Update Logic (Admin Only) ---
       if (action === 'status') {

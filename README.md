@@ -48,6 +48,9 @@ All while the author simultaneously prepares for **JEE Advanced 2027** targeting
 ### 🔭 Global Command Palette Search
 Full-stack search engine at `/search` with typewriter-animated suggestions, trending query tracking, localStorage history, and a TF-IDF ML fallback. Searches journals, projects, FAQs, social links, and live status simultaneously. Fully indexed in the sitemap.
 
+### 📡 Real-Time System Status Monitor
+Live status page at `/status` probes all API endpoints every 60 s (heavy endpoints every 5 min) and displays latency, HTTP status, and connection quality. Includes a **Server Health** panel with a highlighted **System Specifications** card showing RAM, storage, CPU model/cores/speed, OS type and kernel, architecture, runtime version, server region, and hostname. A rate-limited **"Refresh Now"** button (global 20/min · per-IP 2/min) triggers a full health snapshot stored in MongoDB for historical tracking.
+
 ### 🎬 Cinematic Loading Engine
 A system-parsing intro screen with a live progress bar and 50-quote rotating archive. Masks lazy-loaded asset hydration with an AAA-grade first impression.
 
@@ -100,7 +103,7 @@ Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · 
 | **Routing** | React Router DOM | `7.x` | Lazy-loaded SPA with wildcard 404 handling |
 | **PDF Renderer** | react-pdf | `9.x` | Client-side A4 portfolio document renderer |
 | **SEO** | react-helmet-async | `2.x` | Async head tag injection for rich snippets |
-| **Database** | MongoDB Atlas | — | Journal and category persistence |
+| **Database** | MongoDB Atlas | — | Journal, category, status, health snapshot, and rate-limit persistence |
 | **CDN / Storage** | static.qlynk.me | — | Proxied secure image upload and hosting |
 | **Hosting** | Vercel | — | Global edge CDN, CI/CD, SPA rewrites |
 
@@ -129,9 +132,12 @@ Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · 
  ┃ ┣ 📜 categories.js            # Journal category CRUD
  ┃ ┣ 📜 contact.js               # Contact form handler
  ┃ ┣ 📜 faqs.js                  # FAQ data endpoint
- ┃ ┣ 📜 journal.js               # Journal CRUD + views/likes
+ ┃ ┣ 📜 journal.js               # Journal CRUD · health · rate-limited refresh
  ┃ ┣ 📜 links.js                 # Links data endpoint
  ┃ ┣ 📜 live.js                  # YouTube RSS feed parser
+ ┃ ┣ 📜 projects.js              # Projects CRUD endpoint
+ ┃ ┣ 📜 sitemap.js               # Dynamic XML sitemap generator
+ ┃ ┣ 📜 timeline.js              # Timeline milestones endpoint
  ┃ ┗ 📜 upload-image.js          # CDN image upload proxy
  ┣ 📂 public                     # Static assets (served as-is)
  ┃ ┣ 📂 assets/docs              # Portfolio PDF documents
@@ -144,7 +150,7 @@ Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · 
  ┃ ┃ ┣ 📜 Header.tsx             # Responsive navigation header
  ┃ ┃ ┣ 📜 JourneyMarquee.tsx     # GPU-accelerated timeline marquee
  ┃ ┃ ┣ 📜 Layout.tsx             # Page layout wrapper (skips for embeds)
- ┃ ┃ ┣ �� LoadingScreen.tsx      # Cinematic intro loading screen
+ ┃ ┃ ┣ 📜 LoadingScreen.tsx      # Cinematic intro loading screen
  ┃ ┃ ┣ 📜 SEO.tsx                # JSON-LD + OpenGraph meta manager
  ┃ ┃ ┗ 📜 TechGalaxy.tsx         # Animated tech stack visual
  ┃ ┣ 📂 context
@@ -169,6 +175,9 @@ Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · 
  ┃ ┃ ┣ 📜 Projects.tsx           # Projects listing
  ┃ ┃ ┣ 📜 ProjectDetail.tsx      # Individual project deep-dive
  ┃ ┃ ┣ 📜 Proof.tsx              # Proof of work page
+ ┃ ┃ ┣ 📜 SearchResults.tsx      # Global search results page
+ ┃ ┃ ┣ 📜 Status.tsx             # Real-time system status & server health
+ ┃ ┃ ┣ 📜 LegalHub.tsx           # Legal hub index
  ┃ ┃ ┗ 📜 NotFound.tsx           # 404 fallback page
  ┃ ┣ 📜 App.tsx                  # Root router + animated routes
  ┃ ┣ 📜 index.css                # Global CSS + Tailwind directives
@@ -209,6 +218,8 @@ Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · 
 | `/journal/view/:id` | Full journal article with engagement actions |
 | `/journal/embed/:id` | Embeddable iframe view (no header/footer) |
 | `/live` | YouTube live stream + All/Stream/Video/Shorts hub |
+| `/search` | Full-stack global search with trending queries and easter eggs |
+| `/status` | Real-time API status, server health, and system specifications |
 | `/faq` | Searchable FAQ with accordion interface |
 | `/dashboard` | Owner-only content management dashboard |
 | `/legal` | Legal hub index |
