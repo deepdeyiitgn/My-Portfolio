@@ -482,11 +482,11 @@ export default function Status() {
                   {[
                     { label: 'RAM',              value: fmtBytes(health.totalMemory),                              color: 'text-amber-400' },
                     { label: 'RAM (Free)',        value: fmtBytes(health.freeMemory),                               color: 'text-emerald-400' },
-                    { label: 'Storage (/tmp)',   value: health.diskInfo ? fmtBytes(health.diskInfo.total) : 'Serverless (ephemeral)', color: 'text-purple-400' },
+                    { label: 'Storage (/tmp)',   value: health.diskInfo ? fmtBytes(health.diskInfo.total) : 'Serverless (Ephemeral)', color: 'text-purple-400' },
                     { label: 'Processor',        value: health.cpus[0]?.model ?? '—',                              color: 'text-blue-400' },
                     { label: 'CPU Cores',        value: `${health.cpuCount} logical cores`,                        color: 'text-blue-400' },
                     { label: 'CPU Speed',        value: health.cpus[0] ? `${health.cpus[0].speedMHz} MHz` : '—',  color: 'text-yellow-400' },
-                    { label: 'Operating System', value: `${health.osType ?? health.platform} (${health.platform})`, color: 'text-zinc-200' },
+                    { label: 'Operating System', value: health.osType ?? health.platform,                    color: 'text-zinc-200' },
                     { label: 'OS Kernel',        value: health.osRelease ?? '—',                                   color: 'text-zinc-400' },
                     { label: 'Architecture',     value: health.arch,                                               color: 'text-zinc-300' },
                     { label: 'Runtime',          value: health.nodeVersion,                                        color: 'text-green-400' },
