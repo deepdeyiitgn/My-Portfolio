@@ -6,6 +6,46 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+---
+
+## [3.4.0] — 2026-05-04
+
+### Added
+- **Rate-Limited Manual Refresh (`POST /api/journal?action=refresh`):** The "Refresh Now" button on `/status` now calls a dedicated server-side endpoint that enforces two independent rate limits: **global 20 refreshes/min** (across all IPs) and **per-IP 2 refreshes/min**. Limits are tracked in a new `refresh_rate_limits` MongoDB collection with a 60-second sliding window and automatic cleanup of records older than 2 minutes.
+- **Health Snapshot Persistence:** Every allowed manual refresh writes a full server health snapshot to a new `health_snapshots` MongoDB collection, including all OS metrics, CPU, memory, disk, DB ping, and the caller's IP address with an IST timestamp.
+- **Extended Health API Fields:** Both `GET ?action=health` and `POST ?action=refresh` now return `osType` (`os.type()`), `osRelease` (`os.release()`), `hostname` (`os.hostname()`), `serverRegion` (from `VERCEL_REGION` / `AWS_REGION` / `FLY_REGION` environment variables), and `diskInfo` (`{ total, free, available }` from `fs.statfsSync('/tmp')`, `null` on unsupported runtimes).
+- **System Specifications Card:** A new amber-highlighted card at the top of the Server Health section on `/status` lists all key server specs: **RAM** (total & free), **Storage** (/tmp disk), **Processor** (full CPU model string), **CPU Cores**, **CPU Speed**, **Operating System**, **OS Kernel**, **Architecture**, **Runtime** (Node.js version), **Server Region**, and **Hostname**.
+- **Refresh Button UX:** The "Refresh Now" button shows a spinning icon while the request is in flight, is disabled to prevent double-submission, and displays the 429 rate-limit error message inline below the button.
+
+### Changed
+- `ServerHealth` TypeScript interface extended with `osType`, `osRelease`, `hostname`, `serverRegion`, `diskInfo`, and optional rate-limit counter fields.
+- `handleManualRefresh` in `Status.tsx` refactored to `async`, now calls `POST action=refresh` and updates health state from the response rather than re-running `GET action=health` separately.
+- System Details card on `/status` extended with OS Type, OS Release, and Region rows.
+
+---
+
+## [3.3.0] — 2026-05-01
+
+### Added
+- **Dynamic Projects Dashboard:** Added a fully functional "Projects" tab in the admin dashboard to manage portfolio projects directly via MongoDB. Includes a live split-screen visual and JSON preview.
+- **3-Layer Auto-Screenshot Architecture:** Engineered a highly resilient serverless screenshot generator to bypass Vercel timeouts and Cloudflare bot-protections:
+  - **Layer 1:** Google PageSpeed Insights API (official Google servers for 0% CAPTCHA block and high compression).
+  - **Layer 2:** Site-Shot API with Global Geolocation Proxies (Brazil/Tokyo) to bypass regional blocks.
+  - **Layer 3:** Thum.io API with massive rotating human-like headers as a fail-safe raw image fallback.
+- **Default vs Custom Ecosystem Mode:** Added a global toggle to seamlessly switch between static file-based projects (`projectsData.ts`) and dynamic MongoDB-driven projects.
+- **Smart Client-Side Image Formatting:** Added CSS-based `object-fit` handling on the frontend to automatically stretch or crop heavily portrait screenshots into perfect 16:10 landscape preview cards.
+
+### Changed
+- Transitioned serverless architecture to Node.js 22 (`engines` field updated in `package.json`).
+- Optimized Vercel deployment by shifting from heavy local headless browsers to lightweight Cloud APIs, eliminating 502 memory crashes.
+
+### Removed
+- Removed `@sparticuz/chromium` to reduce build size and prevent Vercel 10-second timeout limits.
+
+---
+
 ## [3.2.0] — 2026-04-29
 
 ### Added
@@ -115,7 +155,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-[Unreleased]: https://github.com/deepdeyiitgn/My-Portfolio/compare/v3.1.0...HEAD
+[Unreleased]: https://github.com/deepdeyiitgn/My-Portfolio/compare/v3.4.0...HEAD
+[3.4.0]: https://github.com/deepdeyiitgn/My-Portfolio/compare/v3.3.0...v3.4.0
+[3.3.0]: https://github.com/deepdeyiitgn/My-Portfolio/compare/v3.2.0...v3.3.0
+[3.2.0]: https://github.com/deepdeyiitgn/My-Portfolio/compare/v3.1.5...v3.2.0
+[3.1.5]: https://github.com/deepdeyiitgn/My-Portfolio/compare/v3.1.0...v3.1.5
 [3.1.0]: https://github.com/deepdeyiitgn/My-Portfolio/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/deepdeyiitgn/My-Portfolio/compare/v2.0.0...v3.0.0
 [2.0.0]: https://github.com/deepdeyiitgn/My-Portfolio/compare/v1.0.0...v2.0.0

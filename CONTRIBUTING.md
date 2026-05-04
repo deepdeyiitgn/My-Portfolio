@@ -136,6 +136,8 @@ If your change touches any of these areas, manually verify them:
 | Live page | `/live` (tabs, pagination, embed) |
 | Dashboard | `/dashboard` (image upload, journal CRUD) |
 | Home page | `/` (photo badge, timeline, marquee) |
+| Status page | `/status` (endpoint probes, health panel, system specs card, refresh rate limit) |
+| Search | `/search` (results, trending, easter egg) |
 
 ---
 

@@ -67,6 +67,7 @@ This is primarily a **stateless, client-side React SPA** with a small number of 
 | **Input Validation** | All image URLs validated via `sanitizeImageUrl()` (allowlist: `static.qlynk.me/f/`, `.png`, `.jpg`, `.jpeg`) |
 | **Base64 Validation** | Strict `[A-Za-z0-9+/=\n]+` regex for data URL decoding in upload proxy |
 | **CDN Error Handling** | Upload proxy detects CDN-level `status: "error"` responses even when HTTP status is 200 |
+| **Rate Limiting** | `POST /api/journal?action=refresh` enforces global 20 req/min and per-IP 2 req/min via MongoDB `refresh_rate_limits` collection; returns `429` on breach |
 | **Edge Security** | Vercel Edge Network provides automatic DDoS mitigation, global HTTPS enforcement, and TLS 1.3 |
 | **CI Validation** | GitHub Actions runs type-check and production build on every push and PR — see [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) |
 | **Dependency Scanning** | `npm audit` and GitHub Dependabot (weekly automated PRs) for known CVE detection |
@@ -89,7 +90,7 @@ The following are **not** in scope for this security program:
 - Issues within `react-pdf` web worker internals (unless directly exploitable in this deployment)
 - Third-party widget vulnerabilities (Spotify, SimpleIcons CDN)
 - Social engineering, phishing, or physical attacks targeting the author
-- Rate limiting / brute-force on public read-only endpoints
+- Rate limiting on static, public read-only endpoints (note: the manual `/status` refresh endpoint **is** rate-limited server-side)
 
 ---
 
