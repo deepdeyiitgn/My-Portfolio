@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef, type FormEvent, type ReactNode, type ChangeEvent, type DragEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Link } from 'react-router-dom';
 import {
   Lock, LogIn, Eye, EyeOff, Plus, Trash2, Edit3, Send, X,
   ChevronLeft, ChevronRight, LogOut, Tag, BookOpen, Settings,
-  ToggleLeft, ToggleRight, Clock, Loader2, AlertCircle, CheckCircle2, Upload, ImagePlus, Clipboard, Layers, Activity, History, HardDrive
+  ToggleLeft, ToggleRight, Clock, Loader2, AlertCircle, CheckCircle2, Upload, ImagePlus, Clipboard, Layers, Activity, History, HardDrive,
+  Users, MessageSquare, ShieldBan, AlertOctagon, User
 } from 'lucide-react';
 import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
@@ -39,7 +41,7 @@ interface Journal {
   images?: string[];
 }
 
-type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'status' | 'storage';
+type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'status' | 'storage' | 'users';
 
 // ── Projects types ────────────────────────────────────────────────────────────
 export interface ProjectDB {
@@ -69,6 +71,56 @@ interface StorageStats {
   indexSize: number;
   clusterTotalSize: number; // all databases on this Atlas cluster
   collections: Record<string, CollectionStat>;
+}
+
+// ── Comments & Users types ────────────────────────────────────────────────────
+interface CommentDoc {
+  _id: string;
+  userId: string;
+  userName: string;
+  userPic: string;
+  text: string;
+  originalText: string | null;
+  hasAbuse: boolean;
+  likes: number;
+  parentId: string | null;
+  isPinned: boolean;
+  isDeleted: boolean;
+  createdAt: string;
+  createdAtIST: string;
+  journalInfo?: { title: string; slug: string } | null;
+}
+
+interface JournalCommentStat {
+  _id: string;
+  title: string;
+  slug: string;
+  published: boolean;
+  categoryName: string;
+  count: number;
+  abuseCount: number;
+  totalSize: number;
+}
+
+interface UserDoc {
+  _id: string;
+  userName: string;
+  userPic: string;
+  totalComments: number;
+  firstCommentAt: string;
+  lastCommentAt: string;
+  lastJournalId: string;
+}
+
+interface BlockDoc {
+  _id: string;
+  userId: string;
+  userName: string;
+  blockType: 'all' | 'post' | 'temp';
+  journalId: string | null;
+  expiresAt: string | null;
+  reason: string;
+  createdAtIST: string;
 }
 
 // ── Journey (Timeline) types ──────────────────────────────────────────────────
@@ -1246,12 +1298,48 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   // ── Storage state ────────────────────────────────────────────────────────
   const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
   const [storageLoading, setStorageLoading] = useState(false);
-  const [storageSubTab, setStorageSubTab] = useState<'journals' | 'projects' | 'journey'>('journals');
+  const [storageSubTab, setStorageSubTab] = useState<'journals' | 'projects' | 'journey' | 'comments'>('journals');
   const [storageJournals, setStorageJournals] = useState<Journal[]>([]);
   const [storageJournalPage, setStorageJournalPage] = useState(1);
   const [storageProjectPage, setStorageProjectPage] = useState(1);
   const [storageJourneyPage, setStorageJourneyPage] = useState(1);
   const STORAGE_PAGE_SIZE = 5;
+
+  // ── Comments storage sub-tab state ────────────────────────────────────────
+  const [commentPosts, setCommentPosts] = useState<JournalCommentStat[]>([]);
+  const [commentPostsPage, setCommentPostsPage] = useState(1);
+  const [commentPostsTotal, setCommentPostsTotal] = useState(0);
+  const [commentPostsTotalPages, setCommentPostsTotalPages] = useState(1);
+  const [commentPostsLoading, setCommentPostsLoading] = useState(false);
+  const [selectedCommentPost, setSelectedCommentPost] = useState<JournalCommentStat | null>(null);
+  const [postComments, setPostComments] = useState<CommentDoc[]>([]);
+  const [postCommentsPage, setPostCommentsPage] = useState(1);
+  const [postCommentsTotal, setPostCommentsTotal] = useState(0);
+  const [postCommentsTotalPages, setPostCommentsTotalPages] = useState(1);
+  const [postCommentsLoading, setPostCommentsLoading] = useState(false);
+  const [revealedAbuse, setRevealedAbuse] = useState<Set<string>>(new Set());
+
+  // ── Block modal state ─────────────────────────────────────────────────────
+  const [blockModalUser, setBlockModalUser] = useState<{ userId: string; userName: string; userPic: string; journalId?: string } | null>(null);
+  const [blockType, setBlockType] = useState<'all' | 'post' | 'temp'>('all');
+  const [blockHours, setBlockHours] = useState('');
+  const [blockMinutes, setBlockMinutes] = useState('');
+  const [blockDays, setBlockDays] = useState('');
+  const [blockReason, setBlockReason] = useState('');
+  const [blockSaving, setBlockSaving] = useState(false);
+
+  // ── Users tab state ───────────────────────────────────────────────────────
+  const [users, setUsers] = useState<UserDoc[]>([]);
+  const [usersPage, setUsersPage] = useState(1);
+  const [usersTotal, setUsersTotal] = useState(0);
+  const [usersTotalPages, setUsersTotalPages] = useState(1);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserDoc | null>(null);
+  const [userComments, setUserComments] = useState<CommentDoc[]>([]);
+  const [userCommentsPage, setUserCommentsPage] = useState(1);
+  const [userCommentsTotal, setUserCommentsTotal] = useState(0);
+  const [userCommentsTotalPages, setUserCommentsTotalPages] = useState(1);
+  const [userCommentsLoading, setUserCommentsLoading] = useState(false);
 
   // ── Blacklist state ──────────────────────────────────────────────────────
   const [blacklist, setBlacklist] = useState<Array<{ _id: string; word: string }>>([]);
@@ -1291,6 +1379,111 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
     finally { setStorageLoading(false); }
   }, []);
 
+  const fetchCommentPosts = useCallback(async (p = 1) => {
+    setCommentPostsLoading(true);
+    try {
+      const r = await fetch(`/api/journal?action=journals-comment-stats&page=${p}`);
+      const d = await r.json();
+      if (d.ok) {
+        setCommentPosts(d.journals);
+        setCommentPostsPage(d.pagination.page);
+        setCommentPostsTotal(d.pagination.total);
+        setCommentPostsTotalPages(d.pagination.totalPages);
+      }
+    } catch { /* ignore */ }
+    finally { setCommentPostsLoading(false); }
+  }, []);
+
+  const fetchPostComments = useCallback(async (journalId: string, p = 1) => {
+    setPostCommentsLoading(true);
+    try {
+      const r = await fetch(`/api/journal?action=comment-admin-list&journalId=${journalId}&page=${p}`);
+      const d = await r.json();
+      if (d.ok) {
+        setPostComments(d.comments);
+        setPostCommentsPage(d.pagination.page);
+        setPostCommentsTotal(d.pagination.total);
+        setPostCommentsTotalPages(d.pagination.totalPages);
+      }
+    } catch { /* ignore */ }
+    finally { setPostCommentsLoading(false); }
+  }, []);
+
+  const fetchUsers = useCallback(async (p = 1) => {
+    setUsersLoading(true);
+    try {
+      const r = await fetch(`/api/journal?action=users&page=${p}`);
+      const d = await r.json();
+      if (d.ok) {
+        setUsers(d.users);
+        setUsersPage(d.pagination.page);
+        setUsersTotal(d.pagination.total);
+        setUsersTotalPages(d.pagination.totalPages);
+      }
+    } catch { /* ignore */ }
+    finally { setUsersLoading(false); }
+  }, []);
+
+  const fetchUserComments = useCallback(async (userId: string, p = 1) => {
+    setUserCommentsLoading(true);
+    try {
+      const r = await fetch(`/api/journal?action=user-comments&userId=${encodeURIComponent(userId)}&page=${p}`);
+      const d = await r.json();
+      if (d.ok) {
+        setUserComments(d.comments);
+        setUserCommentsPage(d.pagination.page);
+        setUserCommentsTotal(d.pagination.total);
+        setUserCommentsTotalPages(d.pagination.totalPages);
+      }
+    } catch { /* ignore */ }
+    finally { setUserCommentsLoading(false); }
+  }, []);
+
+  const handleDeleteComment = async (commentId: string, journalId?: string) => {
+    if (!confirm('Delete this comment?')) return;
+    try {
+      const r = await fetch(`/api/journal?action=comment&id=${commentId}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      const d = await r.json();
+      if (d.ok) {
+        showToast('Comment deleted');
+        if (journalId) fetchPostComments(journalId, postCommentsPage);
+        if (selectedUser) fetchUserComments(selectedUser._id, userCommentsPage);
+      } else showToast(d.message || 'Error', 'error');
+    } catch { showToast('Network error', 'error'); }
+  };
+
+  const handleBlockUser = async () => {
+    if (!blockModalUser) return;
+    setBlockSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        userId: blockModalUser.userId,
+        userName: blockModalUser.userName,
+        userPic: blockModalUser.userPic,
+        blockType,
+        reason: blockReason,
+      };
+      if (blockType === 'post' && blockModalUser.journalId) payload.journalId = blockModalUser.journalId;
+      if (blockType === 'temp') {
+        payload.hours = parseFloat(blockHours) || 0;
+        payload.minutes = parseFloat(blockMinutes) || 0;
+        payload.days = parseFloat(blockDays) || 0;
+      }
+      const r = await fetch('/api/journal?action=block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        showToast(`User blocked (${blockType})`);
+        setBlockModalUser(null);
+        setBlockReason(''); setBlockHours(''); setBlockMinutes(''); setBlockDays('');
+      } else showToast(d.message || 'Error blocking user', 'error');
+    } catch { showToast('Network error', 'error'); }
+    finally { setBlockSaving(false); }
+  };
+
   useEffect(() => {
     if (tab === 'status' && authenticated) fetchStatusHistory();
   }, [tab, authenticated, fetchStatusHistory]);
@@ -1298,6 +1491,18 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   useEffect(() => {
     if (tab === 'storage' && authenticated) fetchStorageStats();
   }, [tab, authenticated, fetchStorageStats]);
+
+  useEffect(() => {
+    if (tab === 'storage' && authenticated && storageSubTab === 'comments') {
+      fetchCommentPosts(1);
+      setSelectedCommentPost(null);
+      setPostComments([]);
+    }
+  }, [tab, authenticated, storageSubTab, fetchCommentPosts]);
+
+  useEffect(() => {
+    if (tab === 'users' && authenticated) fetchUsers(1);
+  }, [tab, authenticated, fetchUsers]);
 
   useEffect(() => {
     if (tab === 'settings' && authenticated) {
@@ -1845,6 +2050,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
           { id: 'categories', label: 'Categories', icon: <Tag size={14} /> },
           { id: 'journey', label: 'Journey', icon: <Clock size={14} /> },
           { id: 'storage', label: 'Storage', icon: <HardDrive size={14} /> },
+          { id: 'users', label: 'Users', icon: <Users size={14} /> },
           { id: 'settings', label: 'Settings', icon: <Settings size={14} /> },
         ] as { id: Tab; label: string; icon: ReactNode }[]).map((t) => (
           <button
@@ -2631,13 +2837,13 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
               {/* Sub-tabs: per-item breakdown */}
               <div className="space-y-4">
                 <div className="flex gap-2 border-b border-zinc-800">
-                  {(['journals', 'projects', 'journey'] as const).map(st => (
+                  {(['journals', 'projects', 'journey', 'comments'] as const).map(st => (
                     <button
                       key={st}
                       onClick={() => { setStorageSubTab(st); setStorageJournalPage(1); setStorageProjectPage(1); setStorageJourneyPage(1); }}
                       className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-colors capitalize ${storageSubTab === st ? 'border-amber-500 text-amber-500' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
                     >
-                      {st}
+                      {st === 'comments' ? <span className="flex items-center gap-1"><MessageSquare size={12} /> Comments</span> : st}
                     </button>
                   ))}
                 </div>
@@ -2778,13 +2984,381 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                     )}
                   </div>
                 )}
+                {/* Comments sub-tab */}
+                {storageSubTab === 'comments' && (
+                  <div className="space-y-3">
+                    {selectedCommentPost ? (
+                      /* ── Per-post comments view ── */
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => { setSelectedCommentPost(null); setPostComments([]); }}
+                            className="p-2 rounded-xl hover:bg-zinc-800 text-zinc-400 transition-colors"
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-bold text-sm truncate">{selectedCommentPost.title}</p>
+                            <p className="text-zinc-500 text-xs">{selectedCommentPost.count} comments · {selectedCommentPost.abuseCount > 0 && <span className="text-red-400 font-bold">{selectedCommentPost.abuseCount} flagged</span>}</p>
+                          </div>
+                          <Link to={`/journal/view/${selectedCommentPost.slug}`} className="text-amber-500 text-xs hover:underline shrink-0">View Post ↗</Link>
+                        </div>
+
+                        {postCommentsLoading ? (
+                          <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-amber-500" /></div>
+                        ) : postComments.length === 0 ? (
+                          <p className="text-zinc-600 text-sm text-center py-8">No comments on this post.</p>
+                        ) : (
+                          <>
+                            <div className="space-y-2">
+                              {postComments.map(c => {
+                                const approxSize = JSON.stringify(c).length;
+                                const isRevealed = revealedAbuse.has(c._id);
+                                return (
+                                  <div key={c._id} className={`border rounded-xl p-4 space-y-2 ${c.hasAbuse ? 'border-red-900/40 bg-red-950/10' : 'border-zinc-800 bg-zinc-900/40'}`}>
+                                    <div className="flex items-start gap-3">
+                                      {c.userPic ? (
+                                        <img src={c.userPic} alt={c.userName} className="w-7 h-7 rounded-full border border-zinc-700 object-cover shrink-0" />
+                                      ) : (
+                                        <div className="w-7 h-7 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0"><User size={12} className="text-zinc-500" /></div>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="text-white text-xs font-bold">{c.userName}</span>
+                                          <span className="text-zinc-600 text-[10px] font-mono">{c.createdAtIST}</span>
+                                          {c.hasAbuse && <span className="flex items-center gap-1 text-[9px] font-bold text-red-400 bg-red-900/20 border border-red-900/40 px-1.5 py-0.5 rounded uppercase tracking-widest"><AlertOctagon size={8} /> Abuse</span>}
+                                        </div>
+                                        <p className="text-zinc-300 text-xs mt-1">{c.text}</p>
+                                        {c.hasAbuse && c.originalText && (
+                                          <div className="mt-1.5">
+                                            {isRevealed ? (
+                                              <div className="bg-red-950/30 border border-red-900/40 rounded-lg p-2 mt-1">
+                                                <p className="text-red-300 text-xs">{c.originalText}</p>
+                                                <button onClick={() => setRevealedAbuse(prev => { const s = new Set(prev); s.delete(c._id); return s; })} className="text-[10px] text-red-500 hover:text-red-400 mt-1">Hide original</button>
+                                              </div>
+                                            ) : (
+                                              <button onClick={() => setRevealedAbuse(prev => new Set([...prev, c._id]))} className="text-[10px] text-red-400 hover:text-red-300 flex items-center gap-1 mt-1">
+                                                <AlertOctagon size={10} /> Tap to see original (contains abuse)
+                                              </button>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="text-right shrink-0 space-y-1">
+                                        <p className="text-amber-500 font-bold text-xs">{formatBytes(approxSize)}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 pt-1 border-t border-zinc-800/50">
+                                      <Link to={`/journal/comment/${c._id}`} className="text-zinc-500 hover:text-amber-400 text-[10px] font-mono transition-colors">Permalink</Link>
+                                      <button
+                                        onClick={() => handleDeleteComment(c._id, selectedCommentPost._id)}
+                                        className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-red-400 transition-colors"
+                                      >
+                                        <Trash2 size={10} /> Delete
+                                      </button>
+                                      <button
+                                        onClick={() => setBlockModalUser({ userId: c.userId, userName: c.userName, userPic: c.userPic, journalId: selectedCommentPost._id })}
+                                        className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-orange-400 transition-colors"
+                                      >
+                                        <ShieldBan size={10} /> Block
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            {postCommentsTotalPages > 1 && (
+                              <div className="flex items-center justify-center gap-3 pt-1">
+                                <button onClick={() => { fetchPostComments(selectedCommentPost._id, postCommentsPage - 1); }} disabled={postCommentsPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}><ChevronLeft size={14} /> Prev</button>
+                                <span className="text-zinc-500 text-sm">Page {postCommentsPage} / {postCommentsTotalPages}</span>
+                                <button onClick={() => { fetchPostComments(selectedCommentPost._id, postCommentsPage + 1); }} disabled={postCommentsPage >= postCommentsTotalPages} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}>Next <ChevronRight size={14} /></button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      /* ── Posts list with comment counts ── */
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-zinc-600 text-xs font-mono">Posts with comment stats · {commentPostsTotal} total</p>
+                          <button onClick={() => fetchCommentPosts(commentPostsPage)} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 text-xs`}>Refresh</button>
+                        </div>
+                        {/* Total comments storage summary */}
+                        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 flex items-center gap-4">
+                          <MessageSquare size={20} className="text-amber-500 shrink-0" />
+                          <div>
+                            <p className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest">Total Comments Collection</p>
+                            <p className="text-amber-500 font-black text-xl">{storageStats?.collections['comments']?.count ?? '—'} docs</p>
+                            {storageStats?.collections['comments']?.storageSize && (
+                              <p className="text-zinc-600 text-[10px] font-mono">{formatBytes(storageStats.collections['comments'].storageSize)} on disk</p>
+                            )}
+                          </div>
+                        </div>
+                        {commentPostsLoading ? (
+                          <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-amber-500" /></div>
+                        ) : commentPosts.length === 0 ? (
+                          <p className="text-zinc-600 text-sm text-center py-8">No posts found.</p>
+                        ) : (
+                          <>
+                            <div className="space-y-2">
+                              {commentPosts.map(p => (
+                                <button
+                                  key={p._id}
+                                  onClick={() => { setSelectedCommentPost(p); fetchPostComments(p._id, 1); }}
+                                  className="w-full bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 flex items-center justify-between gap-4 hover:border-zinc-700 transition-colors text-left"
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-white text-sm font-medium truncate">{p.title}</p>
+                                    <div className="flex items-center gap-3 mt-1">
+                                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${p.published ? 'text-emerald-400 bg-emerald-500/10' : 'text-zinc-500 bg-zinc-800'}`}>{p.published ? 'Published' : 'Draft'}</span>
+                                      <span className="text-zinc-600 text-[10px] font-mono">{p.count} comments</span>
+                                      {p.abuseCount > 0 && <span className="flex items-center gap-1 text-[10px] text-red-400"><AlertOctagon size={9} /> {p.abuseCount} flagged</span>}
+                                    </div>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <p className="text-amber-500 font-bold text-sm">{formatBytes(p.totalSize)}</p>
+                                    <p className="text-zinc-600 text-[10px] font-mono">~text size</p>
+                                    <ChevronRight size={14} className="text-zinc-600 ml-auto mt-1" />
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                            {commentPostsTotalPages > 1 && (
+                              <div className="flex items-center justify-center gap-3 pt-1">
+                                <button onClick={() => fetchCommentPosts(commentPostsPage - 1)} disabled={commentPostsPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}><ChevronLeft size={14} /> Prev</button>
+                                <span className="text-zinc-500 text-sm">Page {commentPostsPage} / {commentPostsTotalPages}</span>
+                                <button onClick={() => fetchCommentPosts(commentPostsPage + 1)} disabled={commentPostsPage >= commentPostsTotalPages} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}>Next <ChevronRight size={14} /></button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}
         </div>
       )}
 
-      {/* ── Settings Tab ─────────────────────────────────────────────────── */}
+      {/* ── Block User Modal ─────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {blockModalUser && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) setBlockModalUser(null); }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-full max-w-md space-y-5"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-black text-lg flex items-center gap-2"><ShieldBan size={18} className="text-orange-400" /> Block User</h3>
+                <button onClick={() => setBlockModalUser(null)} className="text-zinc-500 hover:text-zinc-300"><X size={18} /></button>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-xl">
+                {blockModalUser.userPic ? (
+                  <img src={blockModalUser.userPic} alt="" className="w-8 h-8 rounded-full object-cover" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center"><User size={14} className="text-zinc-400" /></div>
+                )}
+                <div>
+                  <p className="text-white text-sm font-bold">{blockModalUser.userName}</p>
+                  <p className="text-zinc-500 text-[10px] font-mono">{blockModalUser.userId}</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Block Type</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['all', 'post', 'temp'] as const).map(bt => (
+                    <button
+                      key={bt}
+                      onClick={() => setBlockType(bt)}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${blockType === bt ? 'bg-orange-500/10 border-orange-500 text-orange-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}
+                    >
+                      {bt === 'all' ? 'All Posts' : bt === 'post' ? 'This Post' : 'Temporary'}
+                    </button>
+                  ))}
+                </div>
+                {blockType === 'post' && !blockModalUser.journalId && (
+                  <p className="text-amber-400 text-xs">Note: No specific post context. Block will apply from context.</p>
+                )}
+                {blockType === 'temp' && (
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">Days</label>
+                      <input type="number" min="0" value={blockDays} onChange={e => setBlockDays(e.target.value)} className={inputCls} placeholder="0" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">Hours</label>
+                      <input type="number" min="0" max="23" value={blockHours} onChange={e => setBlockHours(e.target.value)} className={inputCls} placeholder="0" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">Minutes</label>
+                      <input type="number" min="0" max="59" value={blockMinutes} onChange={e => setBlockMinutes(e.target.value)} className={inputCls} placeholder="0" />
+                    </div>
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Reason (optional)</label>
+                  <input value={blockReason} onChange={e => setBlockReason(e.target.value)} className={inputCls} placeholder="e.g., Spam, abuse..." />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setBlockModalUser(null)} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 flex-1`}>Cancel</button>
+                <button
+                  onClick={handleBlockUser}
+                  disabled={blockSaving || (blockType === 'temp' && !blockHours && !blockMinutes && !blockDays)}
+                  className={`${btnCls} bg-orange-500/10 border border-orange-500/40 text-orange-400 hover:bg-orange-500/20 flex-1 flex items-center justify-center gap-2 disabled:opacity-50`}
+                >
+                  {blockSaving ? <Loader2 size={14} className="animate-spin" /> : <ShieldBan size={14} />}
+                  Block User
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Users Tab ────────────────────────────────────────────────────── */}
+      {tab === 'users' && (
+        <div className="space-y-6">
+          {selectedUser ? (
+            /* ── Selected user detail + comments ── */
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <button onClick={() => { setSelectedUser(null); setUserComments([]); }} className="p-2 rounded-xl hover:bg-zinc-800 text-zinc-400 transition-colors"><ChevronLeft size={18} /></button>
+                <h2 className="text-white font-bold text-lg">User: {selectedUser.userName}</h2>
+              </div>
+              {/* User info card */}
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5 flex items-center gap-4">
+                {selectedUser.userPic ? (
+                  <img src={selectedUser.userPic} alt={selectedUser.userName} className="w-12 h-12 rounded-full border border-zinc-700 object-cover shrink-0" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0"><User size={20} className="text-zinc-500" /></div>
+                )}
+                <div className="flex-1 min-w-0 space-y-1">
+                  <p className="text-white font-black text-lg">{selectedUser.userName}</p>
+                  <p className="text-zinc-500 text-xs font-mono">{selectedUser._id}</p>
+                  <div className="flex items-center gap-4 flex-wrap text-xs text-zinc-500">
+                    <span className="flex items-center gap-1"><MessageSquare size={11} /> {selectedUser.totalComments} comments</span>
+                    <span className="flex items-center gap-1"><Clock size={11} /> First: {new Date(selectedUser.firstCommentAt).toLocaleDateString('en-IN')}</span>
+                    <span className="flex items-center gap-1"><Clock size={11} /> Last: {new Date(selectedUser.lastCommentAt).toLocaleDateString('en-IN')}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Link to={`/user/${encodeURIComponent(selectedUser._id)}`} className="text-amber-500 text-xs hover:underline">Public Profile ↗</Link>
+                  <button onClick={() => setBlockModalUser({ userId: selectedUser._id, userName: selectedUser.userName, userPic: selectedUser.userPic })} className={`${btnCls} bg-zinc-800 border border-zinc-700 text-orange-400 hover:bg-zinc-700 flex items-center gap-1 text-xs`}><ShieldBan size={12} /> Block</button>
+                </div>
+              </div>
+              {/* User comments */}
+              <div className="space-y-3">
+                <h3 className="text-zinc-400 text-sm font-bold flex items-center gap-2"><MessageSquare size={14} /> All Comments ({userCommentsTotal})</h3>
+                {userCommentsLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-amber-500" /></div>
+                ) : userComments.length === 0 ? (
+                  <p className="text-zinc-600 text-sm text-center py-6">No comments found.</p>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      {userComments.map(c => (
+                        <div key={c._id} className={`border rounded-xl p-4 space-y-2 ${c.hasAbuse ? 'border-red-900/40 bg-red-950/10' : 'border-zinc-800 bg-zinc-900/40'}`}>
+                          {c.journalInfo && (
+                            <Link to={`/journal/view/${c.journalInfo.slug}`} className="text-amber-500/70 text-[10px] font-mono hover:text-amber-400 transition-colors truncate block">
+                              ↗ {c.journalInfo.title}
+                            </Link>
+                          )}
+                          <p className="text-zinc-300 text-sm">{c.text}</p>
+                          {c.hasAbuse && c.originalText && (
+                            <div className="bg-red-950/30 border border-red-900/40 rounded-lg p-2">
+                              <p className="text-[9px] text-red-400 font-mono uppercase tracking-widest mb-1 flex items-center gap-1"><AlertOctagon size={8} /> Original (censored)</p>
+                              <p className="text-red-300 text-xs">{c.originalText}</p>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-3 pt-1 border-t border-zinc-800/50">
+                            <span className="text-zinc-600 text-[10px] font-mono">{c.createdAtIST}</span>
+                            {c.hasAbuse && <span className="flex items-center gap-1 text-[9px] font-bold text-red-400"><AlertOctagon size={8} /> Abuse</span>}
+                            <Link to={`/journal/comment/${c._id}`} className="text-zinc-500 hover:text-amber-400 text-[10px] font-mono transition-colors ml-auto">Permalink</Link>
+                            <button onClick={() => handleDeleteComment(c._id)} className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-red-400 transition-colors"><Trash2 size={10} /> Delete</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {userCommentsTotalPages > 1 && (
+                      <div className="flex items-center justify-center gap-3 pt-1">
+                        <button onClick={() => { fetchUserComments(selectedUser._id, userCommentsPage - 1); }} disabled={userCommentsPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}><ChevronLeft size={14} /> Prev</button>
+                        <span className="text-zinc-500 text-sm">Page {userCommentsPage} / {userCommentsTotalPages}</span>
+                        <button onClick={() => { fetchUserComments(selectedUser._id, userCommentsPage + 1); }} disabled={userCommentsPage >= userCommentsTotalPages} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}>Next <ChevronRight size={14} /></button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* ── Users list ── */
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-white font-bold text-lg flex items-center gap-2"><Users size={18} className="text-amber-500" /> Commenters ({usersTotal})</h2>
+                <button onClick={() => fetchUsers(1)} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 text-xs`}>Refresh</button>
+              </div>
+              {usersLoading ? (
+                <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-amber-500" /></div>
+              ) : users.length === 0 ? (
+                <div className="text-center py-16 text-zinc-600">
+                  <Users size={32} className="mx-auto mb-3 opacity-40" />
+                  <p className="text-sm">No commenters yet.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-3">
+                    {users.map(u => (
+                      <motion.div
+                        key={u._id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition-all cursor-pointer"
+                        onClick={() => { setSelectedUser(u); fetchUserComments(u._id, 1); }}
+                      >
+                        <div className="flex items-center gap-4">
+                          {u.userPic ? (
+                            <img src={u.userPic} alt={u.userName} className="w-10 h-10 rounded-full border border-zinc-700 object-cover shrink-0" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0"><User size={16} className="text-zinc-500" /></div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-bold text-base">{u.userName}</p>
+                            <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                              <span className="text-zinc-500 text-xs flex items-center gap-1"><MessageSquare size={10} /> {u.totalComments} comments</span>
+                              <span className="text-zinc-600 text-[10px] font-mono">Joined: {new Date(u.firstCommentAt).toLocaleDateString('en-IN')}</span>
+                              <span className="text-zinc-600 text-[10px] font-mono">Last: {new Date(u.lastCommentAt).toLocaleDateString('en-IN')}</span>
+                            </div>
+                          </div>
+                          <ChevronRight size={16} className="text-zinc-600 shrink-0" />
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                  {usersTotalPages > 1 && (
+                    <div className="flex items-center justify-center gap-3 pt-2">
+                      <button onClick={() => fetchUsers(usersPage - 1)} disabled={usersPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}><ChevronLeft size={14} /> Prev</button>
+                      <span className="text-zinc-500 text-sm">Page {usersPage} / {usersTotalPages}</span>
+                      <button onClick={() => fetchUsers(usersPage + 1)} disabled={usersPage >= usersTotalPages} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}>Next <ChevronRight size={14} /></button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {tab === 'settings' && (
         <div className="space-y-6 max-w-lg">
           <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-4">

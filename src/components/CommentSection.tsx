@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import {
   MessageSquare, Heart, Reply, Trash2, Edit3, Pin, PinOff, Send,
   ChevronDown, ChevronUp, AlertTriangle, X, LogOut, ExternalLink,
-  ChevronLeft, ChevronRight, Loader2, AlertCircle, ArrowDownUp,
+  ChevronLeft, ChevronRight, Loader2, AlertCircle, ArrowDownUp, Link2,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -311,9 +312,16 @@ function CommentItem({
         <div className="flex-1 min-w-0 space-y-1">
           {/* Name + badges */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`text-sm font-bold ${isOwnerComment ? 'text-amber-400' : 'text-white'}`}>
-              {comment.userName}
-            </span>
+            {isOwnerComment ? (
+              <span className="text-sm font-bold text-amber-400">{comment.userName}</span>
+            ) : (
+              <Link
+                to={`/user/${encodeURIComponent(comment.userId)}`}
+                className="text-sm font-bold text-white hover:text-amber-400 transition-colors"
+              >
+                {comment.userName}
+              </Link>
+            )}
             {isOwnerComment && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-mono uppercase tracking-wider">Owner</span>
             )}
@@ -324,6 +332,13 @@ function CommentItem({
             )}
             <span className="text-xs text-zinc-600">{timeAgo(comment.createdAt)}</span>
             {comment.editedAt && <span className="text-[10px] text-zinc-600 italic">(edited)</span>}
+            <Link
+              to={`/journal/comment/${comment._id}`}
+              className="ml-auto text-zinc-700 hover:text-amber-500 transition-colors"
+              title="Permalink to this comment"
+            >
+              <Link2 size={11} />
+            </Link>
           </div>
 
           {/* Comment text or edit box */}

@@ -165,6 +165,53 @@ async function censorText(db, text) {
   } catch { return text; }
 }
 
+// Returns { text: censored, hasAbuse: bool }
+async function censorTextWithFlag(db, text) {
+  try {
+    const blacklist = await db.collection('comment_blacklist').find({}).toArray();
+    if (!blacklist.length) return { text, hasAbuse: false };
+    let result = text;
+    let hasAbuse = false;
+    for (const item of blacklist) {
+      const word = String(item.word || '').trim();
+      if (!word) continue;
+      const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'gi');
+      const newResult = result.replace(regex, (match) => '*'.repeat(match.length));
+      if (newResult !== result) hasAbuse = true;
+      result = newResult;
+    }
+    return { text: result, hasAbuse };
+  } catch { return { text, hasAbuse: false }; }
+}
+
+// Check if user is blocked (returns block doc or null)
+async function getActiveBlock(db, userId, journalId) {
+  if (!userId || userId === 'owner') return null;
+  const blocksCol = db.collection('blocked_users');
+  const now = new Date();
+  // Check all-post block or temp block that's still active
+  const allBlock = await blocksCol.findOne({
+    userId,
+    blockType: { $in: ['all', 'temp'] },
+    $or: [
+      { expiresAt: null },
+      { expiresAt: { $gt: now } },
+    ],
+  });
+  if (allBlock) return allBlock;
+  // Check post-specific block
+  if (journalId) {
+    const postBlock = await blocksCol.findOne({
+      userId,
+      blockType: 'post',
+      journalId: new ObjectId(String(journalId)),
+    });
+    if (postBlock) return postBlock;
+  }
+  return null;
+}
+
 async function getJournalByIdOrSlug(col, req) {
   const slugParam = getParam(req, 'slug');
   const idParam = getParam(req, 'id');
@@ -219,7 +266,7 @@ module.exports = async (req, res) => {
           clusterTotalSize = listResult.totalSize || 0;
         } catch { /* Atlas M0 may not allow this — fall back to current DB size */ }
 
-        const collectionNames = ['journals', 'projects', 'timeline', 'categories', 'live_status', 'settings', 'config', 'search_analytics'];
+        const collectionNames = ['journals', 'projects', 'timeline', 'categories', 'live_status', 'settings', 'config', 'search_analytics', 'comments', 'blocked_users'];
         const collections = {};
         for (const name of collectionNames) {
           try {
@@ -525,6 +572,140 @@ module.exports = async (req, res) => {
         return json(res, 200, { ok: true, blacklist });
       }
 
+      // --- Blocks: list all blocked users (admin only) ---
+      if (action === 'blocks') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
+        const limit = 10;
+        const blocksCol = db.collection('blocked_users');
+        const total = await blocksCol.countDocuments({});
+        const blocks = await blocksCol.find({}).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
+        return json(res, 200, { ok: true, blocks, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+      }
+
+      // --- Users: list all unique commenters (admin only) ---
+      if (action === 'users') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
+        const limit = 10;
+        const commentsCol = db.collection('comments');
+        const agg = await commentsCol.aggregate([
+          { $match: { userId: { $ne: 'owner' } } },
+          { $sort: { createdAt: -1 } },
+          { $group: {
+            _id: '$userId',
+            userName: { $first: '$userName' },
+            userPic: { $first: '$userPic' },
+            totalComments: { $sum: 1 },
+            firstCommentAt: { $min: '$createdAt' },
+            lastCommentAt: { $max: '$createdAt' },
+            lastJournalId: { $first: '$journalId' },
+          }},
+          { $sort: { lastCommentAt: -1 } },
+        ]).toArray();
+        const total = agg.length;
+        const users = agg.slice((page - 1) * limit, page * limit);
+        return json(res, 200, { ok: true, users, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+      }
+
+      // --- User comments: comments by a specific userId (admin only) ---
+      if (action === 'user-comments') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const userId = getParam(req, 'userId');
+        if (!userId) return json(res, 400, { ok: false, message: 'userId required' });
+        const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
+        const limit = 10;
+        const commentsCol = db.collection('comments');
+        const total = await commentsCol.countDocuments({ userId, isDeleted: { $ne: true } });
+        const comments = await commentsCol.find({ userId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
+        // Attach journal title+slug for each comment
+        const journalIds = [...new Set(comments.map(c => c.journalId?.toString()).filter(Boolean))].filter(id => ObjectId.isValid(id)).map(id => new ObjectId(id));
+        let journalMap = {};
+        if (journalIds.length) {
+          const journals = await col.find({ _id: { $in: journalIds } }, { projection: { title: 1, slug: 1 } }).toArray();
+          journals.forEach(j => { journalMap[j._id.toString()] = { title: j.title, slug: j.slug }; });
+        }
+        const enriched = comments.map(c => ({ ...c, journalInfo: journalMap[c.journalId?.toString()] || null }));
+        return json(res, 200, { ok: true, comments: enriched, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+      }
+
+      // --- Comment by ID: for permalink page (public) ---
+      if (action === 'comment-by-id') {
+        const commentId = getParam(req, 'id');
+        if (!commentId || !ObjectId.isValid(commentId)) return json(res, 400, { ok: false, message: 'id required' });
+        const commentsCol = db.collection('comments');
+        const comment = await commentsCol.findOne({ _id: new ObjectId(commentId) });
+        if (!comment) return json(res, 404, { ok: false, message: 'Comment not found' });
+        // Get the journal info
+        const journal = await col.findOne({ _id: comment.journalId, published: true });
+        if (!journal) return json(res, 404, { ok: false, message: 'Journal not found' });
+        // Get replies if top-level comment
+        let replies = [];
+        if (!comment.parentId) {
+          replies = await commentsCol.find({ parentId: comment._id, isDeleted: { $ne: true } }).sort({ createdAt: 1 }).toArray();
+        }
+        // If it's a reply, get parent comment
+        let parentComment = null;
+        if (comment.parentId) {
+          parentComment = await commentsCol.findOne({ _id: comment.parentId });
+        }
+        return json(res, 200, { ok: true, comment, replies, parentComment, journal: { _id: journal._id, title: journal.title, slug: journal.slug, summary: journal.summary, categoryName: journal.categoryName, publishedAtIST: journal.publishedAtIST, readMinutes: journal.readMinutes } });
+      }
+
+      // --- Admin: list comments for a journal with originalText, hasAbuse info ---
+      if (action === 'comment-admin-list') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const journalId = getParam(req, 'journalId');
+        if (!journalId || !ObjectId.isValid(journalId)) return json(res, 400, { ok: false, message: 'journalId required' });
+        const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
+        const limit = 10;
+        const commentsCol = db.collection('comments');
+        const total = await commentsCol.countDocuments({ journalId: new ObjectId(journalId), parentId: null, isDeleted: { $ne: true } });
+        const comments = await commentsCol.find({ journalId: new ObjectId(journalId), parentId: null, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
+        return json(res, 200, { ok: true, comments, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+      }
+
+      // --- Admin: list journals with comment counts for storage sub-tab ---
+      if (action === 'journals-comment-stats') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
+        const limit = 10;
+        const total = await col.countDocuments({});
+        const journals = await col.find({}).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
+        const journalIds = journals.map(j => j._id);
+        const commentsCol = db.collection('comments');
+        const agg = await commentsCol.aggregate([
+          { $match: { journalId: { $in: journalIds }, isDeleted: { $ne: true } } },
+          { $group: { _id: '$journalId', count: { $sum: 1 }, abuseCount: { $sum: { $cond: ['$hasAbuse', 1, 0] } }, totalSize: { $sum: { $strLenCP: { $ifNull: ['$text', ''] } } } } },
+        ]).toArray();
+        const statsMap = {};
+        agg.forEach(a => { statsMap[a._id.toString()] = { count: a.count, abuseCount: a.abuseCount, totalSize: a.totalSize }; });
+        const enriched = journals.map(j => ({ _id: j._id, title: j.title, slug: j.slug, published: j.published, categoryName: j.categoryName, ...(statsMap[j._id.toString()] || { count: 0, abuseCount: 0, totalSize: 0 }) }));
+        return json(res, 200, { ok: true, journals: enriched, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+      }
+
+      // --- User profile (public) ---
+      if (action === 'user-profile') {
+        const userId = getParam(req, 'userId');
+        if (!userId) return json(res, 400, { ok: false, message: 'userId required' });
+        const commentsCol = db.collection('comments');
+        const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
+        const limit = 10;
+        // Get user info from first comment
+        const firstComment = await commentsCol.findOne({ userId, isDeleted: { $ne: true } }, { sort: { createdAt: 1 } });
+        if (!firstComment) return json(res, 404, { ok: false, message: 'User not found' });
+        const total = await commentsCol.countDocuments({ userId, isDeleted: { $ne: true } });
+        const comments = await commentsCol.find({ userId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
+        const journalIds = [...new Set(comments.map(c => c.journalId?.toString()).filter(Boolean))].filter(id => ObjectId.isValid(id)).map(id => new ObjectId(id));
+        let journalMap = {};
+        if (journalIds.length) {
+          const journals = await col.find({ _id: { $in: journalIds }, published: true }, { projection: { title: 1, slug: 1 } }).toArray();
+          journals.forEach(j => { journalMap[j._id.toString()] = { title: j.title, slug: j.slug }; });
+        }
+        const enrichedComments = comments.map(c => ({ ...c, originalText: undefined, journalInfo: journalMap[c.journalId?.toString()] || null }));
+        return json(res, 200, { ok: true, user: { userId, userName: firstComment.userName, userPic: firstComment.userPic, firstCommentAt: firstComment.createdAt, totalComments: total }, comments: enrichedComments, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+      }
+
       const slug = getParam(req, 'slug');
       const id = getParam(req, 'id');
 
@@ -762,7 +943,20 @@ module.exports = async (req, res) => {
         const journalExists = await col.findOne({ _id: new ObjectId(journalId), published: true });
         if (!journalExists) return json(res, 404, { ok: false, message: 'Journal not found' });
 
-        const censoredText = await censorText(db, text);
+        // Check if user is blocked
+        if (!ownerPosting) {
+          const block = await getActiveBlock(db, userInfo.userId, journalId);
+          if (block) {
+            const msg = block.blockType === 'temp'
+              ? `You are temporarily blocked from commenting${block.expiresAt ? ` until ${new Date(block.expiresAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST` : ''}.`
+              : block.blockType === 'post'
+              ? 'You are blocked from commenting on this post.'
+              : 'You are blocked from commenting.';
+            return json(res, 403, { ok: false, message: msg });
+          }
+        }
+
+        const { text: censoredText, hasAbuse } = await censorTextWithFlag(db, text);
         const now = new Date();
         const commentDoc = {
           journalId: new ObjectId(journalId),
@@ -770,6 +964,8 @@ module.exports = async (req, res) => {
           userName: userInfo.name,
           userPic: userInfo.picture,
           text: censoredText,
+          originalText: hasAbuse ? text : null, // only stored if abuse detected
+          hasAbuse,
           likes: 0,
           likedSessions: [],
           parentId,
@@ -856,6 +1052,37 @@ module.exports = async (req, res) => {
         return json(res, 201, { ok: true, item: { _id: result.insertedId, word } });
       }
 
+      // --- Block: block a user (admin only) ---
+      if (action === 'block') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const body = await readBody(req);
+        const userId = String(body.userId || '').trim();
+        const userName = String(body.userName || '').trim();
+        const userPic = String(body.userPic || '').trim();
+        const blockType = String(body.blockType || 'all').trim(); // 'all' | 'post' | 'temp'
+        const journalId = body.journalId && ObjectId.isValid(String(body.journalId)) ? new ObjectId(String(body.journalId)) : null;
+        const reason = String(body.reason || '').trim();
+
+        if (!userId) return json(res, 400, { ok: false, message: 'userId required' });
+        if (!['all', 'post', 'temp'].includes(blockType)) return json(res, 400, { ok: false, message: 'Invalid blockType' });
+        if (blockType === 'post' && !journalId) return json(res, 400, { ok: false, message: 'journalId required for post block' });
+
+        let expiresAt = null;
+        if (blockType === 'temp') {
+          const hours = parseFloat(body.hours || '0') || 0;
+          const minutes = parseFloat(body.minutes || '0') || 0;
+          const days = parseFloat(body.days || '0') || 0;
+          const ms = (days * 86400 + hours * 3600 + minutes * 60) * 1000;
+          if (ms <= 0) return json(res, 400, { ok: false, message: 'Duration required for temp block' });
+          expiresAt = new Date(Date.now() + ms);
+        }
+
+        const blocksCol = db.collection('blocked_users');
+        const doc = { userId, userName, userPic, blockType, journalId, reason, expiresAt, createdAt: new Date(), createdAtIST: nowIST() };
+        const result = await blocksCol.insertOne(doc);
+        return json(res, 201, { ok: true, block: { ...doc, _id: result.insertedId } });
+      }
+
       // --- EXISTING: Journal Creation Logic ---
       if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
 
@@ -917,10 +1144,10 @@ module.exports = async (req, res) => {
           }
         }
 
-        const censoredText = await censorText(db, newText);
+        const { text: censoredText, hasAbuse: newHasAbuse } = await censorTextWithFlag(db, newText);
         await commentsCol.updateOne(
           { _id: new ObjectId(commentId) },
-          { $set: { text: censoredText, editedAt: new Date() } },
+          { $set: { text: censoredText, hasAbuse: newHasAbuse, originalText: newHasAbuse ? newText : null, editedAt: new Date() } },
         );
         return json(res, 200, { ok: true, comment: { ...comment, text: censoredText, editedAt: new Date() } });
       }
@@ -1011,6 +1238,15 @@ module.exports = async (req, res) => {
         if (!blId || !ObjectId.isValid(blId)) return json(res, 400, { ok: false, message: 'id required' });
         await db.collection('comment_blacklist').deleteOne({ _id: new ObjectId(blId) });
         return json(res, 200, { ok: true, message: 'Word removed from blacklist' });
+      }
+
+      // --- Block: remove a block (admin only) ---
+      if (action === 'block') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const blockId = getParam(req, 'id');
+        if (!blockId || !ObjectId.isValid(blockId)) return json(res, 400, { ok: false, message: 'id required' });
+        await db.collection('blocked_users').deleteOne({ _id: new ObjectId(blockId) });
+        return json(res, 200, { ok: true, message: 'Block removed' });
       }
 
       // Existing: Delete journal (admin only)

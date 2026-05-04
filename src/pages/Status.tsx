@@ -160,9 +160,13 @@ export default function Status() {
   const heavyRef = useRef<number>(HEAVY_INTERVAL_MS / 1000);
 
   // ── Probe a single endpoint ────────────────────────────────────────────────
+  // Calls twice: first call warms up Vercel cold start; second call measures real latency
   const probeEndpoint = useCallback(async (ep: EndpointDef) => {
-    const t0 = performance.now();
     try {
+      // Warm-up call — discard result, just wake the serverless function
+      await fetch(ep.path, { method: ep.method, cache: 'no-store' }).catch(() => {});
+      // Actual latency measurement call
+      const t0 = performance.now();
       const r = await fetch(ep.path, { method: ep.method, cache: 'no-store' });
       const latencyMs = Math.round(performance.now() - t0);
       setResults(prev => ({
