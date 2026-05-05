@@ -1442,7 +1442,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   const handleDeleteComment = async (commentId: string, journalId?: string) => {
     if (!confirm('Delete this comment?')) return;
     try {
-      const r = await fetch(`/api/journal?action=comment&id=${commentId}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      const r = await fetch(`/api/journal?action=comment&id=${commentId}`, { method: 'DELETE' });
       const d = await r.json();
       if (d.ok) {
         showToast('Comment deleted');

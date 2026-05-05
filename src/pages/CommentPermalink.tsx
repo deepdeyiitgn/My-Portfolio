@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, MessageSquare, Heart, Loader2, AlertCircle, ExternalLink, User } from 'lucide-react';
@@ -116,9 +116,9 @@ export default function CommentPermalink() {
       .then(r => r.json())
       .then(d => {
         if (!d.ok) { setError(d.message || 'Comment not found'); return; }
-        setComment(d.comment);
-        setReplies(d.replies || []);
-        setParentComment(d.parentComment || null);
+        setComment(d.comment as Comment);
+        setReplies((d.replies || []) as Comment[]);
+        setParentComment(d.parentComment as Comment | null || null);
         setJournal(d.journal);
       })
       .catch(() => setError('Failed to load comment'))
@@ -151,7 +151,7 @@ export default function CommentPermalink() {
     <div className="min-h-screen bg-zinc-950 pt-28 pb-20 px-4">
       <SEO
         title={`Comment by ${comment.userName} | ${journal.title}`}
-        description={`"${comment.text.slice(0, 120)}..." — comment on "${journal.title}" by ${comment.userName}`}
+        description={`"${comment.text.length > 120 ? comment.text.slice(0, 120) + '…' : comment.text}" — comment on "${journal.title}" by ${comment.userName}`}
         route={`/journal/comment/${commentId}`}
       />
       <div className="max-w-2xl mx-auto space-y-6">
@@ -227,8 +227,10 @@ export default function CommentPermalink() {
               <MessageSquare size={10} /> {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
             </p>
             <div className="pl-4 border-l-2 border-zinc-800 space-y-2">
-              {replies.map(reply => (
-                <CommentCard key={reply._id} comment={reply} />
+              {(replies as Comment[]).map((reply: Comment) => (
+                <Fragment key={reply._id}>
+                  <CommentCard comment={reply} />
+                </Fragment>
               ))}
             </div>
           </motion.div>

@@ -619,8 +619,8 @@ module.exports = async (req, res) => {
       if (action === 'comment-by-id') {
         const commentId = getParam(req, 'id');
         if (!commentId || !ObjectId.isValid(commentId)) return json(res, 400, { ok: false, message: 'id required' });
-        const commentsCol = db.collection('comments');
-        const comment = await commentsCol.findOne({ _id: new ObjectId(commentId) });
+        const permalinkCommentsCol = db.collection('comments');
+        const comment = await permalinkCommentsCol.findOne({ _id: new ObjectId(commentId) });
         if (!comment) return json(res, 404, { ok: false, message: 'Comment not found' });
         // Get the journal info
         const journal = await col.findOne({ _id: comment.journalId, published: true });
@@ -628,12 +628,12 @@ module.exports = async (req, res) => {
         // Get replies if top-level comment
         let replies = [];
         if (!comment.parentId) {
-          replies = await commentsCol.find({ parentId: comment._id, isDeleted: { $ne: true } }).sort({ createdAt: 1 }).toArray();
+          replies = await permalinkCommentsCol.find({ parentId: comment._id, isDeleted: { $ne: true } }).sort({ createdAt: 1 }).toArray();
         }
         // If it's a reply, get parent comment
         let parentComment = null;
         if (comment.parentId) {
-          parentComment = await commentsCol.findOne({ _id: comment.parentId });
+          parentComment = await permalinkCommentsCol.findOne({ _id: comment.parentId });
         }
         return json(res, 200, { ok: true, comment, replies, parentComment, journal: { _id: journal._id, title: journal.title, slug: journal.slug, summary: journal.summary, categoryName: journal.categoryName, publishedAtIST: journal.publishedAtIST, readMinutes: journal.readMinutes } });
       }
@@ -645,9 +645,9 @@ module.exports = async (req, res) => {
         if (!journalId || !ObjectId.isValid(journalId)) return json(res, 400, { ok: false, message: 'journalId required' });
         const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
         const limit = 10;
-        const commentsCol = db.collection('comments');
-        const total = await commentsCol.countDocuments({ journalId: new ObjectId(journalId), parentId: null, isDeleted: { $ne: true } });
-        const comments = await commentsCol.find({ journalId: new ObjectId(journalId), parentId: null, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
+        const adminCommentsCol = db.collection('comments');
+        const total = await adminCommentsCol.countDocuments({ journalId: new ObjectId(journalId), parentId: null, isDeleted: { $ne: true } });
+        const comments = await adminCommentsCol.find({ journalId: new ObjectId(journalId), parentId: null, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
         return json(res, 200, { ok: true, comments, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
       }
 
@@ -674,16 +674,15 @@ module.exports = async (req, res) => {
       if (action === 'user-profile') {
         const userId = getParam(req, 'userId');
         if (!userId) return json(res, 400, { ok: false, message: 'userId required' });
-        const commentsCol = db.collection('comments');
         const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
         const limit = 10;
         // Get user info from users collection (prefer) or fall back to first comment
-        const usersCol2 = db.collection('users');
-        const userDoc = await usersCol2.findOne({ userId });
-        const commentsColP = db.collection('comments');
-        const total = await commentsColP.countDocuments({ userId, isDeleted: { $ne: true } });
+        const usersCol = db.collection('users');
+        const userDoc = await usersCol.findOne({ userId });
+        const userCommentsCol = db.collection('comments');
+        const total = await userCommentsCol.countDocuments({ userId, isDeleted: { $ne: true } });
         if (total === 0 && !userDoc) return json(res, 404, { ok: false, message: 'User not found' });
-        const comments = await commentsColP.find({ userId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
+        const comments = await userCommentsCol.find({ userId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
         const journalIds = [...new Set(comments.map(c => c.journalId?.toString()).filter(Boolean))].filter(id => ObjectId.isValid(id)).map(id => new ObjectId(id));
         let journalMap = {};
         if (journalIds.length) {
@@ -691,9 +690,10 @@ module.exports = async (req, res) => {
           journals.forEach(j => { journalMap[j._id.toString()] = { title: j.title, slug: j.slug }; });
         }
         const enrichedComments = comments.map(c => ({ ...c, originalText: undefined, journalInfo: journalMap[c.journalId?.toString()] || null }));
-        const firstComment = comments.length > 0 ? comments[comments.length - 1] : null;
-        const userInfo2 = userDoc || (firstComment ? { userId, userName: firstComment.userName, userPic: firstComment.userPic, firstCommentAt: firstComment.createdAt, totalComments: total } : null);
-        return json(res, 200, { ok: true, user: { userId, userName: userInfo2?.userName, userPic: userInfo2?.userPic, firstCommentAt: userInfo2?.firstCommentAt || userInfo2?.createdAt, totalComments: total }, comments: enrichedComments, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+        const lastComment = comments.length > 0 ? comments[comments.length - 1] : null;
+        const userFallback = lastComment ? { userId, userName: lastComment.userName, userPic: lastComment.userPic, firstCommentAt: lastComment.createdAt, totalComments: total } : null;
+        const profile = userDoc || userFallback;
+        return json(res, 200, { ok: true, user: { userId, userName: profile?.userName, userPic: profile?.userPic, firstCommentAt: profile?.firstCommentAt || profile?.createdAt, totalComments: total }, comments: enrichedComments, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
       }
 
       const slug = getParam(req, 'slug');
@@ -976,13 +976,12 @@ module.exports = async (req, res) => {
               { userId: userInfo.userId },
               {
                 $set: {
-                  userId: userInfo.userId,
                   userName: userInfo.name,
                   userPic: userInfo.picture,
                   lastCommentAt: now,
                   lastJournalId: new ObjectId(journalId),
                 },
-                $setOnInsert: { firstCommentAt: now, createdAt: now },
+                $setOnInsert: { userId: userInfo.userId, firstCommentAt: now, createdAt: now },
                 $inc: { totalComments: 1 },
               },
               { upsert: true },
