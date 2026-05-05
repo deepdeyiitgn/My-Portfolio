@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, Radio, Search, Activity } from 'lucide-react';
+import { Menu, X, Radio, Search, Activity, Users, MessageSquare } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 const NAV_LINKS = [
@@ -181,7 +181,7 @@ export default function Header() {
                 </select>
               </div>
 
-              <div className="flex flex-col items-center gap-2.5 py-8 mt-10 w-full max-w-xs">
+              <div className="flex flex-col items-center gap-2.5 pt-8 pb-28 mt-10 w-full max-w-xs">
                 {/* 🔍 Search Button (Mobile) — navigates to /search */}
                 <button
                   onClick={() => { navigate('/search'); setIsOpen(false); }}
@@ -224,6 +224,45 @@ export default function Header() {
                     </Link>
                   </motion.div>
                 ))}
+
+                {/* Community Quick Links */}
+                <div className="w-full border-t border-zinc-800/50 pt-4 mt-2 flex flex-col items-center gap-2">
+                  <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-[0.4em] mb-1">Community</p>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <Link
+                      to="/user"
+                      className="group flex flex-col items-center"
+                    >
+                      <span className={`text-xl font-black tracking-tight transition-all duration-300 flex items-center gap-2 ${
+                        location.pathname === '/user' ? 'text-amber-500 scale-110' : 'text-zinc-700 hover:text-amber-500'
+                      }`}>
+                        <Users size={16} />
+                        All Users
+                      </span>
+                    </Link>
+                  </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.85, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <Link
+                      to="/journal/comment"
+                      className="group flex flex-col items-center"
+                    >
+                      <span className={`text-xl font-black tracking-tight transition-all duration-300 flex items-center gap-2 ${
+                        location.pathname === '/journal/comment' ? 'text-amber-500 scale-110' : 'text-zinc-700 hover:text-amber-500'
+                      }`}>
+                        <MessageSquare size={16} />
+                        Comment Guide
+                      </span>
+                    </Link>
+                  </motion.div>
+                </div>
               </div>
 
               {/* Branding in Menu */}

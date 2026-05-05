@@ -8,6 +8,50 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **Double API Probe on Status Page:** Each endpoint on `/status` is now called **twice** per check cycle — a warm-up call that absorbs Vercel cold-start overhead, followed by the real latency measurement. This ensures the displayed latency reflects an active (warm) serverless instance rather than a cold-boot spike.
+- **Comment Abuse Detection (`hasAbuse` + `originalText`):** When a new comment or edited comment contains blacklisted words, the API now stores the **censored text** in `text`, the **original uncensored text** in `originalText`, and sets `hasAbuse: true`. Only stored when abuse is actually detected — clean comments leave `originalText: null`.
+- **User Block System:** New `blocked_users` MongoDB collection and admin API actions:
+  - `POST /api/journal?action=block` — Block a user with type `all` (all posts), `post` (specific post), or `temp` (time-limited with hours/minutes/days). All blocks are persisted to MongoDB.
+  - `DELETE /api/journal?action=block&id=<blockId>` — Remove a specific block.
+  - `GET /api/journal?action=blocks` — Paginated list of active blocks (admin only).
+  - Block check runs on every comment submission — blocked users receive a descriptive error message.
+- **User Profiles Collection:** Every comment submission upserts the commenter's profile (`userId`, `userName`, `userPic`, `firstCommentAt`, `lastCommentAt`, `totalComments`, `lastJournalId`) into a new `users` MongoDB collection. This powers the dashboard Users tab and public profile pages.
+- **Dashboard — Comments Sub-tab in Storage:**
+  - Summary card showing total comments collection size (docs count + on-disk bytes).
+  - Posts list with per-post comment count, flagged abuse count, and approximate text size. Paginated (10 per page).
+  - Click a post → per-comment view with: commenter avatar/name, timestamp, censored text, "Tap to see original" reveal for abused comments, **Delete** button, **Block** button.
+  - Full pagination on the per-comment view (10 per page).
+- **Dashboard — Block User Modal:** Accessible from both the comments sub-tab and the Users tab. Supports block type selection (All Posts / This Post / Temporary), duration pickers (days / hours / minutes for temp blocks), and an optional reason field.
+- **Dashboard — Users Tab:** New tab listing all registered commenters (from the `users` collection), sorted by most recent comment. Shows avatar, name, comment count, first/last comment dates. Paginated (10 per page). Click a user to see:
+  - Profile card with all metadata.
+  - Full comment history with journal links, abuse flags, original text reveal, permalink links, and delete buttons.
+  - Quick Block button on the profile card.
+  - Link to the public user profile page.
+- **Comment Permalink Page (`/journal/comment/:commentId`):** Public shareable link for any comment. Shows:
+  - The originating journal post's title/summary with a link to the full post.
+  - If the target is a reply: the parent comment is shown above.
+  - The highlighted target comment (amber accent border).
+  - All direct replies (for top-level comments).
+  - CTA button linking back to the full comment section on the journal post.
+- **User Profile Page (`/user/:userId`):** Public page showing a commenter's profile:
+  - Avatar, display name, total comment count, "first comment" date.
+  - Paginated list of all their comments (10 per page), each showing the journal post title as a link, comment text, timestamp, like count, and a permalink link.
+- **Clickable Comment Author Names:** In `CommentSection.tsx`, commenter names now link to `/user/:userId`. Owner comments remain non-linked. A small permalink icon (🔗) is added to each comment header linking to `/journal/comment/:commentId`.
+- **New API Actions:**
+  - `GET ?action=comment-by-id&id=<id>` — Returns a single comment, its journal info, replies (if top-level), and parent comment (if a reply).
+  - `GET ?action=journals-comment-stats` — Paginated list of journal posts with per-post comment count, abuse count, and total text size (admin only).
+  - `GET ?action=comment-admin-list&journalId=<id>` — Paginated top-level comments for a specific journal, including `originalText` and `hasAbuse` fields (admin only).
+  - `GET ?action=user-profile&userId=<id>` — Public user profile with paginated comment history and journal titles.
+  - `GET ?action=user-comments&userId=<id>` — Admin-only paginated comment history for a user, enriched with journal info.
+  - `GET ?action=users` — Admin-only paginated list of all users from the `users` collection.
+  - `GET ?action=blocks` — Admin-only paginated list of all active user blocks.
+- **dbstats Extended:** The `?action=dbstats` endpoint now includes `comments`, `blocked_users`, and `users` in the per-collection breakdown.
+
+### Changed
+- Comment creation and edit now use `censorTextWithFlag()` (returns `{ text, hasAbuse }`) instead of `censorText()`.
+- Comment creation adds a non-critical upsert to the `users` collection after every successful comment insert.
+
 ---
 
 ## [3.4.0] — 2026-05-04

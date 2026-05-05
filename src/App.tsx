@@ -29,6 +29,11 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Live = lazy(() => import('./pages/Live'));
 const SearchResults = lazy(() => import('./pages/SearchResults')); // <-- NAYA
 const Status = lazy(() => import('./pages/Status'));
+const CommentPermalink = lazy(() => import('./pages/CommentPermalink'));
+const CommentGuide = lazy(() => import('./pages/CommentGuide'));
+const JournalAllComments = lazy(() => import('./pages/JournalAllComments'));
+const AllUsers = lazy(() => import('./pages/AllUsers'));
+const UserProfile = lazy(() => import('./pages/UserProfile'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 /**
@@ -101,6 +106,12 @@ function AnimatedRoutes() {
             <Route path="/live" element={<Live />} />
             <Route path="/search" element={<SearchResults />} /> {/* <-- NAYA ROUTE */}
             <Route path="/status" element={<Status />} />
+            <Route path="/journal/comment" element={<CommentGuide />} />
+            <Route path="/journal/comment/:commentId" element={<CommentPermalink />} />
+            <Route path="/journal/view/:id/comments" element={<JournalAllComments />} />
+            <Route path="/journal/view/:id/comment/:commentId" element={<CommentPermalink />} />
+            <Route path="/user" element={<AllUsers />} />
+            <Route path="/user/:userId" element={<UserProfile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

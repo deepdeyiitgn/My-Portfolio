@@ -76,10 +76,19 @@ A JSON-driven hub mapping 30+ internal/external nodes with dynamic inline SVG ic
 The milestone timeline uses `new Date().getFullYear()` to auto-highlight the current active phase with a glowing amber radar pulse (extends to 2035).
 
 ### 🔍 Max-Level SEO
-`react-helmet-async` drives per-route metadata injection: Canonical URLs, OpenGraph/Twitter cards, and `Schema.org` JSON-LD (Person, FAQPage, SoftwareApplication). All routes including `/search` are included in the XML sitemap.
+`react-helmet-async` drives per-route metadata injection: Canonical URLs, OpenGraph/Twitter cards, and `Schema.org` JSON-LD (Person, FAQPage, SoftwareApplication). All routes including `/search`, `/user`, and `/journal/comment` are included in the XML sitemap.
 
 ### 🌍 12-Language i18n
 Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · JA · KO · ZH via a custom React Context provider.
+
+### 💬 Journal Comment System
+Readers can leave comments on any journal post using Google Sign-In — no password needed. Supports threaded replies, likes, and direct comment permalinks (`/journal/view/:id/comment/:commentId`). A full comment thread view (`/journal/view/:id/comments`) shows all comments with sort (top/new/old) and pagination. A step-by-step `/journal/comment` guide explains the rules and how to participate.
+
+### 👥 Community User Profiles
+Every reader who signs in gets a public profile at `/user/:userId`. Profiles show a customizable title, bio, social links (GitHub, Twitter, LinkedIn, Instagram, YouTube, Website, Custom with Google Favicon auto-detection), a 52-week contribution heatmap, and tabbed views for Overview, Comments, and Activity Log. The `/user` page lists all contributors with the owner card pinned at the top.
+
+### 🗺️ Dynamic XML Sitemap with RAM Cache
+`/api/sitemap` auto-generates a valid XML sitemap scoped exclusively to `deepdey.vercel.app`. It covers all static routes (excluding `/dashboard` and `/journal/embed`), dynamically fetches all published journal slugs, all comment threads, and all user profile URLs from MongoDB. Results are stored in-memory and refreshed every 6 hours (`Cache-Control: s-maxage=21600`). Subsequent requests within the TTL window are served instantly from RAM (`X-Sitemap-Cache: HIT`).
 
 ### 🚀 Key Features of New Dashboard
 
@@ -151,7 +160,10 @@ Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · 
  ┃ ┃ ┣ 📜 JourneyMarquee.tsx     # GPU-accelerated timeline marquee
  ┃ ┃ ┣ 📜 Layout.tsx             # Page layout wrapper (skips for embeds)
  ┃ ┃ ┣ 📜 LoadingScreen.tsx      # Cinematic intro loading screen
+ ┃ ┃ ┣ 📜 ScrollToTop.tsx        # Scroll-to-top floating button
  ┃ ┃ ┣ 📜 SEO.tsx                # JSON-LD + OpenGraph meta manager
+ ┃ ┃ ┣ 📜 SocialProof.tsx        # Social proof / testimonials component
+ ┃ ┃ ┣ 📜 StatusWidget.tsx       # Floating live-status popup widget
  ┃ ┃ ┗ 📜 TechGalaxy.tsx         # Animated tech stack visual
  ┃ ┣ 📂 context
  ┃ ┃ ┗ 📜 LanguageContext.tsx    # 12-language i18n context provider
@@ -162,23 +174,34 @@ Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · 
  ┃ ┃ ┗ 📜 timelineData.ts        # Life milestone timeline data
  ┃ ┣ 📂 pages                    # Route-level page components
  ┃ ┃ ┣ 📜 About.tsx              # About / philosophy page
+ ┃ ┃ ┣ 📜 AllUsers.tsx           # Community user listing (/user)
+ ┃ ┃ ┣ 📜 CommentGuide.tsx       # Step-by-step comment instructions (/journal/comment)
+ ┃ ┃ ┣ 📜 CommentPermalink.tsx   # Standalone comment permalink view
  ┃ ┃ ┣ 📜 Contact.tsx            # Smart contact routing page
+ ┃ ┃ ┣ 📜 Copyright.tsx          # Copyright information
  ┃ ┃ ┣ 📜 Dashboard.tsx          # Owner-only CMS dashboard
+ ┃ ┃ ┣ 📜 DMCA.tsx               # DMCA takedown policy
+ ┃ ┃ ┣ 📜 FAQ.tsx                # Searchable FAQ with accordion
  ┃ ┃ ┣ 📜 Home.tsx               # Hero / landing page
  ┃ ┃ ┣ 📜 Journal.tsx            # Journal listing page
+ ┃ ┃ ┣ 📜 JournalAllComments.tsx # Full comment thread for a post (/journal/view/:id/comments)
  ┃ ┃ ┣ 📜 JournalEmbed.tsx       # Embeddable journal (no chrome)
  ┃ ┃ ┣ 📜 JournalView.tsx        # Full journal detail page
+ ┃ ┃ ┣ 📜 LegalHub.tsx           # Legal hub index
+ ┃ ┃ ┣ 📜 Links.tsx              # Link-in-bio hub
  ┃ ┃ ┣ 📜 Live.tsx               # YouTube Live & video hub
  ┃ ┃ ┣ 📜 Me.tsx                 # Personal / creative profile
+ ┃ ┃ ┣ 📜 NotFound.tsx           # 404 fallback page
  ┃ ┃ ┣ 📜 Now.tsx                # "What I'm doing now" page
  ┃ ┃ ┣ 📜 Portfolio.tsx          # 3D PDF portfolio viewer
+ ┃ ┃ ┣ 📜 Privacy.tsx            # Privacy policy
  ┃ ┃ ┣ 📜 Projects.tsx           # Projects listing
  ┃ ┃ ┣ 📜 ProjectDetail.tsx      # Individual project deep-dive
  ┃ ┃ ┣ 📜 Proof.tsx              # Proof of work page
  ┃ ┃ ┣ 📜 SearchResults.tsx      # Global search results page
  ┃ ┃ ┣ 📜 Status.tsx             # Real-time system status & server health
- ┃ ┃ ┣ 📜 LegalHub.tsx           # Legal hub index
- ┃ ┃ ┗ 📜 NotFound.tsx           # 404 fallback page
+ ┃ ┃ ┣ 📜 Terms.tsx              # Terms of service
+ ┃ ┃ ┗ 📜 UserProfile.tsx        # Public user profile with heatmap & social links (/user/:userId)
  ┃ ┣ 📜 App.tsx                  # Root router + animated routes
  ┃ ┣ 📜 index.css                # Global CSS + Tailwind directives
  ┃ ┗ 📜 main.tsx                 # React application entry point
@@ -204,7 +227,7 @@ Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · 
 
 | Route | Description |
 | :--- | :--- |
-| `/` | Hero landing page with timeline and CTA sections |
+| `/` | Hero landing page with timeline, journal spotlight, community section, and CTA |
 | `/about` | Background, philosophy, and approach |
 | `/me` | Personal creative profile and current status |
 | `/now` | What I'm working on right now |
@@ -216,7 +239,12 @@ Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · 
 | `/contact` | Smart 15-category contact routing form |
 | `/journal` | Journal listing with metadata (likes, views, read time) |
 | `/journal/view/:id` | Full journal article with engagement actions |
+| `/journal/view/:id/comments` | Full paginated comment thread for a post |
+| `/journal/view/:id/comment/:commentId` | Standalone comment permalink |
+| `/journal/comment` | Step-by-step guide for commenting and community rules |
 | `/journal/embed/:id` | Embeddable iframe view (no header/footer) |
+| `/user` | Community user listing — owner pinned at top, contributors below |
+| `/user/:userId` | Public user profile with bio, social links, contribution heatmap, and activity tabs |
 | `/live` | YouTube live stream + All/Stream/Video/Shorts hub |
 | `/search` | Full-stack global search with trending queries and easter eggs |
 | `/status` | Real-time API status, server health, and system specifications |

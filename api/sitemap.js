@@ -1,93 +1,124 @@
-export default async function handler(req, res) {
+// In-memory sitemap cache — refreshed every 6 hours
+let sitemapCache = { xml: '', refreshedAt: 0 };
+const SITEMAP_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+const DOMAIN = 'https://deepdey.vercel.app';
+
+// All static routes (no /dashboard, no /journal/embed)
+const STATIC_PAGES = [
+  '',
+  '/projects',
+  '/about',
+  '/me',
+  '/contact',
+  '/faq',
+  '/portfolio',
+  '/links',
+  '/proof',
+  '/journal',
+  '/now',
+  '/legal',
+  '/terms',
+  '/privacy',
+  '/dmca',
+  '/copyright',
+  '/live',
+  '/search',
+  '/status',
+  '/user',
+  '/journal/comment',
+];
+
+function buildXml(routes) {
+  const today = new Date().toISOString().split('T')[0];
+  let urls = '';
+  for (const { loc, changefreq, priority } of routes) {
+    urls += `\n  <url>\n    <loc>${DOMAIN}${loc}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}\n</urlset>`;
+}
+
+async function buildSitemap(baseUrl) {
+  const routes = [];
+
+  // Static pages
+  for (const page of STATIC_PAGES) {
+    routes.push({
+      loc: page,
+      changefreq: page === '' ? 'daily' : 'weekly',
+      priority: page === '' ? '1.0' : '0.8',
+    });
+  }
+
+  // Dynamic routes from DB
   try {
-    // 1. Saare STATIC ROUTES
-    const staticPages = [
-      '', '/projects', '/about', '/me', '/contact', '/faq', 
-      '/portfolio', '/links', '/proof', '/journal', '/now', 
-      '/legal', '/terms', '/privacy', '/dmca', '/copyright', '/live',
-      '/search', '/status'
-    ];
+    const [journalRes, usersRes] = await Promise.allSettled([
+      fetch(`${baseUrl}/api/journal?published=true&limit=200`),
+      fetch(`${baseUrl}/api/journal?action=all-users&page=1`),
+    ]);
 
-    let dynamicRoutes = [];
-
-    // 2. DYNAMIC ROUTES (Backend se fetch karna)
-    try {
-      const protocol = req.headers['x-forwarded-proto'] || 'https';
-      const host = req.headers['x-forwarded-host'] || req.headers.host;
-      const baseUrl = `${protocol}://${host}`;
-
-      // A) Journal Links Fetch karna (Sirf published wale)
-      const journalRes = await fetch(`${baseUrl}/api/journal?published=true`);
-      const journalData = await journalRes.json();
-
-      if (journalData.ok && Array.isArray(journalData.journals)) {
-        journalData.journals.forEach(post => {
-          dynamicRoutes.push(`/journal/view/${post._id}`);
-        });
-      }
-
-      // B) Project Links (Tere diye gaye IDs)
-      const projectIds = [
-        'transparent-clock', 
-        'quicklink', 
-        'studybot', 
-        'personal-portfolio',
-        'qlynk-node-server'
-      ];
-      
-      projectIds.forEach(id => {
-        dynamicRoutes.push(`/projects/${id}`);
-      });
-
-    } catch (error) {
-      console.error('Error fetching dynamic routes for sitemap:', error);
+    // Journal slugs
+    if (journalRes.status === 'fulfilled') {
+      try {
+        const data = await journalRes.value.json();
+        if (data.ok && Array.isArray(data.journals)) {
+          for (const j of data.journals) {
+            const slug = j.slug || j._id;
+            routes.push({ loc: `/journal/view/${slug}`, changefreq: 'weekly', priority: '0.7' });
+            routes.push({ loc: `/journal/view/${slug}/comments`, changefreq: 'daily', priority: '0.6' });
+          }
+        }
+      } catch { /* ignore */ }
     }
 
-    // Saare pages ek array mein combine kar do
-    const allRoutes = [...staticPages, ...dynamicRoutes];
+    // User profiles
+    if (usersRes.status === 'fulfilled') {
+      try {
+        const data = await usersRes.value.json();
+        if (data.ok && Array.isArray(data.users)) {
+          for (const u of data.users) {
+            if (u.userId) routes.push({ loc: `/user/${encodeURIComponent(u.userId)}`, changefreq: 'weekly', priority: '0.6' });
+          }
+        }
+      } catch { /* ignore */ }
+    }
 
-    // 3. DOMAINS — add more entries to the array to include additional domains in the sitemap
-    const domains = [
-      'https://deepdey.vercel.app',
-      // 'https://just.qlynk.me',  // uncomment to re-add this domain
-    ];
+    // Project detail pages (static list, kept for completeness)
+    const projectIds = ['transparent-clock', 'quicklink', 'studybot', 'personal-portfolio', 'qlynk-node-server'];
+    for (const id of projectIds) {
+      routes.push({ loc: `/projects/${id}`, changefreq: 'monthly', priority: '0.7' });
+    }
+  } catch { /* ignore dynamic failures */ }
 
-    let xmlUrls = '';
-    
-    // Aaj ki date format karna (e.g., 2026-04-20)
-    const today = new Date().toISOString().split('T')[0];
+  return buildXml(routes);
+}
 
-    // Dono domains ke liye saare routes ka XML string banana
-    domains.forEach(domain => {
-      allRoutes.forEach(route => {
-        // Change frequency logic
-        const changeFreq = route.includes('/journal/') ? 'weekly' : 'monthly';
-        // Priority logic
-        const priority = route === '' ? '1.0' : (route.includes('/journal/view/') ? '0.7' : '0.8');
+export default async function handler(req, res) {
+  try {
+    const now = Date.now();
+    const protocol = req.headers['x-forwarded-proto'] || 'https';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'deepdey.vercel.app';
+    const baseUrl = host.startsWith('localhost') ? `http://${host}` : `${protocol}://${host}`;
 
-        xmlUrls += `
-  <url>
-    <loc>${domain}${route}</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>${changeFreq}</changefreq>
-    <priority>${priority}</priority>
-  </url>`;
-      });
-    });
+    // Serve from cache if still fresh
+    if (sitemapCache.xml && now - sitemapCache.refreshedAt < SITEMAP_TTL_MS) {
+      res.setHeader('Content-Type', 'text/xml; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, s-maxage=21600, stale-while-revalidate=3600');
+      res.setHeader('X-Sitemap-Cache', 'HIT');
+      return res.status(200).send(sitemapCache.xml);
+    }
 
-    // Final XML structure
-    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  ${xmlUrls}
-</urlset>`;
+    // Build fresh sitemap
+    const xml = await buildSitemap(baseUrl);
+    sitemapCache = { xml, refreshedAt: now };
 
-    // Browser/Bot ko batana ki ye XML file hai
-    res.setHeader('Content-Type', 'text/xml');
-    res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate'); // 24 hours caching
-    res.status(200).send(sitemap);
-
+    res.setHeader('Content-Type', 'text/xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, s-maxage=21600, stale-while-revalidate=3600');
+    res.setHeader('X-Sitemap-Cache', 'MISS');
+    res.status(200).send(xml);
   } catch (error) {
     console.error('Sitemap generation failed:', error);
     res.status(500).send('Error generating sitemap');
   }
 }
+
