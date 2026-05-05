@@ -266,7 +266,7 @@ module.exports = async (req, res) => {
           clusterTotalSize = listResult.totalSize || 0;
         } catch { /* Atlas M0 may not allow this — fall back to current DB size */ }
 
-        const collectionNames = ['journals', 'projects', 'timeline', 'categories', 'live_status', 'settings', 'config', 'search_analytics', 'comments', 'blocked_users'];
+        const collectionNames = ['journals', 'projects', 'timeline', 'categories', 'live_status', 'settings', 'config', 'search_analytics', 'comments', 'blocked_users', 'users'];
         const collections = {};
         for (const name of collectionNames) {
           try {
@@ -588,23 +588,9 @@ module.exports = async (req, res) => {
         if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
         const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
         const limit = 10;
-        const commentsCol = db.collection('comments');
-        const agg = await commentsCol.aggregate([
-          { $match: { userId: { $ne: 'owner' } } },
-          { $sort: { createdAt: -1 } },
-          { $group: {
-            _id: '$userId',
-            userName: { $first: '$userName' },
-            userPic: { $first: '$userPic' },
-            totalComments: { $sum: 1 },
-            firstCommentAt: { $min: '$createdAt' },
-            lastCommentAt: { $max: '$createdAt' },
-            lastJournalId: { $first: '$journalId' },
-          }},
-          { $sort: { lastCommentAt: -1 } },
-        ]).toArray();
-        const total = agg.length;
-        const users = agg.slice((page - 1) * limit, page * limit);
+        const usersCol = db.collection('users');
+        const total = await usersCol.countDocuments({});
+        const users = await usersCol.find({}).sort({ lastCommentAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
         return json(res, 200, { ok: true, users, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
       }
 
@@ -691,11 +677,13 @@ module.exports = async (req, res) => {
         const commentsCol = db.collection('comments');
         const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
         const limit = 10;
-        // Get user info from first comment
-        const firstComment = await commentsCol.findOne({ userId, isDeleted: { $ne: true } }, { sort: { createdAt: 1 } });
-        if (!firstComment) return json(res, 404, { ok: false, message: 'User not found' });
-        const total = await commentsCol.countDocuments({ userId, isDeleted: { $ne: true } });
-        const comments = await commentsCol.find({ userId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
+        // Get user info from users collection (prefer) or fall back to first comment
+        const usersCol2 = db.collection('users');
+        const userDoc = await usersCol2.findOne({ userId });
+        const commentsColP = db.collection('comments');
+        const total = await commentsColP.countDocuments({ userId, isDeleted: { $ne: true } });
+        if (total === 0 && !userDoc) return json(res, 404, { ok: false, message: 'User not found' });
+        const comments = await commentsColP.find({ userId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
         const journalIds = [...new Set(comments.map(c => c.journalId?.toString()).filter(Boolean))].filter(id => ObjectId.isValid(id)).map(id => new ObjectId(id));
         let journalMap = {};
         if (journalIds.length) {
@@ -703,7 +691,9 @@ module.exports = async (req, res) => {
           journals.forEach(j => { journalMap[j._id.toString()] = { title: j.title, slug: j.slug }; });
         }
         const enrichedComments = comments.map(c => ({ ...c, originalText: undefined, journalInfo: journalMap[c.journalId?.toString()] || null }));
-        return json(res, 200, { ok: true, user: { userId, userName: firstComment.userName, userPic: firstComment.userPic, firstCommentAt: firstComment.createdAt, totalComments: total }, comments: enrichedComments, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+        const firstComment = comments.length > 0 ? comments[comments.length - 1] : null;
+        const userInfo2 = userDoc || (firstComment ? { userId, userName: firstComment.userName, userPic: firstComment.userPic, firstCommentAt: firstComment.createdAt, totalComments: total } : null);
+        return json(res, 200, { ok: true, user: { userId, userName: userInfo2?.userName, userPic: userInfo2?.userPic, firstCommentAt: userInfo2?.firstCommentAt || userInfo2?.createdAt, totalComments: total }, comments: enrichedComments, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
       }
 
       const slug = getParam(req, 'slug');
@@ -978,6 +968,28 @@ module.exports = async (req, res) => {
         };
 
         const result = await db.collection('comments').insertOne(commentDoc);
+
+        // Upsert user profile record (so Users tab works without manual sync)
+        if (!ownerPosting) {
+          try {
+            await db.collection('users').updateOne(
+              { userId: userInfo.userId },
+              {
+                $set: {
+                  userId: userInfo.userId,
+                  userName: userInfo.name,
+                  userPic: userInfo.picture,
+                  lastCommentAt: now,
+                  lastJournalId: new ObjectId(journalId),
+                },
+                $setOnInsert: { firstCommentAt: now, createdAt: now },
+                $inc: { totalComments: 1 },
+              },
+              { upsert: true },
+            );
+          } catch { /* non-critical, ignore */ }
+        }
+
         return json(res, 201, { ok: true, comment: { ...commentDoc, _id: result.insertedId, replyCount: 0 } });
       }
 
