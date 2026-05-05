@@ -60,10 +60,9 @@ function CommentRow({ comment }: { comment: Comment }) {
     if (repliesOpen) { setRepliesOpen(false); return; }
     setLoadingReplies(true);
     try {
-      const r = await fetch(`/api/journal?action=comments&journalId=${comment._id.split('').slice(0, 0).join('')}&parentId=${comment._id}&page=1`);
-      // Actually fetch using the parentId approach
-      const r2 = await fetch(`/api/journal?action=comments&journalId=${encodeURIComponent((comment as unknown as { journalId: string }).journalId || '')}&parentId=${comment._id}&page=1`);
-      const d = await r2.json();
+      const jId = (comment as unknown as { journalId: string }).journalId || '';
+      const r = await fetch(`/api/journal?action=comments&journalId=${encodeURIComponent(jId)}&parentId=${comment._id}&page=1`);
+      const d = await r.json();
       if (d.ok) setReplies(d.comments || []);
     } catch { /* ignore */ }
     finally { setLoadingReplies(false); setRepliesOpen(true); }

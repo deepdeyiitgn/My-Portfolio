@@ -52,10 +52,9 @@ async function buildSitemap(baseUrl) {
 
   // Dynamic routes from DB
   try {
-    const [journalRes, usersRes, commentsRes] = await Promise.allSettled([
+    const [journalRes, usersRes] = await Promise.allSettled([
       fetch(`${baseUrl}/api/journal?published=true&limit=200`),
       fetch(`${baseUrl}/api/journal?action=all-users&page=1`),
-      fetch(`${baseUrl}/api/journal?action=comment-by-id`),  // dummy, just test connectivity
     ]);
 
     // Journal slugs

@@ -92,18 +92,52 @@ function decodeJwt(token: string): Record<string, unknown> | null {
   } catch { return null; }
 }
 
+function getUrlHostname(url: string): string {
+  try {
+    const u = new URL(url.startsWith('http') ? url : `https://${url}`);
+    return u.hostname.replace(/^www\./, '');
+  } catch { return ''; }
+}
+
 function getPlatformIcon(platform: string, url: string) {
   const found = PLATFORMS.find(p => p.key === platform);
   if (found) return found.Icon;
-  if (url.includes('github.com')) return Github;
-  if (url.includes('twitter.com') || url.includes('x.com')) return Twitter;
-  if (url.includes('linkedin.com')) return Linkedin;
-  if (url.includes('instagram.com')) return Instagram;
-  if (url.includes('youtube.com')) return Youtube;
+  const host = getUrlHostname(url);
+  if (host === 'github.com') return Github;
+  if (host === 'twitter.com' || host === 'x.com') return Twitter;
+  if (host === 'linkedin.com') return Linkedin;
+  if (host === 'instagram.com') return Instagram;
+  if (host === 'youtube.com') return Youtube;
   return Globe;
 }
 
-function ContributionGraph({ activity }: { activity: ActivityDay[] }) {
+function SocialLinkButton({ link }: { link: SocialLink }) {
+  const [faviconFailed, setFaviconFailed] = useState(false);
+  const isPlatform = PLATFORMS.some(p => p.key === link.platform && p.key !== 'custom');
+  const Icon = getPlatformIcon(link.platform, link.url);
+  const href = link.url.startsWith('http') ? link.url : `https://${link.url}`;
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer"
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-300 hover:border-amber-500/40 hover:text-amber-400 transition-colors text-xs font-bold"
+    >
+      {isPlatform ? (
+        <Icon size={13} />
+      ) : faviconFailed ? (
+        <Globe size={13} />
+      ) : (
+        <img
+          src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(link.url)}&sz=16`}
+          alt=""
+          className="w-4 h-4 rounded"
+          onError={() => setFaviconFailed(true)}
+        />
+      )}
+      {link.label || PLATFORMS.find(p => p.key === link.platform)?.label || 'Link'}
+    </a>
+  );
+}
+
+({ activity }: { activity: ActivityDay[] }) {
   const actMap: Record<string, number> = {};
   for (const a of activity) actMap[a.day] = a.count;
 
@@ -327,24 +361,9 @@ export default function UserProfile() {
           {/* Social links display */}
           {!editing && userInfo.socialLinks && userInfo.socialLinks.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-1">
-              {userInfo.socialLinks.filter(l => l.url).map((link, i) => {
-                const isPlatform = PLATFORMS.some(p => p.key === link.platform && p.key !== 'custom');
-                const Icon = getPlatformIcon(link.platform, link.url);
-                return (
-                  <a key={i} href={link.url.startsWith('http') ? link.url : `https://${link.url}`} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-300 hover:border-amber-500/40 hover:text-amber-400 transition-colors text-xs font-bold"
-                  >
-                    {isPlatform ? (
-                      <Icon size={13} />
-                    ) : (
-                      <img src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(link.url)}&sz=16`} alt="" className="w-4 h-4 rounded"
-                        onError={(e) => { (e.target as HTMLImageElement).replaceWith(Object.assign(document.createElement('span'), { className: 'text-[10px]', textContent: '🔗' })); }}
-                      />
-                    )}
-                    {link.label || PLATFORMS.find(p => p.key === link.platform)?.label || 'Link'}
-                  </a>
-                );
-              })}
+              {userInfo.socialLinks.filter(l => l.url).map((link, i) => (
+                <SocialLinkButton key={i} link={link} />
+              ))}
             </div>
           )}
 
