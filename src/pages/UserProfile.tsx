@@ -137,7 +137,7 @@ function SocialLinkButton({ link }: { link: SocialLink }) {
   );
 }
 
-({ activity }: { activity: ActivityDay[] }) {
+function ContributionGraph({ activity }: { activity: ActivityDay[] }) {
   const actMap: Record<string, number> = {};
   for (const a of activity) actMap[a.day] = a.count;
 
