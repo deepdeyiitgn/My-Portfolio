@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Target, Lightbulb, GraduationCap, ArrowRight, Zap, History, Milestone, Lock, Activity, BookOpen, Heart, Eye, Clock, Tag } from 'lucide-react';
+import { Target, Lightbulb, GraduationCap, ArrowRight, Zap, History, Milestone, Lock, Activity, BookOpen, Heart, Eye, Clock, Tag, Users, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import TechGalaxy from '../components/TechGalaxy';
 import JourneyMarquee from '../components/JourneyMarquee';
@@ -426,6 +426,64 @@ export default function Home() {
             <Activity size={14} />
             View Status
           </Link>
+        </div>
+      </motion.section>
+
+      {/* Community Section — All Users & Comment Guide */}
+      <motion.section
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6"
+      >
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <h2 className="text-amber-500 font-mono tracking-[0.4em] uppercase text-[10px] font-black">Community</h2>
+            <h3 className="text-3xl md:text-4xl font-black tracking-tighter text-white">
+              JOIN THE CONVERSATION.
+            </h3>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-5">
+            {/* All Users card */}
+            <Link
+              to="/user"
+              className="group relative overflow-hidden bg-zinc-900/30 border border-zinc-800 rounded-3xl p-8 hover:border-amber-500/30 hover:bg-zinc-900/50 transition-all"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none" />
+              <div className="relative z-10 flex flex-col gap-4">
+                <div className="p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20 text-amber-500 w-fit">
+                  <Users size={24} />
+                </div>
+                <div>
+                  <h4 className="text-xl font-black text-white tracking-tight group-hover:text-amber-400 transition-colors">All Community Users</h4>
+                  <p className="text-zinc-500 text-sm mt-1">See everyone who has engaged with the journal — profiles, contributions, and activity.</p>
+                </div>
+                <span className="flex items-center gap-1 text-amber-500 text-xs font-bold">
+                  Explore users <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
+                </span>
+              </div>
+            </Link>
+
+            {/* Comment Guide card */}
+            <Link
+              to="/journal/comment"
+              className="group relative overflow-hidden bg-zinc-900/30 border border-zinc-800 rounded-3xl p-8 hover:border-amber-500/30 hover:bg-zinc-900/50 transition-all"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none" />
+              <div className="relative z-10 flex flex-col gap-4">
+                <div className="p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20 text-amber-500 w-fit">
+                  <MessageSquare size={24} />
+                </div>
+                <div>
+                  <h4 className="text-xl font-black text-white tracking-tight group-hover:text-amber-400 transition-colors">Comment Guide</h4>
+                  <p className="text-zinc-500 text-sm mt-1">Learn how to comment on journal posts, reply to threads, and follow community rules.</p>
+                </div>
+                <span className="flex items-center gap-1 text-amber-500 text-xs font-bold">
+                  Read guide <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
+                </span>
+              </div>
+            </Link>
+          </div>
         </div>
       </motion.section>
 
