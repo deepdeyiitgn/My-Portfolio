@@ -584,6 +584,31 @@ module.exports = async (req, res) => {
       }
 
       // --- Users: list all unique commenters (admin only) ---
+      // --- All users list (public, paginated) ---
+      if (action === 'all-users') {
+        const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
+        const limit = 12;
+        const usersCol = db.collection('users');
+        const total = await usersCol.countDocuments({});
+        const users = await usersCol.find({}).sort({ lastCommentAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
+        return json(res, 200, { ok: true, users, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+      }
+
+      // --- User activity: per-day comment counts for contribution graph ---
+      if (action === 'user-activity') {
+        const userId = getParam(req, 'userId');
+        if (!userId) return json(res, 400, { ok: false, message: 'userId required' });
+        const actCol = db.collection('comments');
+        const activity = await actCol.aggregate([
+          { $match: { userId, isDeleted: { $ne: true } } },
+          { $project: { day: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: 'Asia/Kolkata' } } } },
+          { $group: { _id: '$day', count: { $sum: 1 } } },
+          { $sort: { _id: 1 } },
+        ]).toArray();
+        return json(res, 200, { ok: true, activity: activity.map(a => ({ day: a._id, count: a.count })) });
+      }
+
+      // --- All users list (public, paginated) ---
       if (action === 'users') {
         if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
         const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
@@ -1132,6 +1157,33 @@ module.exports = async (req, res) => {
     if (req.method === 'PUT') {
       const action = getParam(req, 'action');
       const body = await readBody(req);
+
+      // --- User profile update (self, authenticated via Google token) ---
+      if (action === 'user-profile-update') {
+        const credential = String(body.credential || '').trim();
+        if (!credential) return json(res, 401, { ok: false, message: 'Authentication required' });
+        const tokenUser = await verifyGoogleToken(credential);
+        if (!tokenUser) return json(res, 401, { ok: false, message: 'Invalid or expired Google token' });
+
+        const profileTitle = String(body.profileTitle || '').trim().slice(0, 80);
+        const bio = String(body.bio || '').trim().slice(0, 500);
+        const profileDescription = String(body.description || '').trim().slice(0, 200);
+        const socialLinks = Array.isArray(body.socialLinks)
+          ? body.socialLinks.slice(0, 10).map(l => ({
+              platform: String(l.platform || 'custom').trim().slice(0, 30),
+              url: String(l.url || '').trim().slice(0, 300),
+              label: String(l.label || '').trim().slice(0, 50),
+            })).filter(l => l.url)
+          : [];
+
+        const upUsersCol = db.collection('users');
+        await upUsersCol.updateOne(
+          { userId: tokenUser.userId },
+          { $set: { profileTitle, bio, description: profileDescription, socialLinks, profileUpdatedAt: new Date() } },
+          { upsert: true },
+        );
+        return json(res, 200, { ok: true, message: 'Profile updated' });
+      }
 
       // --- Comment Edit (Google user or owner) ---
       if (action === 'comment') {

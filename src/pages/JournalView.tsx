@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Clock, Eye, Heart, Share2, Code2, X, ChevronLeft, ChevronRight, Link2, ArrowLeft, Calendar } from 'lucide-react';
 import { marked } from 'marked';
@@ -251,6 +251,14 @@ export default function JournalView() {
       {/* Comment Section */}
       <div className="max-w-3xl">
         <CommentSection journalId={id} />
+        <div className="mt-4 text-center">
+          <Link
+            to={`/journal/view/${id}/comments`}
+            className="inline-flex items-center gap-2 text-zinc-600 hover:text-amber-500 text-xs font-mono transition-colors"
+          >
+            View all comments as standalone page →
+          </Link>
+        </div>
       </div>
 
       <AnimatePresence>
