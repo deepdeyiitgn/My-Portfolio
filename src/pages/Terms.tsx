@@ -45,7 +45,7 @@ export default function Terms() {
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">4. User Profiles</h2>
           <p>
-            When you sign in with Google to leave a comment, a public user profile is created at <span className="text-amber-500/80">/user/[your-id]</span>. This profile displays your display name, Google profile picture, comment activity, and any bio or social links you voluntarily add. You may edit your profile at any time using the same Google account. Profile information is publicly visible to all visitors of this site.
+            When you sign in with Google to leave a comment, a public user profile is created at <span className="text-amber-500/80">/user/[your-id]</span>. This profile displays your display name, Google profile picture, comment activity, contribution graph showing your commenting history by year, and any bio or social links you voluntarily add. You may edit your profile at any time using the same Google account. Profile information is publicly visible to all visitors of this site. The owner of this site also has a public profile accessible at <span className="text-amber-500/80">/user/owner</span>.
           </p>
         </section>
 

@@ -38,7 +38,7 @@ export default function Privacy() {
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">3. User Profiles</h2>
           <p>
-            A public user profile is automatically created at <span className="text-amber-500/80">/user/[your-id]</span> when you first comment. This profile displays your name, profile picture, comment activity, and any additional bio or social links you choose to add. Your profile is publicly visible. You may update your bio, title, and social links at any time by signing in with your Google account. You may request deletion of your profile and comments by contacting the site administrator.
+            A public user profile is automatically created at <span className="text-amber-500/80">/user/[your-id]</span> when you first comment. This profile displays your name, profile picture, comment activity, a contribution graph showing your per-day comment history filterable by year, and any additional bio or social links you choose to add. Your profile is publicly visible. You may update your bio, title, and social links at any time by signing in with your Google account. You may request deletion of your profile and comments by contacting the site administrator. The site owner also has a public profile at <span className="text-amber-500/80">/user/owner</span> and is listed alongside all contributors on the <span className="text-amber-500/80">/user</span> page.
           </p>
         </section>
 

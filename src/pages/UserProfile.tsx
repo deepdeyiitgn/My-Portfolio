@@ -309,7 +309,14 @@ export default function UserProfile() {
     // Check if owner is logged in
     fetch('/api/auth')
       .then(r => r.json())
-      .then(d => { if (d.authenticated) setIsOwner(true); })
+      .then(d => {
+        if (d.authenticated) {
+          setIsOwner(true);
+          // Force sign out any Google user session when owner is logged in
+          localStorage.removeItem(STORAGE_KEY);
+          setCurrentUser(null);
+        }
+      })
       .catch(() => {});
   }, []);
 

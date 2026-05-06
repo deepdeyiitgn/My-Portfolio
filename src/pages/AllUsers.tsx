@@ -96,8 +96,8 @@ export default function AllUsers() {
                 <span className="text-zinc-500 text-[11px] flex items-center gap-1"><MessageSquare size={10} /> Writes all journal posts</span>
               </div>
             </div>
-            <Link to="/about" className="shrink-0 px-4 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs font-bold hover:bg-amber-500/20 transition-colors">
-              About
+            <Link to="/user/owner" className="shrink-0 px-4 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs font-bold hover:bg-amber-500/20 transition-colors">
+              Profile
             </Link>
           </div>
         </motion.div>

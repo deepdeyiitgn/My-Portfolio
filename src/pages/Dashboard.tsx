@@ -1451,7 +1451,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       if (d.ok) {
         showToast('Comment deleted');
         if (journalId) fetchPostComments(journalId, postCommentsPage);
-        if (selectedUser) fetchUserComments(selectedUser._id, userCommentsPage);
+        if (selectedUser) fetchUserComments(selectedUser.userId, userCommentsPage);
       } else showToast(d.message || 'Error', 'error');
     } catch { showToast('Network error', 'error'); }
   };
@@ -3268,8 +3268,8 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
-                  <Link to={`/user/${encodeURIComponent(selectedUser._id)}`} className="text-amber-500 text-xs hover:underline">Public Profile ↗</Link>
-                  <button onClick={() => setBlockModalUser({ userId: selectedUser._id, userName: selectedUser.userName, userPic: selectedUser.userPic })} className={`${btnCls} bg-zinc-800 border border-zinc-700 text-orange-400 hover:bg-zinc-700 flex items-center gap-1 text-xs`}><ShieldBan size={12} /> Block</button>
+                  <Link to={`/user/${encodeURIComponent(selectedUser.userId)}`} className="text-amber-500 text-xs hover:underline">Public Profile ↗</Link>
+                  <button onClick={() => setBlockModalUser({ userId: selectedUser.userId, userName: selectedUser.userName, userPic: selectedUser.userPic })} className={`${btnCls} bg-zinc-800 border border-zinc-700 text-orange-400 hover:bg-zinc-700 flex items-center gap-1 text-xs`}><ShieldBan size={12} /> Block</button>
                 </div>
               </div>
               {/* User comments */}
@@ -3307,9 +3307,9 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                     </div>
                     {userCommentsTotalPages > 1 && (
                       <div className="flex items-center justify-center gap-3 pt-1">
-                        <button onClick={() => { fetchUserComments(selectedUser._id, userCommentsPage - 1); }} disabled={userCommentsPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}><ChevronLeft size={14} /> Prev</button>
+                        <button onClick={() => { fetchUserComments(selectedUser.userId, userCommentsPage - 1); }} disabled={userCommentsPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}><ChevronLeft size={14} /> Prev</button>
                         <span className="text-zinc-500 text-sm">Page {userCommentsPage} / {userCommentsTotalPages}</span>
-                        <button onClick={() => { fetchUserComments(selectedUser._id, userCommentsPage + 1); }} disabled={userCommentsPage >= userCommentsTotalPages} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}>Next <ChevronRight size={14} /></button>
+                        <button onClick={() => { fetchUserComments(selectedUser.userId, userCommentsPage + 1); }} disabled={userCommentsPage >= userCommentsTotalPages} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}>Next <ChevronRight size={14} /></button>
                       </div>
                     )}
                   </>
@@ -3339,7 +3339,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition-all cursor-pointer"
-                        onClick={() => { setSelectedUser(u); fetchUserComments(u._id, 1); }}
+                        onClick={() => { setSelectedUser(u); fetchUserComments(u.userId, 1); }}
                       >
                         <div className="flex items-center gap-4">
                           {u.userPic ? (
