@@ -110,6 +110,10 @@ interface UserDoc {
   firstCommentAt: string;
   lastCommentAt: string;
   lastJournalId: string;
+  registrationIp?: string;
+  registrationCountry?: string;
+  lastActivityIp?: string;
+  lastActivityCountry?: string;
 }
 
 interface BlockDoc {
@@ -1717,6 +1721,8 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       const d = await r.json();
       if (d.ok) {
         setAuthenticated(true);
+        // Clear any Google user session to avoid conflicts
+        localStorage.removeItem('dd_comment_user');
       } else {
         setLoginError(d.message || 'Incorrect password');
       }
@@ -3251,6 +3257,14 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                     <span className="flex items-center gap-1"><MessageSquare size={11} /> {selectedUser.totalComments} comments</span>
                     <span className="flex items-center gap-1"><Clock size={11} /> First: {new Date(selectedUser.firstCommentAt).toLocaleDateString('en-IN')}</span>
                     <span className="flex items-center gap-1"><Clock size={11} /> Last: {new Date(selectedUser.lastCommentAt).toLocaleDateString('en-IN')}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 mt-1 text-[10px] font-mono text-zinc-600">
+                    {selectedUser.registrationIp && (
+                      <span>📍 Joined from: <span className="text-zinc-400">{selectedUser.registrationIp}</span>{selectedUser.registrationCountry ? ` (${selectedUser.registrationCountry})` : ''}</span>
+                    )}
+                    {selectedUser.lastActivityIp && (
+                      <span>🕐 Last active from: <span className="text-zinc-400">{selectedUser.lastActivityIp}</span>{selectedUser.lastActivityCountry ? ` (${selectedUser.lastActivityCountry})` : ''}</span>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">

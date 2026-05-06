@@ -701,10 +701,43 @@ module.exports = async (req, res) => {
         if (!userId) return json(res, 400, { ok: false, message: 'userId required' });
         const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
         const limit = 10;
-        // Get user info from users collection (prefer) or fall back to first comment
         const usersCol = db.collection('users');
-        const userDoc = await usersCol.findOne({ userId });
         const userCommentsCol = db.collection('comments');
+
+        // Special handling for owner
+        if (userId === 'owner') {
+          const ownerDoc = await usersCol.findOne({ userId: 'owner' });
+          const total = await userCommentsCol.countDocuments({ userId: 'owner', isDeleted: { $ne: true } });
+          const ownerComments = await userCommentsCol.find({ userId: 'owner', isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
+          const journalIds = [...new Set(ownerComments.map(c => c.journalId?.toString()).filter(Boolean))].filter(id => ObjectId.isValid(id)).map(id => new ObjectId(id));
+          let journalMap = {};
+          if (journalIds.length) {
+            const journals = await col.find({ _id: { $in: journalIds }, published: true }, { projection: { title: 1, slug: 1 } }).toArray();
+            journals.forEach(j => { journalMap[j._id.toString()] = { title: j.title, slug: j.slug }; });
+          }
+          const enrichedComments = ownerComments.map(c => ({ ...c, originalText: undefined, journalInfo: journalMap[c.journalId?.toString()] || null }));
+          const firstComment = total > 0 ? await userCommentsCol.findOne({ userId: 'owner', isDeleted: { $ne: true } }, { sort: { createdAt: 1 } }) : null;
+          return json(res, 200, {
+            ok: true,
+            user: {
+              userId: 'owner',
+              userName: ownerDoc?.userName || 'Deep Dey',
+              userPic: '',
+              firstCommentAt: firstComment?.createdAt || ownerDoc?.firstCommentAt || new Date().toISOString(),
+              lastCommentAt: ownerDoc?.lastCommentAt,
+              totalComments: total,
+              profileTitle: ownerDoc?.profileTitle || 'Developer & Creator',
+              bio: ownerDoc?.bio || '',
+              description: ownerDoc?.description || '',
+              socialLinks: ownerDoc?.socialLinks || [],
+            },
+            comments: enrichedComments,
+            pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+          });
+        }
+
+        // Get user info from users collection (prefer) or fall back to first comment
+        const userDoc = await usersCol.findOne({ userId });
         const total = await userCommentsCol.countDocuments({ userId, isDeleted: { $ne: true } });
         if (total === 0 && !userDoc) return json(res, 404, { ok: false, message: 'User not found' });
         const comments = await userCommentsCol.find({ userId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
@@ -718,7 +751,7 @@ module.exports = async (req, res) => {
         const lastComment = comments.length > 0 ? comments[comments.length - 1] : null;
         const userFallback = lastComment ? { userId, userName: lastComment.userName, userPic: lastComment.userPic, firstCommentAt: lastComment.createdAt, totalComments: total } : null;
         const profile = userDoc || userFallback;
-        return json(res, 200, { ok: true, user: { userId, userName: profile?.userName, userPic: profile?.userPic, firstCommentAt: profile?.firstCommentAt || profile?.createdAt, totalComments: total }, comments: enrichedComments, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+        return json(res, 200, { ok: true, user: { userId, userName: profile?.userName, userPic: profile?.userPic, firstCommentAt: profile?.firstCommentAt || profile?.createdAt, totalComments: total, profileTitle: userDoc?.profileTitle, bio: userDoc?.bio, description: userDoc?.description, socialLinks: userDoc?.socialLinks }, comments: enrichedComments, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
       }
 
       const slug = getParam(req, 'slug');
@@ -997,6 +1030,8 @@ module.exports = async (req, res) => {
         // Upsert user profile record (so Users tab works without manual sync)
         if (!ownerPosting) {
           try {
+            const clientIp = getClientIp(req);
+            const clientCountry = (req.headers['x-vercel-ip-country'] || req.headers['cf-ipcountry'] || '').toString().trim();
             await db.collection('users').updateOne(
               { userId: userInfo.userId },
               {
@@ -1005,8 +1040,16 @@ module.exports = async (req, res) => {
                   userPic: userInfo.picture,
                   lastCommentAt: now,
                   lastJournalId: new ObjectId(journalId),
+                  lastActivityIp: clientIp,
+                  lastActivityCountry: clientCountry,
                 },
-                $setOnInsert: { userId: userInfo.userId, firstCommentAt: now, createdAt: now },
+                $setOnInsert: {
+                  userId: userInfo.userId,
+                  firstCommentAt: now,
+                  createdAt: now,
+                  registrationIp: clientIp,
+                  registrationCountry: clientCountry,
+                },
                 $inc: { totalComments: 1 },
               },
               { upsert: true },
@@ -1158,12 +1201,20 @@ module.exports = async (req, res) => {
       const action = getParam(req, 'action');
       const body = await readBody(req);
 
-      // --- User profile update (self, authenticated via Google token) ---
+      // --- User profile update (self, authenticated via Google token or owner session) ---
       if (action === 'user-profile-update') {
         const credential = String(body.credential || '').trim();
-        if (!credential) return json(res, 401, { ok: false, message: 'Authentication required' });
-        const tokenUser = await verifyGoogleToken(credential);
-        if (!tokenUser) return json(res, 401, { ok: false, message: 'Invalid or expired Google token' });
+        const ownerUpdating = isAuthenticated(req);
+
+        let targetUserId;
+        if (ownerUpdating) {
+          targetUserId = 'owner';
+        } else {
+          if (!credential) return json(res, 401, { ok: false, message: 'Authentication required' });
+          const tokenUser = await verifyGoogleToken(credential);
+          if (!tokenUser) return json(res, 401, { ok: false, message: 'Invalid or expired Google token' });
+          targetUserId = tokenUser.userId;
+        }
 
         const profileTitle = String(body.profileTitle || '').trim().slice(0, 80);
         const bio = String(body.bio || '').trim().slice(0, 500);
@@ -1178,7 +1229,7 @@ module.exports = async (req, res) => {
 
         const upUsersCol = db.collection('users');
         await upUsersCol.updateOne(
-          { userId: tokenUser.userId },
+          { userId: targetUserId },
           { $set: { profileTitle, bio, description: profileDescription, socialLinks, profileUpdatedAt: new Date() } },
           { upsert: true },
         );

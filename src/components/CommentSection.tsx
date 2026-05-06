@@ -313,7 +313,12 @@ function CommentItem({
           {/* Name + badges */}
           <div className="flex flex-wrap items-center gap-2">
             {isOwnerComment ? (
-              <span className="text-sm font-bold text-amber-400">{comment.userName}</span>
+              <Link
+                to="/user/owner"
+                className="text-sm font-bold text-amber-400 hover:text-amber-300 transition-colors"
+              >
+                {comment.userName}
+              </Link>
             ) : (
               <Link
                 to={`/user/${encodeURIComponent(comment.userId)}`}
@@ -742,6 +747,7 @@ export default function CommentSection({ journalId }: { journalId: string }) {
         ) : (
           <div className="space-y-3">
             <p className="text-zinc-400 text-sm">Sign in with Google to leave a comment.</p>
+            {!isOwner && (
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
               onError={() => alert('Google sign-in failed. Please try again.')}
@@ -750,6 +756,7 @@ export default function CommentSection({ journalId }: { journalId: string }) {
               size="medium"
               text="signin_with"
             />
+            )}
           </div>
         )}
 

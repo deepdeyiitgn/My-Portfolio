@@ -4,6 +4,9 @@ const SITEMAP_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 const DOMAIN = 'https://deepdey.vercel.app';
 
+// Fixed lastmod for static pages (only changes when manually updated)
+const STATIC_PAGE_LASTMOD = '2025-01-01';
+
 // All static routes (no /dashboard, no /journal/embed)
 const STATIC_PAGES = [
   '',
@@ -29,11 +32,15 @@ const STATIC_PAGES = [
   '/journal/comment',
 ];
 
+function formatDate(d) {
+  if (!d) return STATIC_PAGE_LASTMOD;
+  try { return new Date(d).toISOString().split('T')[0]; } catch { return STATIC_PAGE_LASTMOD; }
+}
+
 function buildXml(routes) {
-  const today = new Date().toISOString().split('T')[0];
   let urls = '';
-  for (const { loc, changefreq, priority } of routes) {
-    urls += `\n  <url>\n    <loc>${DOMAIN}${loc}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
+  for (const { loc, lastmod, changefreq, priority } of routes) {
+    urls += `\n  <url>\n    <loc>${DOMAIN}${loc}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
   }
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}\n</urlset>`;
 }
@@ -41,10 +48,11 @@ function buildXml(routes) {
 async function buildSitemap(baseUrl) {
   const routes = [];
 
-  // Static pages
+  // Static pages — fixed lastmod
   for (const page of STATIC_PAGES) {
     routes.push({
       loc: page,
+      lastmod: STATIC_PAGE_LASTMOD,
       changefreq: page === '' ? 'daily' : 'weekly',
       priority: page === '' ? '1.0' : '0.8',
     });
@@ -57,27 +65,31 @@ async function buildSitemap(baseUrl) {
       fetch(`${baseUrl}/api/journal?action=all-users&page=1`),
     ]);
 
-    // Journal slugs
+    // Journal slugs — use actual publishedAt date
     if (journalRes.status === 'fulfilled') {
       try {
         const data = await journalRes.value.json();
         if (data.ok && Array.isArray(data.journals)) {
           for (const j of data.journals) {
             const slug = j.slug || j._id;
-            routes.push({ loc: `/journal/view/${slug}`, changefreq: 'weekly', priority: '0.7' });
-            routes.push({ loc: `/journal/view/${slug}/comments`, changefreq: 'daily', priority: '0.6' });
+            const lastmod = formatDate(j.publishedAt || j.createdAt);
+            routes.push({ loc: `/journal/view/${slug}`, lastmod, changefreq: 'weekly', priority: '0.7' });
+            routes.push({ loc: `/journal/view/${slug}/comments`, lastmod, changefreq: 'daily', priority: '0.6' });
           }
         }
       } catch { /* ignore */ }
     }
 
-    // User profiles
+    // User profiles — use actual lastCommentAt date
     if (usersRes.status === 'fulfilled') {
       try {
         const data = await usersRes.value.json();
         if (data.ok && Array.isArray(data.users)) {
           for (const u of data.users) {
-            if (u.userId) routes.push({ loc: `/user/${encodeURIComponent(u.userId)}`, changefreq: 'weekly', priority: '0.6' });
+            if (u.userId) {
+              const lastmod = formatDate(u.lastCommentAt || u.createdAt);
+              routes.push({ loc: `/user/${encodeURIComponent(u.userId)}`, lastmod, changefreq: 'weekly', priority: '0.6' });
+            }
           }
         }
       } catch { /* ignore */ }
@@ -86,7 +98,7 @@ async function buildSitemap(baseUrl) {
     // Project detail pages (static list, kept for completeness)
     const projectIds = ['transparent-clock', 'quicklink', 'studybot', 'personal-portfolio', 'qlynk-node-server'];
     for (const id of projectIds) {
-      routes.push({ loc: `/projects/${id}`, changefreq: 'monthly', priority: '0.7' });
+      routes.push({ loc: `/projects/${id}`, lastmod: STATIC_PAGE_LASTMOD, changefreq: 'monthly', priority: '0.7' });
     }
   } catch { /* ignore dynamic failures */ }
 

@@ -250,7 +250,7 @@ export default function JournalView() {
 
       {/* Comment Section */}
       <div className="max-w-3xl">
-        <CommentSection journalId={id} />
+        <CommentSection journalId={journal._id} />
         <div className="mt-4 text-center">
           <Link
             to={`/journal/view/${id}/comments`}

@@ -142,53 +142,124 @@ function ContributionGraph({ activity }: { activity: ActivityDay[] }) {
   for (const a of activity) actMap[a.day] = a.count;
 
   const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-  const startDate = new Date(today);
-  startDate.setDate(today.getDate() - 363);
+  const currentYear = today.getFullYear();
+
+  // Build list of available years from activity data
+  const years = Array.from(new Set(activity.map(a => a.day.slice(0, 4))))
+    .map(Number)
+    .sort((a, b) => b - a);
+  if (!years.includes(currentYear)) years.unshift(currentYear);
+
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [tooltip, setTooltip] = useState<{ date: string; count: number; x: number; y: number } | null>(null);
+
+  // Compute cells for selected year
+  const yearStart = new Date(selectedYear, 0, 1);
+  const yearEnd = selectedYear === currentYear ? today : new Date(selectedYear, 11, 31);
+
+  // Start from Sunday of the week containing Jan 1
+  const startDate = new Date(yearStart);
   startDate.setDate(startDate.getDate() - startDate.getDay());
 
   const cells: { date: string; count: number }[] = [];
   const cur = new Date(startDate);
-  while (cur <= today) {
+  while (cur <= yearEnd) {
     const d = cur.toISOString().split('T')[0];
-    cells.push({ date: d, count: actMap[d] || 0 });
+    const inYear = cur.getFullYear() === selectedYear || (selectedYear === currentYear && cur >= yearStart);
+    cells.push({ date: d, count: inYear ? (actMap[d] || 0) : -1 }); // -1 = outside year
     cur.setDate(cur.getDate() + 1);
   }
 
   const weeks: { date: string; count: number }[][] = [];
   for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
 
+  // Month labels: find which week each month starts in
+  const monthLabels: { label: string; weekIndex: number }[] = [];
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let lastMonth = -1;
+  weeks.forEach((week, wi) => {
+    const firstValid = week.find(c => c.count !== -1);
+    if (firstValid) {
+      const m = new Date(firstValid.date).getMonth();
+      if (m !== lastMonth) {
+        monthLabels.push({ label: monthNames[m], weekIndex: wi });
+        lastMonth = m;
+      }
+    }
+  });
+
   function cellColor(count: number) {
+    if (count < 0) return 'bg-transparent border-transparent';
     if (count === 0) return 'bg-zinc-900 border-zinc-800';
     if (count === 1) return 'bg-amber-500/20 border-amber-500/20';
     if (count <= 3) return 'bg-amber-500/50 border-amber-500/30';
     return 'bg-amber-500 border-amber-500/50';
   }
 
-  const totalContribs = activity.reduce((s, a) => s + a.count, 0);
+  const todayStr = today.toISOString().split('T')[0];
+  const filteredActivity = activity.filter(a => a.day.startsWith(String(selectedYear)));
+  const totalContribs = filteredActivity.reduce((s, a) => s + a.count, 0);
 
   return (
     <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5 space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="text-white font-bold text-sm flex items-center gap-2">
           <Activity size={14} className="text-amber-500" /> Contribution Activity
         </h3>
-        <span className="text-zinc-500 text-xs">{totalContribs} comment{totalContribs !== 1 ? 's' : ''} all time</span>
+        <div className="flex items-center gap-3">
+          <span className="text-zinc-500 text-xs">{totalContribs} comment{totalContribs !== 1 ? 's' : ''} in {selectedYear}</span>
+          <div className="flex gap-1">
+            {years.slice(0, 5).map(y => (
+              <button
+                key={y}
+                onClick={() => setSelectedYear(y)}
+                className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border transition-colors ${selectedYear === y ? 'bg-amber-500 text-black border-amber-500' : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-500'}`}
+              >
+                {y}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
-      <div className="overflow-x-auto">
-        <div className="flex gap-[3px] min-w-max">
+      <div className="relative" onMouseLeave={() => setTooltip(null)}>
+        {/* Month labels */}
+        <div className="flex gap-[3px] mb-1 pl-0">
+          {weeks.map((_, wi) => {
+            const ml = monthLabels.find(m => m.weekIndex === wi);
+            return (
+              <div key={wi} className="w-[10px] shrink-0 text-[8px] text-zinc-600 font-mono overflow-visible whitespace-nowrap" style={{ position: 'relative' }}>
+                {ml ? <span style={{ position: 'absolute', left: 0 }}>{ml.label}</span> : null}
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex gap-[3px]">
           {weeks.map((week, wi) => (
             <div key={wi} className="flex flex-col gap-[3px]">
               {week.map((cell) => (
                 <div
                   key={cell.date}
-                  title={`${cell.date}: ${cell.count} comment${cell.count !== 1 ? 's' : ''}`}
-                  className={`w-[10px] h-[10px] rounded-[2px] border ${cellColor(cell.count)} ${cell.date === todayStr ? 'ring-1 ring-amber-500/60' : ''}`}
+                  className={`w-[10px] h-[10px] rounded-[2px] border ${cellColor(cell.count)} ${cell.date === todayStr ? 'ring-1 ring-amber-500/60' : ''} ${cell.count >= 0 ? 'cursor-pointer' : ''}`}
+                  onMouseEnter={(e) => {
+                    if (cell.count < 0) return;
+                    const rect = (e.target as HTMLElement).getBoundingClientRect();
+                    setTooltip({ date: cell.date, count: cell.count, x: rect.left, y: rect.top });
+                  }}
                 />
               ))}
             </div>
           ))}
         </div>
+        {/* Tooltip */}
+        {tooltip && (
+          <div
+            className="fixed z-50 pointer-events-none px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700 text-[10px] text-zinc-300 font-mono shadow-lg"
+            style={{ left: tooltip.x + 14, top: tooltip.y - 8, transform: 'translateY(-100%)' }}
+          >
+            <span className="font-bold text-white">{tooltip.date}</span>
+            <span className="ml-2 text-amber-400">{tooltip.count} comment{tooltip.count !== 1 ? 's' : ''}</span>
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-2 text-[10px] text-zinc-600">
         <span>Less</span>
@@ -217,6 +288,7 @@ export default function UserProfile() {
   const [tab, setTab] = useState<'overview' | 'comments' | 'activity'>('overview');
 
   const [currentUser, setCurrentUser] = useState<GoogleUser | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editBio, setEditBio] = useState('');
@@ -234,9 +306,14 @@ export default function UserProfile() {
         else localStorage.removeItem(STORAGE_KEY);
       } catch { /* ignore */ }
     }
+    // Check if owner is logged in
+    fetch('/api/auth')
+      .then(r => r.json())
+      .then(d => { if (d.authenticated) setIsOwner(true); })
+      .catch(() => {});
   }, []);
 
-  const isOwnProfile = currentUser?.userId === userId;
+  const isOwnProfile = (currentUser?.userId === userId) || (isOwner && userId === 'owner');
 
   const loadPage = useCallback(async (p: number) => {
     if (!userId) return;
@@ -277,14 +354,16 @@ export default function UserProfile() {
   };
 
   const saveProfile = async () => {
-    if (!currentUser) return;
+    if (!currentUser && !isOwner) return;
     setSaving(true);
     setSaveError('');
     try {
+      const body: Record<string, unknown> = { profileTitle: editTitle, bio: editBio, description: editDesc, socialLinks: editLinks };
+      if (!isOwner && currentUser) body.credential = currentUser.credential;
       const r = await fetch('/api/journal?action=user-profile-update', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential: currentUser.credential, profileTitle: editTitle, bio: editBio, description: editDesc, socialLinks: editLinks }),
+        body: JSON.stringify(body),
       });
       const d = await r.json();
       if (!d.ok) { setSaveError(d.message || 'Save failed'); return; }
@@ -330,7 +409,9 @@ export default function UserProfile() {
         {/* Profile card */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-4">
           <div className="flex items-start gap-4">
-            {userInfo.userPic ? (
+            {(userId === 'owner') ? (
+              <img src="/assets/images/myphoto.png" alt="Deep Dey" className="w-16 h-16 rounded-full border-2 border-amber-500/40 object-cover shrink-0" />
+            ) : userInfo.userPic ? (
               <img src={userInfo.userPic} alt={userInfo.userName} className="w-16 h-16 rounded-full border-2 border-zinc-700 object-cover shrink-0" />
             ) : (
               <div className="w-16 h-16 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center shrink-0">
@@ -341,6 +422,9 @@ export default function UserProfile() {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h1 className="text-white font-black text-2xl tracking-tight">{userInfo.userName}</h1>
+                  {userId === 'owner' && (
+                    <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-mono uppercase tracking-wider mt-1">Owner</span>
+                  )}
                   {userInfo.profileTitle && <p className="text-amber-500/80 text-sm font-bold mt-0.5">{userInfo.profileTitle}</p>}
                 </div>
                 {isOwnProfile && !editing && (
@@ -368,7 +452,7 @@ export default function UserProfile() {
           )}
 
           {/* Google sign-in for own profile edit */}
-          {!currentUser && userId !== 'owner' && (
+          {!currentUser && !isOwner && userId !== 'owner' && (
             <div className="pt-2 border-t border-zinc-800">
               <p className="text-zinc-600 text-xs mb-2">This your profile? Sign in to edit it.</p>
               <GoogleLogin
