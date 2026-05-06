@@ -3253,18 +3253,38 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                 <div className="flex-1 min-w-0 space-y-1">
                   <p className="text-white font-black text-lg">{selectedUser.userName}</p>
                   <p className="text-zinc-500 text-xs font-mono">{selectedUser._id}</p>
-                  <div className="flex items-center gap-4 flex-wrap text-xs text-zinc-500">
+                  <div className="flex items-center gap-3 flex-wrap text-xs text-zinc-500">
                     <span className="flex items-center gap-1"><MessageSquare size={11} /> {selectedUser.totalComments} comments</span>
-                    <span className="flex items-center gap-1"><Clock size={11} /> First: {new Date(selectedUser.firstCommentAt).toLocaleDateString('en-IN')}</span>
-                    <span className="flex items-center gap-1"><Clock size={11} /> Last: {new Date(selectedUser.lastCommentAt).toLocaleDateString('en-IN')}</span>
                   </div>
-                  <div className="flex flex-col gap-1 mt-1 text-[10px] font-mono text-zinc-600">
-                    {selectedUser.registrationIp && (
-                      <span>📍 Joined from: <span className="text-zinc-400">{selectedUser.registrationIp}</span>{selectedUser.registrationCountry ? ` (${selectedUser.registrationCountry})` : ''}</span>
-                    )}
-                    {selectedUser.lastActivityIp && (
-                      <span>🕐 Last active from: <span className="text-zinc-400">{selectedUser.lastActivityIp}</span>{selectedUser.lastActivityCountry ? ` (${selectedUser.lastActivityCountry})` : ''}</span>
-                    )}
+                  <div className="flex flex-col gap-1.5 mt-2 text-[10px] font-mono">
+                    {/* Account created */}
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-zinc-600 uppercase tracking-widest text-[9px]">Account Created</span>
+                      <span className="text-zinc-400 flex items-center gap-1">
+                        <Clock size={9} className="text-zinc-600 shrink-0" />
+                        {new Date(selectedUser.firstCommentAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </span>
+                      {selectedUser.registrationIp && (
+                        <span className="text-zinc-500">
+                          📍 IP: <span className="text-zinc-300">{selectedUser.registrationIp}</span>
+                          {selectedUser.registrationCountry ? <span className="text-zinc-500"> · {selectedUser.registrationCountry}</span> : null}
+                        </span>
+                      )}
+                    </div>
+                    {/* Last activity */}
+                    <div className="flex flex-col gap-0.5 border-t border-zinc-800/60 pt-1.5">
+                      <span className="text-zinc-600 uppercase tracking-widest text-[9px]">Last Activity</span>
+                      <span className="text-zinc-400 flex items-center gap-1">
+                        <Clock size={9} className="text-zinc-600 shrink-0" />
+                        {new Date(selectedUser.lastCommentAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </span>
+                      {selectedUser.lastActivityIp && (
+                        <span className="text-zinc-500">
+                          🕐 IP: <span className="text-zinc-300">{selectedUser.lastActivityIp}</span>
+                          {selectedUser.lastActivityCountry ? <span className="text-zinc-500"> · {selectedUser.lastActivityCountry}</span> : null}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
