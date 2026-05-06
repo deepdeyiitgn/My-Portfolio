@@ -1344,6 +1344,8 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   const [userCommentsTotal, setUserCommentsTotal] = useState(0);
   const [userCommentsTotalPages, setUserCommentsTotalPages] = useState(1);
   const [userCommentsLoading, setUserCommentsLoading] = useState(false);
+  const [userBlocks, setUserBlocks] = useState<BlockDoc[]>([]);
+  const [userBlocksLoading, setUserBlocksLoading] = useState(false);
 
   // ── Blacklist state ──────────────────────────────────────────────────────
   const [blacklist, setBlacklist] = useState<Array<{ _id: string; word: string }>>([]);
@@ -1443,6 +1445,27 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
     finally { setUserCommentsLoading(false); }
   }, []);
 
+  const fetchUserBlocks = useCallback(async (userId: string) => {
+    setUserBlocksLoading(true);
+    try {
+      const r = await fetch(`/api/journal?action=user-blocks&userId=${encodeURIComponent(userId)}`);
+      const d = await r.json();
+      if (d.ok) setUserBlocks(d.blocks || []);
+    } catch { /* ignore */ }
+    finally { setUserBlocksLoading(false); }
+  }, []);
+
+  const handleUnblockUser = async (blockId: string) => {
+    try {
+      const r = await fetch(`/api/journal?action=block&id=${encodeURIComponent(blockId)}`, { method: 'DELETE' });
+      const d = await r.json();
+      if (d.ok) {
+        showToast('Block removed');
+        if (selectedUser) fetchUserBlocks(selectedUser.userId);
+      } else showToast(d.message || 'Error removing block', 'error');
+    } catch { showToast('Network error', 'error'); }
+  };
+
   const handleDeleteComment = async (commentId: string, journalId?: string) => {
     if (!confirm('Delete this comment?')) return;
     try {
@@ -1483,6 +1506,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
         showToast(`User blocked (${blockType})`);
         setBlockModalUser(null);
         setBlockReason(''); setBlockHours(''); setBlockMinutes(''); setBlockDays('');
+        if (selectedUser && selectedUser.userId === blockModalUser.userId) fetchUserBlocks(selectedUser.userId);
       } else showToast(d.message || 'Error blocking user', 'error');
     } catch { showToast('Network error', 'error'); }
     finally { setBlockSaving(false); }

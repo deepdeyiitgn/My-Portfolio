@@ -228,7 +228,7 @@ export default function JournalAllComments() {
             {journal.categoryName && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">{journal.categoryName}</span>}
             <span className="text-zinc-600 text-xs font-mono">{journal.readMinutes} min read</span>
           </div>
-          <Link to={`/journal/view/${journal.slug}`} className="inline-flex items-center gap-1.5 text-amber-500 text-sm font-bold hover:text-amber-400 transition-colors mt-1">
+          <Link to={`/journal/view/${journal._id}`} className="inline-flex items-center gap-1.5 text-amber-500 text-sm font-bold hover:text-amber-400 transition-colors mt-1">
             <ExternalLink size={13} /> Read full post
           </Link>
         </motion.div>
@@ -267,7 +267,7 @@ export default function JournalAllComments() {
               <div className="text-center py-16 text-zinc-600">
                 <MessageSquare size={32} className="mx-auto mb-3 opacity-30" />
                 <p className="text-sm">No comments yet. Be the first!</p>
-                <Link to={`/journal/view/${journal.slug}`} className="text-amber-500 text-sm hover:underline mt-2 inline-block">Go to post →</Link>
+                <Link to={`/journal/view/${journal._id}`} className="text-amber-500 text-sm hover:underline mt-2 inline-block">Go to post →</Link>
               </div>
             ) : (
               <div className="space-y-3">

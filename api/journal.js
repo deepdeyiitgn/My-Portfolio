@@ -589,8 +589,9 @@ module.exports = async (req, res) => {
         const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
         const limit = 12;
         const usersCol = db.collection('users');
-        const total = await usersCol.countDocuments({});
-        const users = await usersCol.find({}).sort({ lastCommentAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
+        const filter = { userId: { $ne: 'owner' } };
+        const total = await usersCol.countDocuments(filter);
+        const users = await usersCol.find(filter).sort({ lastCommentAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
         return json(res, 200, { ok: true, users, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
       }
 
@@ -614,9 +615,43 @@ module.exports = async (req, res) => {
         const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
         const limit = 10;
         const usersCol = db.collection('users');
-        const total = await usersCol.countDocuments({});
-        const users = await usersCol.find({}).sort({ lastCommentAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
+        const filter = { userId: { $ne: 'owner' } };
+        const total = await usersCol.countDocuments(filter);
+        const users = await usersCol.find(filter).sort({ lastCommentAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
         return json(res, 200, { ok: true, users, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+      }
+
+      // --- Per-user active blocks (admin only) ---
+      if (action === 'user-blocks') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const userId = getParam(req, 'userId');
+        if (!userId) return json(res, 400, { ok: false, message: 'userId required' });
+        const blocksCol = db.collection('blocked_users');
+        const now = new Date();
+        // Return all active blocks: permanent all-blocks, still-valid temp blocks, and post-specific blocks
+        const blocks = await blocksCol.find({
+          userId,
+          $or: [
+            { blockType: { $in: ['all', 'post'] } },
+            { blockType: 'temp', $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] },
+          ],
+        }).sort({ createdAt: -1 }).toArray();
+        return json(res, 200, { ok: true, blocks });
+      }
+
+      // --- Check if current user is blocked (public) ---
+      if (action === 'check-block') {
+        const userId = getParam(req, 'userId');
+        const journalId = getParam(req, 'journalId');
+        if (!userId) return json(res, 400, { ok: false, message: 'userId required' });
+        const block = await getActiveBlock(db, userId, journalId);
+        if (!block) return json(res, 200, { ok: true, blocked: false });
+        const msg = block.blockType === 'temp'
+          ? `You are temporarily blocked from commenting${block.expiresAt ? ` until ${new Date(block.expiresAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST` : ''}.`
+          : block.blockType === 'post'
+          ? 'You are blocked from commenting on this post.'
+          : 'You are blocked from commenting.';
+        return json(res, 200, { ok: true, blocked: true, message: msg, blockType: block.blockType, expiresAt: block.expiresAt || null });
       }
 
       // --- User comments: comments by a specific userId (admin only) ---

@@ -5,7 +5,7 @@ import { GoogleLogin } from '@react-oauth/google';
 import {
   MessageSquare, Heart, Reply, Trash2, Edit3, Pin, PinOff, Send,
   ChevronDown, ChevronUp, AlertTriangle, X, LogOut, ExternalLink,
-  ChevronLeft, ChevronRight, Loader2, AlertCircle, ArrowDownUp, Link2,
+  ChevronLeft, ChevronRight, Loader2, AlertCircle, ArrowDownUp, Link2, ShieldBan,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -543,6 +543,9 @@ export default function CommentSection({ journalId }: { journalId: string }) {
   const [warnUrl, setWarnUrl] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Block status for current signed-in user
+  const [blockStatus, setBlockStatus] = useState<{ blocked: boolean; message: string | null }>({ blocked: false, message: null });
+
   // Load user from localStorage and check owner status on mount
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -589,6 +592,15 @@ export default function CommentSection({ journalId }: { journalId: string }) {
       setLoading(false);
     }
   }, [journalId, sort]);
+
+  // Check if the signed-in user is blocked for this journal
+  useEffect(() => {
+    if (!currentUser || isOwner || !journalId) { setBlockStatus({ blocked: false, message: null }); return; }
+    fetch(`/api/journal?action=check-block&userId=${encodeURIComponent(currentUser.userId)}&journalId=${encodeURIComponent(journalId)}`)
+      .then(r => r.json())
+      .then(d => { setBlockStatus({ blocked: d.blocked ?? false, message: d.message || null }); })
+      .catch(() => {});
+  }, [currentUser, isOwner, journalId]);
 
   useEffect(() => {
     fetchComments(1, sort);
@@ -732,6 +744,16 @@ export default function CommentSection({ journalId }: { journalId: string }) {
 
       {/* Auth section */}
       <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 space-y-4">
+        {/* Blocked banner — shown when signed-in user is blocked */}
+        {!isOwner && currentUser && blockStatus.blocked && (
+          <div className="flex items-start gap-3 bg-red-950/30 border border-red-800/50 rounded-xl p-3">
+            <ShieldBan size={16} className="text-red-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-red-400 text-sm font-bold">Commenting restricted</p>
+              <p className="text-red-300/80 text-xs mt-0.5">{blockStatus.message || 'You are blocked from commenting.'}</p>
+            </div>
+          </div>
+        )}
         {isOwner ? (
           <div className="flex items-center gap-3">
             <img
@@ -778,7 +800,7 @@ export default function CommentSection({ journalId }: { journalId: string }) {
         )}
 
         {/* Comment input */}
-        {(currentUser || isOwner) && (
+        {(currentUser || isOwner) && !blockStatus.blocked && (
           <div className="space-y-3 pt-2 border-t border-zinc-800">
             <textarea
               ref={textareaRef}

@@ -65,16 +65,16 @@ async function buildSitemap(baseUrl) {
       fetch(`${baseUrl}/api/journal?action=all-users&page=1`),
     ]);
 
-    // Journal slugs — use actual publishedAt date
+    // Journal post pages — always use ObjectId so URLs are stable and comments load correctly
     if (journalRes.status === 'fulfilled') {
       try {
         const data = await journalRes.value.json();
         if (data.ok && Array.isArray(data.journals)) {
           for (const j of data.journals) {
-            const slug = j.slug || j._id;
+            const id = String(j._id);
             const lastmod = formatDate(j.publishedAt || j.createdAt);
-            routes.push({ loc: `/journal/view/${slug}`, lastmod, changefreq: 'weekly', priority: '0.7' });
-            routes.push({ loc: `/journal/view/${slug}/comments`, lastmod, changefreq: 'daily', priority: '0.6' });
+            routes.push({ loc: `/journal/view/${id}`, lastmod, changefreq: 'weekly', priority: '0.7' });
+            routes.push({ loc: `/journal/view/${id}/comments`, lastmod, changefreq: 'daily', priority: '0.6' });
           }
         }
       } catch { /* ignore */ }
