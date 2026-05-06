@@ -414,10 +414,20 @@ export default function UserProfile() {
         </button>
 
         {/* Profile card */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-4">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className={userId === 'owner' ? 'relative rounded-2xl p-[1px] bg-gradient-to-br from-amber-400 via-amber-500/60 to-amber-900/40 shadow-[0_0_40px_rgba(245,158,11,0.22)]' : 'bg-zinc-900/40 border border-zinc-800 rounded-2xl'}>
+          <div className={userId === 'owner' ? 'relative rounded-[calc(1rem-1px)] bg-gradient-to-br from-zinc-900 via-zinc-950 to-zinc-900 p-6 space-y-4' : 'p-6 space-y-4'}>
+            {userId === 'owner' && (
+              <>
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(245,158,11,0.11)_0%,_transparent_65%)] pointer-events-none rounded-[calc(1rem-1px)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(245,158,11,0.06)_0%,_transparent_60%)] pointer-events-none rounded-[calc(1rem-1px)]" />
+              </>
+            )}
           <div className="flex items-start gap-4">
             {(userId === 'owner') ? (
-              <img src="/assets/images/myphoto.png" alt="Deep Dey" className="w-16 h-16 rounded-full border-2 border-amber-500/40 object-cover shrink-0" />
+              <div className="relative shrink-0">
+                <div className="absolute inset-0 rounded-full bg-amber-500/25 blur-md scale-125" />
+                <img src="/assets/images/myphoto.png" alt="Deep Dey" className="relative w-16 h-16 rounded-full border-2 border-amber-400/70 ring-4 ring-amber-500/20 object-cover shadow-[0_0_20px_rgba(245,158,11,0.35)]" />
+              </div>
             ) : userInfo.userPic ? (
               <img src={userInfo.userPic} alt={userInfo.userName} className="w-16 h-16 rounded-full border-2 border-zinc-700 object-cover shrink-0" />
             ) : (
@@ -425,12 +435,12 @@ export default function UserProfile() {
                 <User size={28} className="text-zinc-500" />
               </div>
             )}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 z-10">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h1 className="text-white font-black text-2xl tracking-tight">{userInfo.userName}</h1>
+                  <h1 className={`font-black text-2xl tracking-tight ${userId === 'owner' ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]' : 'text-white'}`}>{userInfo.userName}</h1>
                   {userId === 'owner' && (
-                    <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-mono uppercase tracking-wider mt-1">Owner</span>
+                    <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/40 font-mono uppercase tracking-wider mt-1">👑 Owner</span>
                   )}
                   {userInfo.profileTitle && <p className="text-amber-500/80 text-sm font-bold mt-0.5">{userInfo.profileTitle}</p>}
                 </div>
@@ -476,6 +486,7 @@ export default function UserProfile() {
               />
             </div>
           )}
+          </div>
         </motion.div>
 
         {/* Edit form */}

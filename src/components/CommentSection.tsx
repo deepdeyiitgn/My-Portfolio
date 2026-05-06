@@ -294,7 +294,13 @@ function CommentItem({
       <div className="flex gap-3">
         {/* Avatar */}
         <div className="shrink-0">
-          {comment.userPic ? (
+          {isOwnerComment ? (
+            <img
+              src="/assets/images/myphoto.png"
+              alt="Deep Dey"
+              className="w-8 h-8 rounded-full border-2 border-amber-500/60 object-cover ring-2 ring-amber-500/20"
+            />
+          ) : comment.userPic ? (
             <img
               src={comment.userPic}
               alt={comment.userName}
@@ -303,7 +309,7 @@ function CommentItem({
               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
             />
           ) : (
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${isOwnerComment ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border bg-zinc-800 border-zinc-700 text-zinc-400">
               {comment.userName.charAt(0).toUpperCase()}
             </div>
           )}
@@ -728,7 +734,11 @@ export default function CommentSection({ journalId }: { journalId: string }) {
       <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 space-y-4">
         {isOwner ? (
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-amber-400 text-xs font-bold shrink-0">D</div>
+            <img
+              src="/assets/images/myphoto.png"
+              alt="Deep Dey"
+              className="w-8 h-8 rounded-full border-2 border-amber-500/60 object-cover ring-2 ring-amber-500/20 shrink-0"
+            />
             <div className="flex-1 min-w-0">
               <p className="text-amber-400 text-sm font-bold">Deep Dey (Owner)</p>
               <p className="text-zinc-600 text-xs">Posting as owner</p>

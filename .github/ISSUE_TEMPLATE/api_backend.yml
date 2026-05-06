@@ -1,0 +1,98 @@
+name: 🔌 API / Backend Issue
+description: Report a broken API endpoint, unexpected response, or backend/serverless function error
+title: "[API]: "
+labels: ["api", "backend", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for issues affecting:
+        - Any `/api/*` serverless function (journal, auth, status, users, sitemap, projects, etc.)
+        - MongoDB connectivity or query errors
+        - Rate-limit or 429 responses
+        - Unexpected API response shapes
+        - CDN image upload proxy
+
+        > ⚠️ If you believe this is a **security vulnerability**, email **a@qlynk.me** privately instead of opening a public issue.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight checklist
+      options:
+        - label: I reproduced this on the live site or a local dev server
+          required: true
+        - label: I searched existing issues and this has not been reported before
+          required: true
+        - label: This is NOT a security vulnerability (I would email for that)
+          required: true
+
+  - type: input
+    id: endpoint
+    attributes:
+      label: Affected API Endpoint
+      description: The full path of the endpoint that is misbehaving
+      placeholder: "/api/journal?action=all-users or /api/sitemap"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: method
+    attributes:
+      label: HTTP Method
+      options:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - PATCH
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: symptom
+    attributes:
+      label: Symptom
+      options:
+        - 500 Internal Server Error
+        - 404 Not Found
+        - 403 Forbidden
+        - 429 Too Many Requests
+        - 400 Bad Request
+        - Unexpected response body / wrong data shape
+        - CORS error
+        - Timeout / no response
+        - MongoDB connectivity error
+        - Rate-limit not working correctly
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is the API supposed to do, and what is it actually doing?
+      placeholder: "GET /api/journal?action=all-users returns a 500 with the message 'MongoNetworkError: connection refused' when fetching the user list from /user page..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: response
+    attributes:
+      label: Actual Response (if available)
+      description: Paste the HTTP status code and response body
+      placeholder: |
+        Status: 500
+        Body: { "error": "MongoNetworkError: connection refused" }
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Console errors, network tab screenshots, reproduction steps, or environment details
+    validations:
+      required: false

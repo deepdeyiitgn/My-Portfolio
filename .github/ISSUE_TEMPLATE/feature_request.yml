@@ -33,7 +33,12 @@ body:
         - Projects / Project Detail
         - Portfolio (PDF viewer)
         - Journal / Journal View / Journal Embed
+        - Journal comment system
+        - User profiles / Community (/user)
+        - Contribution heatmap
         - Live Stream page
+        - Global Search (/search)
+        - System Status / Server Health (/status)
         - Links / Proof pages
         - Contact / FAQ pages
         - Dashboard (CMS)
