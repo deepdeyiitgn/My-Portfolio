@@ -47,6 +47,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `GET ?action=users` — Admin-only paginated list of all users from the `users` collection.
   - `GET ?action=blocks` — Admin-only paginated list of all active user blocks.
 - **dbstats Extended:** The `?action=dbstats` endpoint now includes `comments`, `blocked_users`, and `users` in the per-collection breakdown.
+- **IP & Country Tracking in User Profiles:** The `users` collection now stores `registrationIp`, `registrationCountry`, `lastActivityIp`, and `lastActivityCountry`. These are captured on every comment submission using the request IP resolved through `x-forwarded-for` and geo-looked up via a lightweight country-code mapping. Owner dashboard user detail card displays all four values grouped with their respective timestamps.
+- **Dashboard — Enhanced User Detail Card:** The user detail panel in the Dashboard Users tab now shows two clearly labelled sections — **Account Created** (full datetime + registration IP + country) and **Last Activity** (full datetime + last-activity IP + country) — replacing the previous date-only display and loose IP lines.
+- **Terms of Service Updated:** Section 3 now explicitly discloses that IP address and country of origin are recorded at the time of account creation and most recent activity for moderation purposes (see `Terms.tsx`).
+- **New GitHub Issue Templates:** Added `performance.yml` (performance / SEO issue reports) and `user_profile.yml` (user profile / community feature area) to `.github/ISSUE_TEMPLATE/`. Updated `feature_request.yml` with new feature-area options.
 
 ### Changed
 - Comment creation and edit now use `censorTextWithFlag()` (returns `{ text, hasAbuse }`) instead of `censorText()`.
@@ -114,25 +118,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
-
-### Added
-- **Dynamic Projects Dashboard:** Added a fully functional "Projects" tab in the admin dashboard to manage portfolio ecosystem directly via MongoDB. Includes a live split-screen visual and JSON preview.
-- **3-Layer Auto-Screenshot Architecture:** Engineered a highly resilient serverless screenshot generator to bypass Vercel timeouts and Cloudflare bot-protections:
-  - **Layer 1:** Google PageSpeed Insights API (Official Google servers for 0% CAPTCHA block and high compression).
-  - **Layer 2:** Site-Shot API with Global Geolocation Proxies (Brazil/Tokyo) to bypass regional blocks.
-  - **Layer 3:** Thum.io API with massive rotating human-like headers as a fail-safe raw image fallback.
-- **Default vs Custom Ecosystem Mode:** Added a global toggle to seamlessly switch between static file-based projects (`projectsData.ts`) and dynamic MongoDB-driven projects.
-- **Smart Client-Side Image Formatting:** Added CSS-based `object-fit` handling on the frontend to automatically stretch or crop heavily portrait screenshots into perfect 16:10 landscape preview cards.
-
-### Changed
-- Transitioned serverless architecture to Node.js 22 (`engines` updated).
-- Optimized Vercel deployment by shifting from heavy local headless browsers to lightweight Cloud APIs, eliminating 502 memory crashes.
-
-### Removed
-- Removed `@sparticuz/chromium` to reduce build size and prevent Vercel 10-second timeout limits.
-
----
 
 
 ## [3.1.0] — 2026-04-09

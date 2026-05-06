@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Fragment } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -453,7 +453,7 @@ export default function UserProfile() {
           {!editing && userInfo.socialLinks && userInfo.socialLinks.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-1">
               {userInfo.socialLinks.filter(l => l.url).map((link, i) => (
-                <SocialLinkButton key={i} link={link} />
+                <Fragment key={i}><SocialLinkButton link={link} /></Fragment>
               ))}
             </div>
           )}

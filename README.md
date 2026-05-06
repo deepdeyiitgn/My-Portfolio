@@ -97,6 +97,7 @@ Every reader who signs in gets a public profile at `/user/:userId`. Profiles sho
   * Uses Google's PageSpeed API, Global Geo-Proxies, and rotating Human-Agent headers to completely bypass bot protection (Cloudflare, CAPTCHAs) and Vercel's strict serverless timeout limits.
 * **Smart UI Previews:** Auto-crops and formats dynamic Base64 images directly on the client side to maintain perfect aspect ratios without overloading the backend.
 * **Media Embeds:** Insert images, YouTube iframes, MP4 videos, and audio tracks directly into journal posts via toolbar prompt buttons.
+* **Owner User Monitoring:** The Dashboard Users tab lists all registered commenters. Clicking a user reveals a detail panel with their full metadata including **account creation datetime + IP + country**, **last activity datetime + IP + country**, comment history with abuse flags, quick-block controls, and a link to their public profile.
 
 ---
 

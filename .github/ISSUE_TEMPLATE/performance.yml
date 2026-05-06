@@ -1,0 +1,85 @@
+name: ⚡ Performance / SEO Issue
+description: Report a performance regression, slow load, or SEO/metadata problem
+title: "[Perf]: "
+labels: ["performance", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve the performance and discoverability of the site.
+
+        Performance issues include slow load times, large bundle sizes, CLS/LCP regressions, and anything that degrades the user experience under real-world conditions.
+        SEO issues include broken canonical URLs, missing JSON-LD, incorrect OpenGraph tags, or sitemap errors.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight checklist
+      options:
+        - label: I have reproduced this on the live site (https://deepdey.vercel.app)
+          required: true
+        - label: I searched existing issues and this has not been reported before
+          required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Issue Category
+      options:
+        - Page load speed (LCP / FCP / TTI)
+        - Bundle size / code splitting
+        - Cumulative Layout Shift (CLS)
+        - API response latency
+        - Status page probe latency
+        - Sitemap generation / caching
+        - SEO meta tags (OpenGraph / Twitter Card)
+        - JSON-LD structured data
+        - Canonical URL / duplicate content
+        - robots.txt / crawl directives
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: url
+    attributes:
+      label: Affected URL / Route
+      description: The exact page or API endpoint where the issue occurs
+      placeholder: "https://deepdey.vercel.app/journal or /api/sitemap"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Issue Description
+      description: Clearly describe the performance or SEO problem
+      placeholder: "The /user page takes 4+ seconds to show the contributor list on mobile due to unoptimized avatar image loading..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: measurement
+    attributes:
+      label: Measurements / Evidence
+      description: Paste Lighthouse scores, Core Web Vitals, network waterfall screenshots, or any other quantitative data
+      placeholder: "Lighthouse Performance: 42 | LCP: 5.8s | CLS: 0.32 — screenshot attached"
+    validations:
+      required: false
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser, device type, connection speed
+      placeholder: "Chrome 124 · iPhone 13 · 4G LTE"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other observations, console warnings, or network log details
+    validations:
+      required: false

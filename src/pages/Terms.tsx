@@ -40,6 +40,9 @@ export default function Terms() {
           <p>
             The Deep Dey Journal platform allows authenticated users to post public comments on journal entries using Google Sign-In. By using the comment system, you agree to post only lawful, respectful, and non-abusive content. Comments containing profanity, spam, harassment, or illegal material will be automatically censored or removed. Repeat violators may be temporarily or permanently blocked from the platform. You retain ownership of your comments but grant Deep Dey a non-exclusive, royalty-free license to display and moderate your content on this platform.
           </p>
+          <p>
+            By participating in the comment system, you acknowledge that your <span className="text-amber-500/80">IP address</span> and <span className="text-amber-500/80">country of origin</span> are recorded at the time of your <span className="text-amber-500/80">first comment (account creation)</span> and most recent <span className="text-amber-500/80">activity</span>. This data is used exclusively for moderation, security, and abuse prevention purposes. It is accessible only to the site administrator and is never shared with or sold to third parties.
+          </p>
         </section>
 
         <section className="space-y-4">
@@ -79,7 +82,7 @@ export default function Terms() {
       </div>
 
       <div className="pt-12 border-t border-zinc-900 text-center">
-        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">System Node: LEG-TOS-V3</p>
+        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">System Node: LEG-TOS-V4</p>
       </div>
     </div>
   );
