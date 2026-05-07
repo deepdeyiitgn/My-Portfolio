@@ -3497,7 +3497,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
               </div>
               <div className="flex justify-between">
                 <span className="font-mono text-zinc-600 uppercase text-[10px] tracking-widest self-center">Serverless Functions</span>
-                <span>12 files (11 routes + logger helper)</span>
+                <span>12 files in `/api` (routes + shared helpers)</span>
               </div>
             </div>
             <button
