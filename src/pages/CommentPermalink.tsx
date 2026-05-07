@@ -7,6 +7,7 @@ import SEO from '../components/SEO';
 interface Comment {
   _id: string;
   userId: string;
+  isVerified?: boolean;
   userName: string;
   userPic: string;
   text: string;
@@ -49,6 +50,7 @@ function CommentCard({
   isHighlight?: boolean;
 }) {
   const isOwner = comment.userId === 'owner';
+  const isVerified = isOwner || Boolean(comment.isVerified);
   return (
     <div
       className={`p-4 rounded-2xl border space-y-3 ${
@@ -88,6 +90,11 @@ function CommentCard({
               <span className="inline-flex items-center gap-0.5" title="Verified Owner">
                 <img src="/verified.svg" alt="Verified" className="w-[13px] h-[13px]" />
                 <img src="/crown.svg" alt="Crown" className="w-[13px] h-[13px]" />
+              </span>
+            )}
+            {!isOwner && isVerified && (
+              <span className="inline-flex items-center gap-0.5" title="Verified User">
+                <img src="/verified.svg" alt="Verified" className="w-[13px] h-[13px]" />
               </span>
             )}
             <span className="text-zinc-600 text-[10px] font-mono">{timeAgo(comment.createdAt)}</span>

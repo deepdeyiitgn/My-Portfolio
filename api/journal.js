@@ -234,6 +234,28 @@ async function buildBlockMessage(db, block) {
   return 'You are blocked from commenting.';
 }
 
+async function attachVerifiedFlagsToComments(db, comments) {
+  if (!Array.isArray(comments) || comments.length === 0) return [];
+  const userIds = [...new Set(
+    comments
+      .map(c => String(c?.userId || '').trim())
+      .filter(id => id && id !== 'owner'),
+  )];
+
+  const verifiedMap = new Map();
+  if (userIds.length > 0) {
+    const users = await db.collection('users')
+      .find({ userId: { $in: userIds } }, { projection: { userId: 1, verified: 1 } })
+      .toArray();
+    users.forEach((u) => verifiedMap.set(String(u.userId), Boolean(u.verified)));
+  }
+
+  return comments.map(c => ({
+    ...c,
+    isVerified: c?.userId === 'owner' ? true : Boolean(verifiedMap.get(String(c?.userId || ''))),
+  }));
+}
+
 async function getJournalByIdOrSlug(col, req) {
   const slugParam = getParam(req, 'slug');
   const idParam = getParam(req, 'id');
@@ -548,11 +570,16 @@ module.exports = async (req, res) => {
         }
 
         const addMeta = (c) => ({ ...c, replyCount: replyCountMap[c._id.toString()] || 0 });
+        const pinnedWithMeta = pinnedComments.map(addMeta);
+        const commentsWithMeta = comments.map(addMeta);
+        const withVerified = await attachVerifiedFlagsToComments(db, [...pinnedWithMeta, ...commentsWithMeta]);
+        const pinnedWithVerified = withVerified.slice(0, pinnedWithMeta.length);
+        const commentsWithVerified = withVerified.slice(pinnedWithMeta.length);
 
         return json(res, 200, {
           ok: true,
-          pinnedComments: pinnedComments.map(addMeta),
-          comments: comments.map(addMeta),
+          pinnedComments: pinnedWithVerified,
+          comments: commentsWithVerified,
           pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
         });
       }
@@ -614,7 +641,7 @@ module.exports = async (req, res) => {
         const filter = PUBLIC_USER_FILTER;
         const total = await usersCol.countDocuments(filter);
         const users = await usersCol.find(filter).sort({ lastCommentAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
-        return json(res, 200, { ok: true, users, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+        return json(res, 200, { ok: true, users: users.map(u => ({ ...u, verified: Boolean(u.verified) })), pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
       }
 
       // --- User activity: per-day comment counts for contribution graph ---
@@ -640,7 +667,7 @@ module.exports = async (req, res) => {
         const filter = PUBLIC_USER_FILTER;
         const total = await usersCol.countDocuments(filter);
         const users = await usersCol.find(filter).sort({ lastCommentAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
-        return json(res, 200, { ok: true, users, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+        return json(res, 200, { ok: true, users: users.map(u => ({ ...u, verified: Boolean(u.verified) })), pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
       }
 
       // --- Per-user active blocks (admin only) ---
@@ -713,7 +740,15 @@ module.exports = async (req, res) => {
         if (comment.parentId) {
           parentComment = await permalinkCommentsCol.findOne({ _id: comment.parentId });
         }
-        return json(res, 200, { ok: true, comment, replies, parentComment, journal: { _id: journal._id, title: journal.title, slug: journal.slug, summary: journal.summary, categoryName: journal.categoryName, publishedAtIST: journal.publishedAtIST, readMinutes: journal.readMinutes } });
+        const verifiedItems = await attachVerifiedFlagsToComments(db, [
+          comment,
+          ...replies,
+          ...(parentComment ? [parentComment] : []),
+        ]);
+        const hydratedComment = verifiedItems[0] || comment;
+        const hydratedReplies = verifiedItems.slice(1, 1 + replies.length);
+        const hydratedParent = parentComment ? verifiedItems[1 + replies.length] : null;
+        return json(res, 200, { ok: true, comment: hydratedComment, replies: hydratedReplies, parentComment: hydratedParent, journal: { _id: journal._id, title: journal.title, slug: journal.slug, summary: journal.summary, categoryName: journal.categoryName, publishedAtIST: journal.publishedAtIST, readMinutes: journal.readMinutes } });
       }
 
       // --- Admin: list comments for a journal with originalText, hasAbuse info ---
@@ -776,6 +811,7 @@ module.exports = async (req, res) => {
               userId: 'owner',
               userName: ownerDoc?.userName || 'Deep Dey',
               userPic: '',
+              verified: true,
               firstCommentAt: firstComment?.createdAt || ownerDoc?.firstCommentAt || new Date().toISOString(),
               lastCommentAt: ownerDoc?.lastCommentAt,
               totalComments: total,
@@ -804,7 +840,8 @@ module.exports = async (req, res) => {
         const lastComment = comments.length > 0 ? comments[comments.length - 1] : null;
         const userFallback = lastComment ? { userId, userName: lastComment.userName, userPic: lastComment.userPic, firstCommentAt: lastComment.createdAt, totalComments: total } : null;
         const profile = userDoc || userFallback;
-        return json(res, 200, { ok: true, user: { userId, userName: profile?.userName, userPic: profile?.userPic, firstCommentAt: profile?.firstCommentAt || profile?.createdAt, totalComments: total, profileTitle: userDoc?.profileTitle, bio: userDoc?.bio, description: userDoc?.description, socialLinks: userDoc?.socialLinks }, comments: enrichedComments, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+        const isVerified = Boolean(userDoc?.verified);
+        return json(res, 200, { ok: true, user: { userId, userName: profile?.userName, userPic: profile?.userPic, verified: isVerified, firstCommentAt: profile?.firstCommentAt || profile?.createdAt, totalComments: total, profileTitle: userDoc?.profileTitle, bio: userDoc?.bio, description: userDoc?.description, socialLinks: userDoc?.socialLinks }, comments: enrichedComments.map(c => ({ ...c, isVerified })), pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
       }
 
       const slug = getParam(req, 'slug');
@@ -1024,11 +1061,15 @@ module.exports = async (req, res) => {
         const ownerPosting = isAuthenticated(req);
 
         let userInfo;
+        let isVerifiedUser = false;
         if (ownerPosting) {
           userInfo = { userId: 'owner', name: 'Deep Dey (Owner)', email: '', picture: '' };
+          isVerifiedUser = true;
         } else {
           userInfo = await verifyGoogleToken(credential);
           if (!userInfo) return json(res, 401, { ok: false, message: 'Invalid or expired Google token. Please sign in again.' });
+          const existingUser = await db.collection('users').findOne({ userId: userInfo.userId }, { projection: { verified: 1 } });
+          isVerifiedUser = Boolean(existingUser?.verified);
         }
 
         const journalId = String(body.journalId || '').trim();
@@ -1060,6 +1101,7 @@ module.exports = async (req, res) => {
           userId: userInfo.userId,
           userName: userInfo.name,
           userPic: userInfo.picture,
+          isVerified: isVerifiedUser,
           text: censoredText,
           originalText: hasAbuse ? text : null, // only stored if abuse detected
           hasAbuse,
@@ -1096,6 +1138,7 @@ module.exports = async (req, res) => {
                   userId: userInfo.userId,
                   firstCommentAt: now,
                   createdAt: now,
+                  verified: false,
                   registrationIp: clientIp,
                   registrationCountry: clientCountry,
                 },
@@ -1289,6 +1332,28 @@ module.exports = async (req, res) => {
           { upsert: true },
         );
         return json(res, 200, { ok: true, message: 'Profile updated' });
+      }
+
+      if (action === 'user-verify') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const userId = String(body.userId || '').trim();
+        const verified = Boolean(body.verified);
+        if (!userId || userId === 'owner') return json(res, 400, { ok: false, message: 'Valid non-owner userId required' });
+
+        const usersCol = db.collection('users');
+        const commentsCol = db.collection('comments');
+        const found = await usersCol.findOne({ userId }, { projection: { _id: 1 } });
+        if (!found) return json(res, 404, { ok: false, message: 'User not found' });
+
+        await usersCol.updateOne(
+          { userId },
+          { $set: { verified, verifiedUpdatedAt: new Date() } },
+        );
+        await commentsCol.updateMany(
+          { userId },
+          { $set: { isVerified: verified } },
+        );
+        return json(res, 200, { ok: true, userId, verified });
       }
 
       // --- Comment Edit (Google user or owner) ---

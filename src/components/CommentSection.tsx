@@ -35,6 +35,7 @@ interface Comment {
   createdAt: string;
   createdAtIST: string;
   replyCount: number;
+  isVerified?: boolean;
 }
 
 interface Pagination {
@@ -131,7 +132,7 @@ function LinkWarningModal({ url, onClose }: { url: string; onClose: () => void }
 
 // ── Render comment text with clickable links ──────────────────────────────────
 
-function CommentText({ text, onLinkClick }: { text: string; onLinkClick: (url: string) => void }) {
+function CommentText({ text, onLinkClick, trustedLinks }: { text: string; onLinkClick: (url: string) => void; trustedLinks?: boolean }) {
   const parts: Array<{ type: 'text' | 'link'; value: string }> = [];
   let last = 0;
   let match: RegExpExecArray | null;
@@ -147,13 +148,25 @@ function CommentText({ text, onLinkClick }: { text: string; onLinkClick: (url: s
     <span className="whitespace-pre-wrap break-words">
       {parts.map((p, i) =>
         p.type === 'link' ? (
-          <button
-            key={i}
-            onClick={() => onLinkClick(p.value)}
-            className="text-amber-400 underline hover:text-amber-300 transition-colors break-all"
-          >
-            {p.value}
-          </button>
+          trustedLinks ? (
+            <a
+              key={i}
+              href={p.value}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-amber-400 underline hover:text-amber-300 transition-colors break-all"
+            >
+              {p.value}
+            </a>
+          ) : (
+            <button
+              key={i}
+              onClick={() => onLinkClick(p.value)}
+              className="text-amber-400 underline hover:text-amber-300 transition-colors break-all"
+            >
+              {p.value}
+            </button>
+          )
         ) : (
           <span key={i}>{p.value}</span>
         )
@@ -288,6 +301,7 @@ function CommentItem({
   };
 
   const isOwnerComment = comment.userId === 'owner';
+  const isVerifiedComment = isOwnerComment || Boolean(comment.isVerified);
 
   return (
     <div className={`space-y-3 ${comment.isPinned ? 'border-l-2 border-amber-500 pl-3' : ''}`}>
@@ -339,6 +353,11 @@ function CommentItem({
                 <img src="/crown.svg" alt="Crown" className="w-[13px] h-[13px]" />
               </span>
             )}
+            {!isOwnerComment && isVerifiedComment && (
+              <span className="inline-flex items-center gap-0.5" title="Verified User">
+                <img src="/verified.svg" alt="Verified" className="w-[13px] h-[13px]" />
+              </span>
+            )}
             {comment.isPinned && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700 font-mono uppercase tracking-wider flex items-center gap-1">
                 <Pin size={8} /> Pinned
@@ -383,7 +402,7 @@ function CommentItem({
             </div>
           ) : (
             <p className="text-zinc-300 text-sm leading-relaxed">
-              <CommentText text={comment.text} onLinkClick={onLinkClick} />
+              <CommentText text={comment.text} onLinkClick={onLinkClick} trustedLinks={isVerifiedComment} />
             </p>
           )}
 

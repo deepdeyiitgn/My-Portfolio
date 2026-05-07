@@ -20,6 +20,7 @@ interface UserInfo {
   userId: string;
   userName: string;
   userPic: string;
+  verified?: boolean;
   firstCommentAt: string;
   lastCommentAt?: string;
   totalComments: number;
@@ -443,6 +444,11 @@ export default function UserProfile() {
                     <span className="inline-flex items-center gap-0.5 mt-1" title="Verified Owner">
                       <img src="/verified.svg" alt="Verified" className="w-[16px] h-[16px]" />
                       <img src="/crown.svg" alt="Crown" className="w-[16px] h-[16px]" />
+                    </span>
+                  )}
+                  {userId !== 'owner' && userInfo.verified && (
+                    <span className="inline-flex items-center gap-0.5 mt-1" title="Verified User">
+                      <img src="/verified.svg" alt="Verified" className="w-[16px] h-[16px]" />
                     </span>
                   )}
                   {userInfo.profileTitle && <p className="text-amber-500/80 text-sm font-bold mt-0.5">{userInfo.profileTitle}</p>}

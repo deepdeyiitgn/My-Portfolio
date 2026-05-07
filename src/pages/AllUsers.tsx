@@ -13,6 +13,7 @@ interface Contributor {
   firstCommentAt: string;
   lastCommentAt: string;
   profileTitle?: string;
+  verified?: boolean;
 }
 
 interface Pagination {
@@ -153,6 +154,11 @@ export default function AllUsers() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-bold text-sm truncate group-hover:text-amber-400 transition-colors">{u.userName}</p>
+                        {u.verified && (
+                          <span className="inline-flex items-center gap-1 text-blue-300 text-[10px] font-bold mt-0.5">
+                            <img src="/verified.svg" alt="Verified" className="w-3 h-3" /> Verified
+                          </span>
+                        )}
                         {u.profileTitle && <p className="text-zinc-500 text-[11px] truncate">{u.profileTitle}</p>}
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="flex items-center gap-1 text-zinc-600 text-[11px]">
