@@ -7,6 +7,7 @@ import {
   ChevronDown, ChevronUp, AlertTriangle, X, LogOut, ExternalLink,
   ChevronLeft, ChevronRight, Loader2, AlertCircle, ArrowDownUp, Link2, ShieldBan,
 } from 'lucide-react';
+import { CrownBadgeIcon, VerifiedTickIcon } from './IdentityBadges';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -361,13 +362,13 @@ function CommentItem({
             )}
             {isOwnerComment && (
               <span className="inline-flex items-center gap-0.5" title="Verified Owner">
-                <img src="/verified.svg" alt="Verified" className="w-[13px] h-[13px]" />
-                <img src="/crown.svg" alt="Crown" className="w-[13px] h-[13px]" />
+                <VerifiedTickIcon className="w-[13px] h-[13px]" />
+                <CrownBadgeIcon className="w-[13px] h-[13px]" />
               </span>
             )}
             {!isOwnerComment && isVerifiedComment && (
               <span className="inline-flex items-center gap-0.5" title="Verified User">
-                <img src="/verified.svg" alt="Verified" className="w-[13px] h-[13px]" />
+                <VerifiedTickIcon className="w-[13px] h-[13px]" />
               </span>
             )}
             {comment.isPinned && (

@@ -6,6 +6,7 @@ import {
   ExternalLink, ChevronLeft, ChevronRight, ChevronDown,
 } from 'lucide-react';
 import SEO from '../components/SEO';
+import { CrownBadgeIcon, VerifiedTickIcon } from '../components/IdentityBadges';
 
 interface Comment {
   _id: string;
@@ -88,8 +89,8 @@ function CommentRow({ comment }: { comment: Comment }) {
               {comment.userName}
             </Link>
             {comment.isPinned && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 font-black uppercase tracking-widest">Pinned</span>}
-            {isOwner && <span className="inline-flex items-center gap-0.5" title="Verified Owner"><img src="/verified.svg" alt="Verified" className="w-[13px] h-[13px]" /><img src="/crown.svg" alt="Crown" className="w-[13px] h-[13px]" /></span>}
-            {!isOwner && isVerified && <span className="inline-flex items-center gap-0.5" title="Verified User"><img src="/verified.svg" alt="Verified" className="w-[13px] h-[13px]" /></span>}
+            {isOwner && <span className="inline-flex items-center gap-0.5" title="Verified Owner"><VerifiedTickIcon className="w-[13px] h-[13px]" /><CrownBadgeIcon className="w-[13px] h-[13px]" /></span>}
+            {!isOwner && isVerified && <span className="inline-flex items-center gap-0.5" title="Verified User"><VerifiedTickIcon className="w-[13px] h-[13px]" /></span>}
             <span className="text-zinc-600 text-[10px] font-mono">{timeAgo(comment.createdAt)}</span>
             {comment.editedAt && <span className="text-zinc-700 text-[9px] font-mono">(edited)</span>}
           </div>
@@ -126,8 +127,8 @@ function CommentRow({ comment }: { comment: Comment }) {
                   <Link to={r.userId === 'owner' ? '/user/owner' : `/user/${encodeURIComponent(r.userId)}`} className={r.userId === 'owner' ? 'text-amber-500 font-bold text-xs hover:text-amber-400 transition-colors' : 'text-zinc-300 font-bold text-xs hover:text-amber-400 transition-colors'}>
                     {r.userName}
                   </Link>
-                  {r.userId === 'owner' && <span className="inline-flex items-center gap-0.5" title="Verified Owner"><img src="/verified.svg" alt="Verified" className="w-[12px] h-[12px]" /><img src="/crown.svg" alt="Crown" className="w-[12px] h-[12px]" /></span>}
-                  {r.userId !== 'owner' && r.isVerified && <span className="inline-flex items-center gap-0.5" title="Verified User"><img src="/verified.svg" alt="Verified" className="w-[12px] h-[12px]" /></span>}
+                  {r.userId === 'owner' && <span className="inline-flex items-center gap-0.5" title="Verified Owner"><VerifiedTickIcon className="w-[12px] h-[12px]" /><CrownBadgeIcon className="w-[12px] h-[12px]" /></span>}
+                  {r.userId !== 'owner' && r.isVerified && <span className="inline-flex items-center gap-0.5" title="Verified User"><VerifiedTickIcon className="w-[12px] h-[12px]" /></span>}
                   <span className="text-zinc-600 text-[10px] font-mono">{timeAgo(r.createdAt)}</span>
                 </div>
                 <p className="text-zinc-400 text-xs whitespace-pre-wrap break-words">{r.text}</p>

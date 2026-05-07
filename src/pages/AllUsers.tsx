@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Users, MessageSquare, Calendar, Loader2, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import SEO from '../components/SEO';
+import { CrownBadgeIcon, VerifiedTickIcon } from '../components/IdentityBadges';
 
 interface Contributor {
   _id?: string;
@@ -100,8 +101,8 @@ export default function AllUsers() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-amber-400 font-black text-lg tracking-tight drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]">Deep Dey</span>
                   <span className="inline-flex items-center gap-0.5" title="Verified Owner">
-                    <img src="/verified.svg" alt="Verified" className="w-[15px] h-[15px]" />
-                    <img src="/crown.svg" alt="Crown" className="w-[15px] h-[15px]" />
+                    <VerifiedTickIcon className="w-[15px] h-[15px]" />
+                    <CrownBadgeIcon className="w-[15px] h-[15px]" />
                   </span>
                 </div>
                 <p className="text-zinc-400 text-xs mt-0.5">Founder · Software Architect · JEE 2027</p>
@@ -156,7 +157,7 @@ export default function AllUsers() {
                         <p className="text-white font-bold text-sm truncate group-hover:text-amber-400 transition-colors">{u.userName}</p>
                         {u.verified && (
                           <span className="inline-flex items-center gap-1 text-blue-300 text-[10px] font-bold mt-0.5">
-                            <img src="/verified.svg" alt="Verified" className="w-3 h-3" /> Verified
+                            <VerifiedTickIcon className="w-3 h-3" /> Verified
                           </span>
                         )}
                         {u.profileTitle && <p className="text-zinc-500 text-[11px] truncate">{u.profileTitle}</p>}

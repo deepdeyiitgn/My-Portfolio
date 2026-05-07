@@ -10,6 +10,7 @@ import {
 import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
 import { ICON_NAMES, renderIcon } from '../utils/iconMap';
+import { VerifiedTickIcon } from '../components/IdentityBadges';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 
@@ -3299,7 +3300,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2">
                     <p className="text-white font-black text-lg">{selectedUser.userName}</p>
-                    {selectedUser.verified && <span className="inline-flex items-center gap-1 text-blue-300 text-[10px] font-bold"><img src="/verified.svg" alt="Verified" className="w-3 h-3" /> Verified</span>}
+                    {selectedUser.verified && <span className="inline-flex items-center gap-1 text-blue-300 text-[10px] font-bold"><VerifiedTickIcon className="w-3 h-3" /> Verified</span>}
                   </div>
                   <p className="text-zinc-500 text-xs font-mono">{selectedUser._id}</p>
                   <div className="flex items-center gap-3 flex-wrap text-xs text-zinc-500">
@@ -3342,7 +3343,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                     onClick={() => handleToggleUserVerified(selectedUser.userId, !selectedUser.verified)}
                     className={`${btnCls} ${selectedUser.verified ? 'bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700' : 'bg-blue-500/10 border border-blue-500/40 text-blue-300 hover:bg-blue-500/20'} flex items-center gap-1 text-xs`}
                   >
-                    <img src="/verified.svg" alt="Verified" className="w-3 h-3" />
+                    <VerifiedTickIcon className="w-3 h-3" />
                     {selectedUser.verified ? 'Unverify' : 'Verify'}
                   </button>
                   <button onClick={() => setBlockModalUser({ userId: selectedUser.userId, userName: selectedUser.userName, userPic: selectedUser.userPic })} className={`${btnCls} bg-zinc-800 border border-zinc-700 text-orange-400 hover:bg-zinc-700 flex items-center gap-1 text-xs`}><ShieldBan size={12} /> Block</button>
@@ -3453,7 +3454,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                           <div className="flex-1 min-w-0">
                             <p className="text-white font-bold text-base">{u.userName}</p>
                             <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                              {u.verified && <span className="inline-flex items-center gap-1 text-blue-300 text-[10px] font-bold"><img src="/verified.svg" alt="Verified" className="w-3 h-3" /> Verified</span>}
+                              {u.verified && <span className="inline-flex items-center gap-1 text-blue-300 text-[10px] font-bold"><VerifiedTickIcon className="w-3 h-3" /> Verified</span>}
                               <span className="text-zinc-500 text-xs flex items-center gap-1"><MessageSquare size={10} /> {u.totalComments} comments</span>
                               <span className="text-zinc-600 text-[10px] font-mono">Joined: {new Date(u.firstCommentAt).toLocaleDateString('en-IN')}</span>
                               <span className="text-zinc-600 text-[10px] font-mono">Last: {new Date(u.lastCommentAt).toLocaleDateString('en-IN')}</span>
@@ -3495,8 +3496,8 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                 <span>MongoDB (MONGODB_URI env)</span>
               </div>
               <div className="flex justify-between">
-                <span className="font-mono text-zinc-600 uppercase text-[10px] tracking-widest self-center">API Files</span>
-                <span>11 / 12 (Vercel free tier)</span>
+                <span className="font-mono text-zinc-600 uppercase text-[10px] tracking-widest self-center">Serverless Functions</span>
+                <span>12 files (11 routes + logger helper)</span>
               </div>
             </div>
             <button
