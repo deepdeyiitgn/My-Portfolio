@@ -36,9 +36,9 @@ const STATIC_PAGES = [
   '/journal/comment',
 ];
 
-function formatDate(d) {
-  if (!d) return STATIC_PAGE_LASTMOD_FALLBACK;
-  try { return new Date(d).toISOString().split('T')[0]; } catch { return STATIC_PAGE_LASTMOD_FALLBACK; }
+function formatDate(dateInput) {
+  if (!dateInput) return STATIC_PAGE_LASTMOD_FALLBACK;
+  try { return new Date(dateInput).toISOString().split('T')[0]; } catch { return STATIC_PAGE_LASTMOD_FALLBACK; }
 }
 
 const STATIC_ROUTE_SOURCES = {
@@ -159,7 +159,12 @@ async function buildSitemap(baseUrl) {
   const seenLocs = new Set();
 
   const addRoute = ({ loc, lastmod, changefreq, priority }) => {
-    if (!loc || seenLocs.has(loc)) return;
+    if (!loc || seenLocs.has(loc)) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug('Skipping sitemap route', { loc, reason: !loc ? 'empty' : 'duplicate' });
+      }
+      return;
+    }
     seenLocs.add(loc);
     routes.push({ loc, lastmod, changefreq, priority });
   };
