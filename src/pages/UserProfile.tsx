@@ -5,7 +5,7 @@ import {
   ArrowLeft, MessageSquare, Loader2, AlertCircle, User, Calendar,
   Heart, ChevronLeft, ChevronRight, ExternalLink, Edit3, Check, X,
   Plus, Trash2, Globe, Github, Twitter, Linkedin, Instagram, Youtube,
-  Link2, Activity, BadgeCheck,
+  Link2, Activity,
 } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import SEO from '../components/SEO';
@@ -441,8 +441,8 @@ export default function UserProfile() {
                   <h1 className={`font-black text-2xl tracking-tight ${userId === 'owner' ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]' : 'text-white'}`}>{userInfo.userName}</h1>
                   {userId === 'owner' && (
                     <span className="inline-flex items-center gap-0.5 mt-1" title="Verified Owner">
-                      <BadgeCheck size={16} className="text-blue-400" />
-                      <span className="text-[13px] leading-none">👑</span>
+                      <img src="/verified.svg" alt="Verified" className="w-[16px] h-[16px]" />
+                      <img src="/crown.svg" alt="Crown" className="w-[16px] h-[16px]" />
                     </span>
                   )}
                   {userInfo.profileTitle && <p className="text-amber-500/80 text-sm font-bold mt-0.5">{userInfo.profileTitle}</p>}

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Users, MessageSquare, Calendar, Loader2, ChevronLeft, ChevronRight, User, BadgeCheck } from 'lucide-react';
+import { Users, MessageSquare, Calendar, Loader2, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import SEO from '../components/SEO';
 
 interface Contributor {
@@ -99,8 +99,8 @@ export default function AllUsers() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-amber-400 font-black text-lg tracking-tight drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]">Deep Dey</span>
                   <span className="inline-flex items-center gap-0.5" title="Verified Owner">
-                    <BadgeCheck size={15} className="text-blue-400" />
-                    <span className="text-[12px] leading-none">👑</span>
+                    <img src="/verified.svg" alt="Verified" className="w-[15px] h-[15px]" />
+                    <img src="/crown.svg" alt="Crown" className="w-[15px] h-[15px]" />
                   </span>
                 </div>
                 <p className="text-zinc-400 text-xs mt-0.5">Founder · Software Architect · JEE 2027</p>

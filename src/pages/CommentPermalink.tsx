@@ -1,7 +1,7 @@
 import { useEffect, useState, Fragment } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, MessageSquare, Heart, Loader2, AlertCircle, ExternalLink, User, BadgeCheck } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Heart, Loader2, AlertCircle, ExternalLink, User } from 'lucide-react';
 import SEO from '../components/SEO';
 
 interface Comment {
@@ -86,8 +86,8 @@ function CommentCard({
             </Link>
             {isOwner && (
               <span className="inline-flex items-center gap-0.5" title="Verified Owner">
-                <BadgeCheck size={13} className="text-blue-400" />
-                <span className="text-[11px] leading-none">👑</span>
+                <img src="/verified.svg" alt="Verified" className="w-[13px] h-[13px]" />
+                <img src="/crown.svg" alt="Crown" className="w-[13px] h-[13px]" />
               </span>
             )}
             <span className="text-zinc-600 text-[10px] font-mono">{timeAgo(comment.createdAt)}</span>

@@ -5,7 +5,7 @@ import { GoogleLogin } from '@react-oauth/google';
 import {
   MessageSquare, Heart, Reply, Trash2, Edit3, Pin, PinOff, Send,
   ChevronDown, ChevronUp, AlertTriangle, X, LogOut, ExternalLink,
-  ChevronLeft, ChevronRight, Loader2, AlertCircle, ArrowDownUp, Link2, ShieldBan, BadgeCheck,
+  ChevronLeft, ChevronRight, Loader2, AlertCircle, ArrowDownUp, Link2, ShieldBan,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -335,8 +335,8 @@ function CommentItem({
             )}
             {isOwnerComment && (
               <span className="inline-flex items-center gap-0.5" title="Verified Owner">
-                <BadgeCheck size={13} className="text-blue-400" />
-                <span className="text-[11px] leading-none">👑</span>
+                <img src="/verified.svg" alt="Verified" className="w-[13px] h-[13px]" />
+                <img src="/crown.svg" alt="Crown" className="w-[13px] h-[13px]" />
               </span>
             )}
             {comment.isPinned && (

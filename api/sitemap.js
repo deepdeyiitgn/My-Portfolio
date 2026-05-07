@@ -1,11 +1,15 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 // In-memory sitemap cache — refreshed every 6 hours
 let sitemapCache = { xml: '', refreshedAt: 0 };
 const SITEMAP_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 const DOMAIN = 'https://deepdey.vercel.app';
+const PROJECT_ROOT = process.cwd();
 
-// Fixed lastmod for static pages (manually bump this date whenever STATIC_PAGES content/SEO text is updated)
-const STATIC_PAGE_LASTMOD = '2025-01-01';
+// Fallback if source file date can't be resolved
+const STATIC_PAGE_LASTMOD_FALLBACK = '2025-01-01';
 
 // All static routes (no /dashboard, no /journal/embed)
 const STATIC_PAGES = [
@@ -33,8 +37,48 @@ const STATIC_PAGES = [
 ];
 
 function formatDate(d) {
-  if (!d) return STATIC_PAGE_LASTMOD;
-  try { return new Date(d).toISOString().split('T')[0]; } catch { return STATIC_PAGE_LASTMOD; }
+  if (!d) return STATIC_PAGE_LASTMOD_FALLBACK;
+  try { return new Date(d).toISOString().split('T')[0]; } catch { return STATIC_PAGE_LASTMOD_FALLBACK; }
+}
+
+const STATIC_ROUTE_SOURCES = {
+  '': ['src/pages/Home.tsx', 'src/App.tsx'],
+  '/projects': ['src/pages/Projects.tsx'],
+  '/about': ['src/pages/About.tsx'],
+  '/me': ['src/pages/Me.tsx'],
+  '/contact': ['src/pages/Contact.tsx'],
+  '/faq': ['src/pages/FAQ.tsx', 'src/data/faqData.ts'],
+  '/portfolio': ['src/pages/Portfolio.tsx'],
+  '/links': ['src/pages/Links.tsx'],
+  '/proof': ['src/pages/Proof.tsx'],
+  '/journal': ['src/pages/Journal.tsx'],
+  '/now': ['src/pages/Now.tsx'],
+  '/legal': ['src/pages/LegalHub.tsx'],
+  '/terms': ['src/pages/Terms.tsx'],
+  '/privacy': ['src/pages/Privacy.tsx'],
+  '/dmca': ['src/pages/DMCA.tsx'],
+  '/copyright': ['src/pages/Copyright.tsx'],
+  '/live': ['src/pages/Live.tsx'],
+  '/search': ['src/pages/SearchResults.tsx'],
+  '/status': ['src/pages/Status.tsx'],
+  '/user': ['src/pages/AllUsers.tsx'],
+  '/journal/comment': ['src/pages/CommentGuide.tsx'],
+  '/user/owner': ['src/pages/UserProfile.tsx'],
+};
+
+const PROJECT_DETAIL_SOURCES = ['src/pages/ProjectDetail.tsx', 'src/data/projectsData.ts'];
+
+function latestMtimeDate(sourcePaths) {
+  let latest = 0;
+  for (const relPath of sourcePaths || []) {
+    try {
+      const stat = fs.statSync(path.resolve(PROJECT_ROOT, relPath));
+      if (stat.mtimeMs > latest) latest = stat.mtimeMs;
+    } catch {
+      // ignore missing files
+    }
+  }
+  return latest > 0 ? formatDate(new Date(latest)) : STATIC_PAGE_LASTMOD_FALLBACK;
 }
 
 function buildXml(routes) {
@@ -120,16 +164,16 @@ async function buildSitemap(baseUrl) {
     routes.push({ loc, lastmod, changefreq, priority });
   };
 
-  // Static pages — fixed lastmod
+  // Static pages — file-change-based lastmod
   for (const page of STATIC_PAGES) {
     addRoute({
       loc: page,
-      lastmod: STATIC_PAGE_LASTMOD,
+      lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES[page]),
       changefreq: page === '' ? 'daily' : 'weekly',
       priority: page === '' ? '1.0' : '0.8',
     });
   }
-  addRoute({ loc: '/user/owner', lastmod: STATIC_PAGE_LASTMOD, changefreq: 'weekly', priority: '0.6' });
+  addRoute({ loc: '/user/owner', lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES['/user/owner']), changefreq: 'weekly', priority: '0.6' });
 
   // Dynamic routes from DB
   try {
@@ -141,7 +185,7 @@ async function buildSitemap(baseUrl) {
     // User profiles — include all paginated users
     for (const u of users) {
       if (!u?.userId) continue;
-      const lastmod = formatDate(u.lastCommentAt || u.createdAt);
+      const lastmod = formatDate(u.firstCommentAt || u.createdAt || u.lastCommentAt);
       addRoute({ loc: `/user/${encodeURIComponent(u.userId)}`, lastmod, changefreq: 'weekly', priority: '0.6' });
     }
 
@@ -157,14 +201,14 @@ async function buildSitemap(baseUrl) {
       for (const c of topLevelComments) {
         const commentId = String(c?._id || '');
         if (!commentId) continue;
-        const commentLastmod = formatDate(c.updatedAt || c.createdAt || j.publishedAt || j.createdAt);
+        const commentLastmod = formatDate(c.createdAt || j.publishedAt || j.createdAt);
         addRoute({ loc: `/journal/view/${id}/comment/${commentId}`, lastmod: commentLastmod, changefreq: 'weekly', priority: '0.5' });
 
         const replies = await fetchAllCommentsForJournal(baseUrl, id, commentId);
         for (const r of replies) {
           const replyId = String(r?._id || '');
           if (!replyId) continue;
-          const replyLastmod = formatDate(r.updatedAt || r.createdAt || c.createdAt);
+          const replyLastmod = formatDate(r.createdAt || c.createdAt);
           addRoute({ loc: `/journal/view/${id}/comment/${replyId}`, lastmod: replyLastmod, changefreq: 'weekly', priority: '0.5' });
         }
       }
@@ -173,7 +217,7 @@ async function buildSitemap(baseUrl) {
     // Project detail pages (static list, kept for completeness)
     const projectIds = ['transparent-clock', 'quicklink', 'studybot', 'personal-portfolio', 'qlynk-node-server'];
     for (const id of projectIds) {
-      addRoute({ loc: `/projects/${id}`, lastmod: STATIC_PAGE_LASTMOD, changefreq: 'monthly', priority: '0.7' });
+      addRoute({ loc: `/projects/${id}`, lastmod: latestMtimeDate(PROJECT_DETAIL_SOURCES), changefreq: 'monthly', priority: '0.7' });
     }
   } catch { /* ignore dynamic failures */ }
 
