@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import logger from './logger.js';
 
 // In-memory sitemap cache — refreshed every 6 hours
 let sitemapCache = { xml: '', refreshedAt: 0 };
@@ -161,7 +162,7 @@ async function buildSitemap(baseUrl) {
   const addRoute = ({ loc, lastmod, changefreq, priority }) => {
     if (!loc || seenLocs.has(loc)) {
       if (process.env.NODE_ENV !== 'production') {
-        console.debug('Skipping sitemap route', { loc, reason: !loc ? 'empty' : 'duplicate' });
+        logger.debug('Skipping sitemap route', { loc, reason: !loc ? 'empty' : 'duplicate' });
       }
       return;
     }
@@ -253,7 +254,7 @@ export default async function handler(req, res) {
     res.setHeader('X-Sitemap-Cache', 'MISS');
     res.status(200).send(xml);
   } catch (error) {
-    console.error('Sitemap generation failed:', error);
+    logger.error('Sitemap generation failed:', error);
     res.status(500).send('Error generating sitemap');
   }
 }
