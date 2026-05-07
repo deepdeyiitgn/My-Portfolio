@@ -212,6 +212,26 @@ async function getActiveBlock(db, userId, journalId) {
   return null;
 }
 
+async function buildBlockMessage(db, block) {
+  if (!block) return 'You are blocked from commenting.';
+  if (block.blockType === 'temp') {
+    return `You are temporarily blocked from commenting${block.expiresAt ? ` until ${new Date(block.expiresAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST` : ''}.`;
+  }
+  if (block.blockType === 'post') {
+    let title = '';
+    try {
+      if (block.journalId && ObjectId.isValid(String(block.journalId))) {
+        const j = await db.collection('journals').findOne({ _id: new ObjectId(String(block.journalId)) }, { projection: { title: 1 } });
+        title = String(j?.title || '').trim();
+      }
+    } catch { /* ignore */ }
+    return title
+      ? `You are blocked from commenting on this post: "${title}".`
+      : 'You are blocked from commenting on this post.';
+  }
+  return 'You are blocked from commenting.';
+}
+
 async function getJournalByIdOrSlug(col, req) {
   const slugParam = getParam(req, 'slug');
   const idParam = getParam(req, 'id');
@@ -434,7 +454,7 @@ module.exports = async (req, res) => {
           _id: j._id,
           type: 'Journal',
           title: j.title,
-          url: `/journal/view/${j.slug}`, // fixed: was /journal/${j.slug}
+          url: `/journal/view/${j._id}`,
           category: j.categoryName,
           snippets: getSnippets(
             [j.title, j.summary, j.content].filter(Boolean).join(' | '),
@@ -589,7 +609,7 @@ module.exports = async (req, res) => {
         const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
         const limit = 12;
         const usersCol = db.collection('users');
-        const filter = { userId: { $ne: 'owner' } };
+        const filter = { userId: { $exists: true, $nin: ['', 'owner'] } };
         const total = await usersCol.countDocuments(filter);
         const users = await usersCol.find(filter).sort({ lastCommentAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
         return json(res, 200, { ok: true, users, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
@@ -615,7 +635,7 @@ module.exports = async (req, res) => {
         const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
         const limit = 10;
         const usersCol = db.collection('users');
-        const filter = { userId: { $ne: 'owner' } };
+        const filter = { userId: { $exists: true, $nin: ['', 'owner'] } };
         const total = await usersCol.countDocuments(filter);
         const users = await usersCol.find(filter).sort({ lastCommentAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
         return json(res, 200, { ok: true, users, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
@@ -646,11 +666,7 @@ module.exports = async (req, res) => {
         if (!userId) return json(res, 400, { ok: false, message: 'userId required' });
         const block = await getActiveBlock(db, userId, journalId);
         if (!block) return json(res, 200, { ok: true, blocked: false });
-        const msg = block.blockType === 'temp'
-          ? `You are temporarily blocked from commenting${block.expiresAt ? ` until ${new Date(block.expiresAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST` : ''}.`
-          : block.blockType === 'post'
-          ? 'You are blocked from commenting on this post.'
-          : 'You are blocked from commenting.';
+        const msg = await buildBlockMessage(db, block);
         return json(res, 200, { ok: true, blocked: true, message: msg, blockType: block.blockType, expiresAt: block.expiresAt || null });
       }
 
@@ -669,7 +685,7 @@ module.exports = async (req, res) => {
         let journalMap = {};
         if (journalIds.length) {
           const journals = await col.find({ _id: { $in: journalIds } }, { projection: { title: 1, slug: 1 } }).toArray();
-          journals.forEach(j => { journalMap[j._id.toString()] = { title: j.title, slug: j.slug }; });
+          journals.forEach(j => { journalMap[j._id.toString()] = { _id: j._id, title: j.title, slug: j.slug }; });
         }
         const enriched = comments.map(c => ({ ...c, journalInfo: journalMap[c.journalId?.toString()] || null }));
         return json(res, 200, { ok: true, comments: enriched, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
@@ -748,7 +764,7 @@ module.exports = async (req, res) => {
           let journalMap = {};
           if (journalIds.length) {
             const journals = await col.find({ _id: { $in: journalIds }, published: true }, { projection: { title: 1, slug: 1 } }).toArray();
-            journals.forEach(j => { journalMap[j._id.toString()] = { title: j.title, slug: j.slug }; });
+            journals.forEach(j => { journalMap[j._id.toString()] = { _id: j._id, title: j.title, slug: j.slug }; });
           }
           const enrichedComments = ownerComments.map(c => ({ ...c, originalText: undefined, journalInfo: journalMap[c.journalId?.toString()] || null }));
           const firstComment = total > 0 ? await userCommentsCol.findOne({ userId: 'owner', isDeleted: { $ne: true } }, { sort: { createdAt: 1 } }) : null;
@@ -780,7 +796,7 @@ module.exports = async (req, res) => {
         let journalMap = {};
         if (journalIds.length) {
           const journals = await col.find({ _id: { $in: journalIds }, published: true }, { projection: { title: 1, slug: 1 } }).toArray();
-          journals.forEach(j => { journalMap[j._id.toString()] = { title: j.title, slug: j.slug }; });
+          journals.forEach(j => { journalMap[j._id.toString()] = { _id: j._id, title: j.title, slug: j.slug }; });
         }
         const enrichedComments = comments.map(c => ({ ...c, originalText: undefined, journalInfo: journalMap[c.journalId?.toString()] || null }));
         const lastComment = comments.length > 0 ? comments[comments.length - 1] : null;
@@ -1030,11 +1046,7 @@ module.exports = async (req, res) => {
         if (!ownerPosting) {
           const block = await getActiveBlock(db, userInfo.userId, journalId);
           if (block) {
-            const msg = block.blockType === 'temp'
-              ? `You are temporarily blocked from commenting${block.expiresAt ? ` until ${new Date(block.expiresAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST` : ''}.`
-              : block.blockType === 'post'
-              ? 'You are blocked from commenting on this post.'
-              : 'You are blocked from commenting.';
+            const msg = await buildBlockMessage(db, block);
             return json(res, 403, { ok: false, message: msg });
           }
         }
@@ -1178,6 +1190,7 @@ module.exports = async (req, res) => {
         const reason = String(body.reason || '').trim();
 
         if (!userId) return json(res, 400, { ok: false, message: 'userId required' });
+        if (userId === 'owner') return json(res, 400, { ok: false, message: 'Owner cannot be blocked' });
         if (!['all', 'post', 'temp'].includes(blockType)) return json(res, 400, { ok: false, message: 'Invalid blockType' });
         if (blockType === 'post' && !journalId) return json(res, 400, { ok: false, message: 'journalId required for post block' });
 
@@ -1192,6 +1205,11 @@ module.exports = async (req, res) => {
         }
 
         const blocksCol = db.collection('blocked_users');
+        if (blockType === 'post' && journalId) {
+          await blocksCol.deleteMany({ userId, blockType: 'post', journalId });
+        } else {
+          await blocksCol.deleteMany({ userId, blockType: { $in: ['all', 'temp'] } });
+        }
         const doc = { userId, userName, userPic, blockType, journalId, reason, expiresAt, createdAt: new Date(), createdAtIST: nowIST() };
         const result = await blocksCol.insertOne(doc);
         return json(res, 201, { ok: true, block: { ...doc, _id: result.insertedId } });

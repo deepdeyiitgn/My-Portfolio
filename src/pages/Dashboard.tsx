@@ -88,7 +88,7 @@ interface CommentDoc {
   isDeleted: boolean;
   createdAt: string;
   createdAtIST: string;
-  journalInfo?: { title: string; slug: string } | null;
+  journalInfo?: { _id?: string; title: string; slug: string } | null;
 }
 
 interface JournalCommentStat {
@@ -104,6 +104,7 @@ interface JournalCommentStat {
 
 interface UserDoc {
   _id: string;
+  userId: string;
   userName: string;
   userPic: string;
   totalComments: number;
@@ -1421,7 +1422,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       const r = await fetch(`/api/journal?action=users&page=${p}`);
       const d = await r.json();
       if (d.ok) {
-        setUsers(d.users);
+        setUsers((d.users || []).filter((u: UserDoc) => Boolean(u?.userId) && u.userId !== 'owner'));
         setUsersPage(d.pagination.page);
         setUsersTotal(d.pagination.total);
         setUsersTotalPages(d.pagination.totalPages);
@@ -3031,7 +3032,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                             <p className="text-white font-bold text-sm truncate">{selectedCommentPost.title}</p>
                             <p className="text-zinc-500 text-xs">{selectedCommentPost.count} comments · {selectedCommentPost.abuseCount > 0 && <span className="text-red-400 font-bold">{selectedCommentPost.abuseCount} flagged</span>}</p>
                           </div>
-                          <Link to={`/journal/view/${selectedCommentPost.slug}`} className="text-amber-500 text-xs hover:underline shrink-0">View Post ↗</Link>
+                          <Link to={`/journal/view/${selectedCommentPost._id}`} className="text-amber-500 text-xs hover:underline shrink-0">View Post ↗</Link>
                         </div>
 
                         {postCommentsLoading ? (
@@ -3264,7 +3265,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
             /* ── Selected user detail + comments ── */
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <button onClick={() => { setSelectedUser(null); setUserComments([]); }} className="p-2 rounded-xl hover:bg-zinc-800 text-zinc-400 transition-colors"><ChevronLeft size={18} /></button>
+                <button onClick={() => { setSelectedUser(null); setUserComments([]); setUserBlocks([]); }} className="p-2 rounded-xl hover:bg-zinc-800 text-zinc-400 transition-colors"><ChevronLeft size={18} /></button>
                 <h2 className="text-white font-bold text-lg">User: {selectedUser.userName}</h2>
               </div>
               {/* User info card */}
@@ -3316,6 +3317,33 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                   <button onClick={() => setBlockModalUser({ userId: selectedUser.userId, userName: selectedUser.userName, userPic: selectedUser.userPic })} className={`${btnCls} bg-zinc-800 border border-zinc-700 text-orange-400 hover:bg-zinc-700 flex items-center gap-1 text-xs`}><ShieldBan size={12} /> Block</button>
                 </div>
               </div>
+              <div className="space-y-2">
+                <h3 className="text-zinc-400 text-sm font-bold flex items-center gap-2"><ShieldBan size={14} /> Active Blocks</h3>
+                {userBlocksLoading ? (
+                  <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-amber-500" /></div>
+                ) : userBlocks.length === 0 ? (
+                  <p className="text-zinc-600 text-xs">No active blocks.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {userBlocks.map((b) => (
+                      <div key={b._id} className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-3 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-zinc-300 text-xs font-bold">
+                            {b.blockType === 'all' ? 'All posts' : b.blockType === 'post' ? 'This post only' : 'Temporary'}
+                          </p>
+                          <p className="text-zinc-600 text-[10px] font-mono">
+                            {b.blockType === 'temp' && b.expiresAt
+                              ? `Until ${new Date(b.expiresAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}`
+                              : b.createdAtIST}
+                          </p>
+                          {b.reason && <p className="text-zinc-500 text-[10px] mt-0.5 truncate">Reason: {b.reason}</p>}
+                        </div>
+                        <button onClick={() => handleUnblockUser(b._id)} className={`${btnCls} bg-zinc-800 border border-zinc-700 text-amber-400 hover:bg-zinc-700 text-xs px-3 py-1.5`}>Unblock</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               {/* User comments */}
               <div className="space-y-3">
                 <h3 className="text-zinc-400 text-sm font-bold flex items-center gap-2"><MessageSquare size={14} /> All Comments ({userCommentsTotal})</h3>
@@ -3329,7 +3357,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                       {userComments.map(c => (
                         <div key={c._id} className={`border rounded-xl p-4 space-y-2 ${c.hasAbuse ? 'border-red-900/40 bg-red-950/10' : 'border-zinc-800 bg-zinc-900/40'}`}>
                           {c.journalInfo && (
-                            <Link to={`/journal/view/${c.journalInfo.slug}`} className="text-amber-500/70 text-[10px] font-mono hover:text-amber-400 transition-colors truncate block">
+                            <Link to={`/journal/view/${c.journalInfo._id || c.journalInfo.slug}`} className="text-amber-500/70 text-[10px] font-mono hover:text-amber-400 transition-colors truncate block">
                               ↗ {c.journalInfo.title}
                             </Link>
                           )}
@@ -3383,7 +3411,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition-all cursor-pointer"
-                        onClick={() => { setSelectedUser(u); fetchUserComments(u.userId, 1); }}
+                        onClick={() => { setSelectedUser(u); fetchUserComments(u.userId, 1); fetchUserBlocks(u.userId); }}
                       >
                         <div className="flex items-center gap-4">
                           {u.userPic ? (

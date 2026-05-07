@@ -36,7 +36,7 @@ interface Comment {
   parentId: string | null;
   createdAt: string;
   editedAt: string | null;
-  journalInfo: { title: string; slug: string } | null;
+  journalInfo: { _id?: string; title: string; slug: string } | null;
 }
 
 interface Pagination {
@@ -610,7 +610,7 @@ export default function UserProfile() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         {c.journalInfo && (
-                          <Link to={`/journal/view/${c.journalInfo.slug}`} className="text-amber-500 text-xs font-bold hover:text-amber-400 transition-colors flex items-center gap-1 mb-1.5 truncate">
+                          <Link to={`/journal/view/${c.journalInfo._id || c.journalInfo.slug}`} className="text-amber-500 text-xs font-bold hover:text-amber-400 transition-colors flex items-center gap-1 mb-1.5 truncate">
                             <ExternalLink size={10} /> {c.journalInfo.title}
                           </Link>
                         )}

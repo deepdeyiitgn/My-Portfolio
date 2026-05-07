@@ -71,7 +71,9 @@ function CommentRow({ comment }: { comment: Comment }) {
   return (
     <div className={`border rounded-2xl p-4 space-y-3 ${comment.isPinned ? 'border-amber-500/30 bg-amber-500/5' : 'border-zinc-800 bg-zinc-900/40'}`}>
       <div className="flex items-start gap-3">
-        {comment.userPic ? (
+        {isOwner ? (
+          <img src="/assets/images/myphoto.png" alt="Deep Dey" className="w-8 h-8 rounded-full border-2 border-amber-500/60 object-cover shrink-0 ring-2 ring-amber-500/20" />
+        ) : comment.userPic ? (
           <img src={comment.userPic} alt={comment.userName} className="w-8 h-8 rounded-full border border-zinc-700 object-cover shrink-0" />
         ) : (
           <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isOwner ? 'bg-amber-500/20 border border-amber-500/30' : 'bg-zinc-800 border border-zinc-700'}`}>
@@ -80,13 +82,9 @@ function CommentRow({ comment }: { comment: Comment }) {
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            {isOwner ? (
-              <span className="text-amber-500 font-bold text-sm">{comment.userName}</span>
-            ) : (
-              <Link to={`/user/${encodeURIComponent(comment.userId)}`} className="text-white font-bold text-sm hover:text-amber-400 transition-colors">
-                {comment.userName}
-              </Link>
-            )}
+            <Link to={isOwner ? '/user/owner' : `/user/${encodeURIComponent(comment.userId)}`} className={isOwner ? 'text-amber-500 font-bold text-sm hover:text-amber-400 transition-colors' : 'text-white font-bold text-sm hover:text-amber-400 transition-colors'}>
+              {comment.userName}
+            </Link>
             {comment.isPinned && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 font-black uppercase tracking-widest">Pinned</span>}
             {isOwner && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 font-black uppercase tracking-widest">Owner</span>}
             <span className="text-zinc-600 text-[10px] font-mono">{timeAgo(comment.createdAt)}</span>
@@ -115,12 +113,16 @@ function CommentRow({ comment }: { comment: Comment }) {
             <Fragment key={r._id}>
               <div className="border border-zinc-800/60 rounded-xl p-3 bg-zinc-950/40 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  {r.userPic ? (
+                  {r.userId === 'owner' ? (
+                    <img src="/assets/images/myphoto.png" alt="Deep Dey" className="w-6 h-6 rounded-full border border-amber-500/60 object-cover" />
+                  ) : r.userPic ? (
                     <img src={r.userPic} alt={r.userName} className="w-6 h-6 rounded-full border border-zinc-700 object-cover" />
                   ) : (
                     <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center"><User size={10} className="text-zinc-500" /></div>
                   )}
-                  <span className="text-zinc-300 font-bold text-xs">{r.userName}</span>
+                  <Link to={r.userId === 'owner' ? '/user/owner' : `/user/${encodeURIComponent(r.userId)}`} className={r.userId === 'owner' ? 'text-amber-500 font-bold text-xs hover:text-amber-400 transition-colors' : 'text-zinc-300 font-bold text-xs hover:text-amber-400 transition-colors'}>
+                    {r.userName}
+                  </Link>
                   <span className="text-zinc-600 text-[10px] font-mono">{timeAgo(r.createdAt)}</span>
                 </div>
                 <p className="text-zinc-400 text-xs whitespace-pre-wrap break-words">{r.text}</p>
@@ -212,7 +214,7 @@ export default function JournalAllComments() {
       <SEO
         title={`Comments on "${journal.title}" | Deep Dey Journal`}
         description={`${total} comment${total !== 1 ? 's' : ''} on "${journal.title}".${journal.summary ? ' ' + journal.summary.slice(0, 100) : ''}`}
-        route={`/journal/view/${id}/comments`}
+        route={`/journal/view/${journal._id}/comments`}
       />
       <div className="max-w-2xl mx-auto space-y-6">
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-zinc-500 hover:text-zinc-300 transition-colors text-sm">
@@ -294,7 +296,7 @@ export default function JournalAllComments() {
         {/* CTA */}
         <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5 text-center space-y-3">
           <p className="text-zinc-400 text-sm">Join the conversation</p>
-          <Link to={`/journal/view/${journal.slug}`} className="inline-flex items-center gap-2 px-6 py-2.5 bg-amber-500 text-black text-sm font-bold rounded-xl hover:bg-amber-400 transition-colors">
+          <Link to={`/journal/view/${journal._id}`} className="inline-flex items-center gap-2 px-6 py-2.5 bg-amber-500 text-black text-sm font-bold rounded-xl hover:bg-amber-400 transition-colors">
             <MessageSquare size={14} /> Comment on this post
           </Link>
         </div>
