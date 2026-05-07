@@ -53,7 +53,14 @@ interface ServerHealth {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const ENDPOINTS: EndpointDef[] = [
+  { id: 'auth-session',      path: '/api/auth',                            method: 'GET',  label: 'Auth Session',       description: 'Dashboard session validation',            heavy: false },
   { id: 'journal-list',     path: '/api/journal?page=1&limit=1',       method: 'GET',  label: 'Journal List',        description: 'Paginated journal entries',              heavy: false },
+  { id: 'journal-top',      path: '/api/journal?action=top-journals&limit=1', method: 'GET', label: 'Top Journals',     description: 'Homepage journal spotlight query',        heavy: false },
+  { id: 'journal-search',   path: '/api/journal?action=search&q=',      method: 'GET',  label: 'Search Engine',       description: 'Global search API (empty query probe)',   heavy: false },
+  { id: 'journal-count',    path: '/api/journal?action=comment-count&journalIds=sample', method: 'GET', label: 'Comment Count', description: 'Bulk journal comment counts',          heavy: false },
+  { id: 'journal-users',    path: '/api/journal?action=all-users&page=1', method: 'GET', label: 'All Users',          description: 'Public contributors listing API',         heavy: false },
+  { id: 'journal-profile',  path: '/api/journal?action=user-profile&userId=owner&page=1', method: 'GET', label: 'User Profile', description: 'Public user profile data API',       heavy: false },
+  { id: 'journal-activity', path: '/api/journal?action=user-activity&userId=owner', method: 'GET', label: 'User Activity', description: 'Contribution heatmap activity API',   heavy: false },
   { id: 'journal-status',   path: '/api/journal?action=status',        method: 'GET',  label: 'Live Status',         description: 'Current personal status widget',         heavy: false },
   { id: 'journal-health',   path: '/api/journal?action=health',        method: 'GET',  label: 'Health Check',        description: 'Server & database health probe',         heavy: false },
   { id: 'categories',       path: '/api/categories',                   method: 'GET',  label: 'Categories',          description: 'Journal category list',                  heavy: false },
@@ -63,7 +70,9 @@ const ENDPOINTS: EndpointDef[] = [
   { id: 'faqs',             path: '/api/faqs',                         method: 'GET',  label: 'FAQs',                description: 'Frequently asked questions',             heavy: false },
   { id: 'live',             path: '/api/live',                         method: 'GET',  label: 'YouTube Live',        description: 'Live stream & recent videos feed',       heavy: true  },
   { id: 'contact',          path: '/api/contact',                      method: 'GET',  label: 'Contact Engine',      description: 'Contact form handler',                   heavy: false },
+  { id: 'contact-submit',   path: '/api/contact',                      method: 'POST', label: 'Contact Submit',      description: 'Contact intake submission endpoint',      heavy: false },
   { id: 'sitemap',          path: '/api/sitemap',                      method: 'GET',  label: 'Sitemap',             description: 'XML sitemap generator',                  heavy: true  },
+  { id: 'upload-image',     path: '/api/upload-image',                 method: 'POST', label: 'Upload Proxy',        description: 'Dashboard media upload proxy route',      heavy: true  },
 ];
 
 const LIGHT_INTERVAL_MS = 60_000;   // 60 s for light endpoints
