@@ -21,7 +21,7 @@ function resolveStableFallbackDate() {
     }
   }
   if (latest > 0) return new Date(latest).toISOString().split('T')[0];
-  return '2025-01-01';
+  return new Date(0).toISOString().split('T')[0];
 }
 
 // Fallback if source file date can't be resolved
