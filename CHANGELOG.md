@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Sitemap Slug-First Dynamic URLs:** `/api/sitemap` now emits journal routes using journal slugs (fallback to ID), including slug-based `/journal/view/:slug`, `/journal/view/:slug/comments`, and `/journal/view/:slug/comment/:commentId` entries while preserving `/journal/comment/:commentId` permalinks and 6-hour in-memory cache behavior.
+- **Community Search Expansion:** Global search API (`GET /api/journal?action=search`) now indexes community users and comment permalinks in addition to journal posts, enabling `/search` to return user profile and comment results.
 - **Frontend-rendered Identity Badges:** Replaced public image-based verification/crown badge rendering (`/verified.svg`, `/crown.svg`) with reusable React vector icons (`IdentityBadges.tsx`). Applied across comment UI, user pages, and dashboard user moderation views.
 - **Expanded `/status` Endpoint Matrix:** Status page API endpoint panel now includes the complete website-critical route set and method coverage (auth, journal public actions, users/profile/activity, categories/projects/timeline/links/faqs/live, contact GET+POST, sitemap, upload proxy metadata).
 - **Double API Probe on Status Page:** Each endpoint on `/status` is now called **twice** per check cycle — a warm-up call that absorbs Vercel cold-start overhead, followed by the real latency measurement. This ensures the displayed latency reflects an active (warm) serverless instance rather than a cold-boot spike.
@@ -58,6 +60,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **UserProfile Owner Page — Glowing King Style (`UserProfile.tsx`):** `/user/owner` profile card now features the same gradient-border glow frame, glowing photo halo, amber-gold name text, and 👑 Owner badge — visually distinct from regular community profiles.
 
 ### Changed
+- **Comments API Slug Support:** `GET /api/journal?action=comments` and `POST /api/journal?action=comment` now accept journal ID or journal slug, fixing invalid-id errors when pages are opened with slug/title-based journal URLs.
+- **Status Endpoint Layout Fix:** `/status` endpoint cards now wrap long endpoint paths safely (`break-all`, wrapped metrics, overflow protection) to prevent small-screen width/zoom-out issues.
 - Dashboard Settings tab now shows updated serverless function count text (`12 files`, including 11 route handlers + shared logger helper).
 - Comment creation and edit now use `censorTextWithFlag()` (returns `{ text, hasAbuse }`) instead of `censorText()`.
 - Comment creation adds a non-critical upsert to the `users` collection after every successful comment insert.

@@ -271,6 +271,15 @@ async function getJournalByIdOrSlug(col, req) {
   return col.findOne(query);
 }
 
+async function resolveJournalObjectId(col, journalIdOrSlug, onlyPublished = true) {
+  const token = String(journalIdOrSlug || '').trim();
+  if (!token) return null;
+  const query = ObjectId.isValid(token) ? { _id: new ObjectId(token) } : { slug: token };
+  if (onlyPublished) query.published = true;
+  const doc = await col.findOne(query, { projection: { _id: 1 } });
+  return doc?._id || null;
+}
+
 module.exports = async (req, res) => {
   try {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -474,11 +483,11 @@ module.exports = async (req, res) => {
             : [plainText.substring(0, 120) + (plainText.length > 120 ? '...' : '')];
         };
 
-        const results = matchedJournals.map(j => ({
+        const journalResults = matchedJournals.map(j => ({
           _id: j._id,
           type: 'Journal',
           title: j.title,
-          url: `/journal/view/${j._id}`,
+          url: `/journal/view/${j.slug || j._id}`,
           category: j.categoryName,
           snippets: getSnippets(
             [j.title, j.summary, j.content].filter(Boolean).join(' | '),
@@ -486,6 +495,61 @@ module.exports = async (req, res) => {
           ),
           createdAtIST: j.createdAtIST
         }));
+
+        // Community users
+        const usersCol = db.collection('users');
+        const userQuery = keywords.length
+          ? { $and: keywords.map((kw) => ({ $or: [{ userName: new RegExp(escapeRegex(kw), 'i') }, { userId: new RegExp(escapeRegex(kw), 'i') }, { profileTitle: new RegExp(escapeRegex(kw), 'i') }, { bio: new RegExp(escapeRegex(kw), 'i') }, { description: new RegExp(escapeRegex(kw), 'i') }] })) }
+          : {};
+        const matchedUsers = await usersCol.find(userQuery).sort({ lastCommentAt: -1, firstCommentAt: -1 }).limit(8).toArray();
+        const userResults = matchedUsers
+          .filter((u) => String(u?.userId || '').trim())
+          .map((u) => ({
+            _id: `user-${u.userId}`,
+            type: 'User',
+            title: u.userName || u.userId,
+            url: `/user/${encodeURIComponent(u.userId)}`,
+            category: 'Community',
+            snippets: getSnippets(
+              [u.userName, u.userId, u.profileTitle, u.description, u.bio]
+                .filter(Boolean)
+                .join(' | ') || 'Community user profile',
+              keywords
+            ),
+            createdAtIST: u.lastCommentAtIST || u.firstCommentAtIST || undefined,
+          }));
+
+        // Comment permalinks
+        const commentsCol = db.collection('comments');
+        const commentQuery = keywords.length
+          ? {
+              isDeleted: { $ne: true },
+              $and: keywords.map((kw) => ({ text: new RegExp(escapeRegex(kw), 'i') })),
+            }
+          : { isDeleted: { $ne: true } };
+        const matchedComments = await commentsCol.find(commentQuery).sort({ createdAt: -1 }).limit(12).toArray();
+        const relatedJournalIds = [...new Set(matchedComments.map((c) => String(c?.journalId || '')).filter((v) => ObjectId.isValid(v)))].map((v) => new ObjectId(v));
+        const relatedJournals = relatedJournalIds.length
+          ? await journalsCol.find({ _id: { $in: relatedJournalIds }, published: true }, { projection: { _id: 1, slug: 1, title: 1 } }).toArray()
+          : [];
+        const journalMap = {};
+        relatedJournals.forEach((j) => { journalMap[String(j._id)] = j; });
+        const commentResults = matchedComments
+          .filter((c) => c?._id && c?.journalId && journalMap[String(c.journalId)])
+          .map((c) => {
+            const j = journalMap[String(c.journalId)];
+            return {
+              _id: `comment-${c._id}`,
+              type: 'Comment',
+              title: `Comment by ${c.userName || 'User'} on ${j.title || 'Journal'}`,
+              url: `/journal/view/${j.slug || j._id}/comment/${c._id}`,
+              category: 'Community',
+              snippets: getSnippets(String(c.text || ''), keywords),
+              createdAtIST: c.createdAtIST || undefined,
+            };
+          });
+
+        const results = [...journalResults, ...userResults, ...commentResults];
 
         // --- Easter Egg Logic (Trigger Custom Status Card) ---
         const easterEggTriggers = ['status', 'deep', 'doing', 'free', 'author', 'deep dey', 'admin'];
@@ -507,8 +571,10 @@ module.exports = async (req, res) => {
 
       // --- Comments: Get paginated comments ---
       if (action === 'comments') {
-        const journalId = getParam(req, 'journalId');
-        if (!journalId || !ObjectId.isValid(journalId)) return json(res, 400, { ok: false, message: 'journalId required' });
+        const journalRef = getParam(req, 'journalId');
+        if (!journalRef) return json(res, 400, { ok: false, message: 'journalId required' });
+        const resolvedJournalId = await resolveJournalObjectId(col, journalRef, true);
+        if (!resolvedJournalId) return json(res, 400, { ok: false, message: 'journalId invalid' });
 
         const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
         const limit = 10;
@@ -522,7 +588,7 @@ module.exports = async (req, res) => {
         let pinnedComments = [];
         if (!isReply) {
           pinnedComments = await commentsCol.find({
-            journalId: new ObjectId(journalId),
+            journalId: resolvedJournalId,
             parentId: null,
             isPinned: true,
             isDeleted: { $ne: true },
@@ -532,7 +598,7 @@ module.exports = async (req, res) => {
         // Build filter for regular (non-pinned) comments
         const pinnedIds = pinnedComments.map(p => p._id);
         const filter = {
-          journalId: new ObjectId(journalId),
+          journalId: resolvedJournalId,
           parentId: isReply ? new ObjectId(parentIdParam) : null,
           isDeleted: { $ne: true },
         };
@@ -546,7 +612,7 @@ module.exports = async (req, res) => {
         else sortObj = { likes: -1, createdAt: -1 }; // top (default)
 
         const total = await commentsCol.countDocuments({
-          journalId: new ObjectId(journalId),
+          journalId: resolvedJournalId,
           parentId: isReply ? new ObjectId(parentIdParam) : null,
           isDeleted: { $ne: true },
         });
@@ -588,10 +654,15 @@ module.exports = async (req, res) => {
       if (action === 'comment-count') {
         const journalIdsParam = getParam(req, 'journalIds');
         if (!journalIdsParam) return json(res, 400, { ok: false, message: 'journalIds required' });
-        const ids = journalIdsParam.split(',')
-          .map(s => s.trim())
-          .filter(s => ObjectId.isValid(s))
-          .map(s => new ObjectId(s));
+        const refs = journalIdsParam.split(',').map(s => s.trim()).filter(Boolean);
+        const idsFromObjectIds = refs.filter(s => ObjectId.isValid(s)).map(s => new ObjectId(s));
+        const slugRefs = refs.filter(s => !ObjectId.isValid(s));
+        let idsFromSlugs = [];
+        if (slugRefs.length > 0) {
+          const slugDocs = await col.find({ slug: { $in: slugRefs }, published: true }, { projection: { _id: 1, slug: 1 } }).toArray();
+          idsFromSlugs = slugDocs.map(d => d._id);
+        }
+        const ids = [...idsFromObjectIds, ...idsFromSlugs];
         if (!ids.length) return json(res, 200, { ok: true, counts: {} });
         const commentsCol = db.collection('comments');
         const agg = await commentsCol.aggregate([
@@ -600,6 +671,10 @@ module.exports = async (req, res) => {
         ]).toArray();
         const counts = {};
         agg.forEach(a => { counts[a._id.toString()] = a.count; });
+        if (slugRefs.length > 0) {
+          const slugDocs = await col.find({ slug: { $in: slugRefs }, published: true }, { projection: { _id: 1, slug: 1 } }).toArray();
+          slugDocs.forEach((d) => { counts[d.slug] = counts[d._id.toString()] || 0; });
+        }
         return json(res, 200, { ok: true, counts });
       }
 
@@ -1072,8 +1147,10 @@ module.exports = async (req, res) => {
           isVerifiedUser = Boolean(existingUser?.verified);
         }
 
-        const journalId = String(body.journalId || '').trim();
-        if (!journalId || !ObjectId.isValid(journalId)) return json(res, 400, { ok: false, message: 'journalId required' });
+        const journalRef = String(body.journalId || '').trim();
+        if (!journalRef) return json(res, 400, { ok: false, message: 'journalId required' });
+        const resolvedJournalId = await resolveJournalObjectId(col, journalRef, true);
+        if (!resolvedJournalId) return json(res, 404, { ok: false, message: 'Journal not found' });
 
         const text = String(body.text || '').trim();
         if (!text) return json(res, 400, { ok: false, message: 'Comment text is required' });
@@ -1082,12 +1159,12 @@ module.exports = async (req, res) => {
         const parentIdParam = body.parentId ? String(body.parentId) : null;
         const parentId = parentIdParam && ObjectId.isValid(parentIdParam) ? new ObjectId(parentIdParam) : null;
 
-        const journalExists = await col.findOne({ _id: new ObjectId(journalId), published: true });
+        const journalExists = await col.findOne({ _id: resolvedJournalId, published: true });
         if (!journalExists) return json(res, 404, { ok: false, message: 'Journal not found' });
 
         // Check if user is blocked
         if (!ownerPosting) {
-          const block = await getActiveBlock(db, userInfo.userId, journalId);
+          const block = await getActiveBlock(db, userInfo.userId, resolvedJournalId.toString());
           if (block) {
             const msg = await buildBlockMessage(db, block);
             return json(res, 403, { ok: false, message: msg });
@@ -1097,7 +1174,7 @@ module.exports = async (req, res) => {
         const { text: censoredText, hasAbuse } = await censorTextWithFlag(db, text);
         const now = new Date();
         const commentDoc = {
-          journalId: new ObjectId(journalId),
+          journalId: resolvedJournalId,
           userId: userInfo.userId,
           userName: userInfo.name,
           userPic: userInfo.picture,
@@ -1130,7 +1207,7 @@ module.exports = async (req, res) => {
                   userName: userInfo.name,
                   userPic: userInfo.picture,
                   lastCommentAt: now,
-                  lastJournalId: new ObjectId(journalId),
+                  lastJournalId: resolvedJournalId,
                   lastActivityIp: clientIp,
                   lastActivityCountry: clientCountry,
                 },

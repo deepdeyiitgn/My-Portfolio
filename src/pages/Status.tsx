@@ -412,7 +412,7 @@ export default function Status() {
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.03 }}
-                  className="bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 transition-colors"
+                  className="bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 transition-colors overflow-hidden"
                 >
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
                     <MethodBadge method={ep.method} />
@@ -423,11 +423,11 @@ export default function Status() {
                           <span className="text-[9px] font-mono text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded">5min refresh</span>
                         )}
                       </div>
-                      <p className="text-zinc-600 text-xs font-mono truncate">{ep.path}</p>
+                      <p className="text-zinc-600 text-xs font-mono break-all leading-relaxed">{ep.path}</p>
                       <p className="text-zinc-500 text-[11px] mt-0.5">{ep.description}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 sm:gap-6 sm:shrink-0">
+                  <div className="flex flex-wrap sm:flex-nowrap items-center gap-4 sm:gap-6 sm:shrink-0">
                     <div className="text-center">
                       <p className="text-zinc-600 text-[9px] font-mono uppercase tracking-widest mb-0.5">Latency</p>
                       <LatencyBar ms={r.latencyMs} />

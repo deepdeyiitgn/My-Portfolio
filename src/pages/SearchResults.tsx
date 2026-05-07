@@ -13,7 +13,7 @@ import { renderIcon } from '../utils/iconMap';
 // ── Types ────────────────────────────────────────────────────────────────────
 interface SearchResult {
   _id: string;
-  type: 'Journal' | 'Project' | 'FAQ' | 'System' | 'Social';
+  type: 'Journal' | 'Project' | 'FAQ' | 'System' | 'Social' | 'User' | 'Comment';
   title: string;
   url: string;
   category?: string;
@@ -409,7 +409,7 @@ export default function SearchResults() {
             </div>
 
             <p className="text-zinc-600 text-xs font-mono uppercase tracking-[0.25em]">
-              Journals · Projects · FAQs · Social Links · Status
+              Journals · Comments · Users · Projects · FAQs · Social · Status
             </p>
           </motion.div>
         )}

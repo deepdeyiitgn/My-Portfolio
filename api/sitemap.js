@@ -21,7 +21,7 @@ function resolveStableFallbackDate() {
     }
   }
   if (latest > 0) return new Date(latest).toISOString().split('T')[0];
-  return new Date(0).toISOString().split('T')[0];
+  return new Date().toISOString().split('T')[0];
 }
 
 // Fallback if source file date can't be resolved
@@ -222,12 +222,13 @@ async function buildSitemap(baseUrl) {
       addRoute({ loc: `/user/${encodeURIComponent(u.userId)}`, lastmod, changefreq: 'weekly', priority: '0.6' });
     }
 
-    // Journal pages + comments/replies permalinks (ID-based only)
+    // Journal pages + comments/replies permalinks (slug-first)
     for (const j of journals) {
       const id = String(j?._id || '');
       if (!id) continue;
+      const journalRouteKey = encodeURIComponent(String(j?.slug || id));
       const journalLastmod = formatDate(j.updatedAt || j.publishedAt || j.createdAt);
-      addRoute({ loc: `/journal/view/${id}`, lastmod: journalLastmod, changefreq: 'weekly', priority: '0.7' });
+      addRoute({ loc: `/journal/view/${journalRouteKey}`, lastmod: journalLastmod, changefreq: 'weekly', priority: '0.7' });
 
       let commentsPageLastmodTs = toTimestamp(j.updatedAt || j.publishedAt || j.createdAt);
       const topLevelComments = await fetchAllCommentsForJournal(baseUrl, id);
@@ -237,7 +238,7 @@ async function buildSitemap(baseUrl) {
         const commentLastmodTs = toTimestamp(c.editedAt || c.createdAt || j.updatedAt || j.publishedAt || j.createdAt);
         if (commentLastmodTs > commentsPageLastmodTs) commentsPageLastmodTs = commentLastmodTs;
         const commentLastmod = formatDate(c.editedAt || c.createdAt || j.updatedAt || j.publishedAt || j.createdAt);
-        addRoute({ loc: `/journal/view/${id}/comment/${commentId}`, lastmod: commentLastmod, changefreq: 'weekly', priority: '0.5' });
+        addRoute({ loc: `/journal/view/${journalRouteKey}/comment/${commentId}`, lastmod: commentLastmod, changefreq: 'weekly', priority: '0.5' });
         addRoute({ loc: `/journal/comment/${commentId}`, lastmod: commentLastmod, changefreq: 'weekly', priority: '0.5' });
 
         const replies = await fetchAllCommentsForJournal(baseUrl, id, commentId);
@@ -247,12 +248,12 @@ async function buildSitemap(baseUrl) {
           const replyLastmodTs = toTimestamp(r.editedAt || r.createdAt || c.editedAt || c.createdAt || j.updatedAt || j.publishedAt || j.createdAt);
           if (replyLastmodTs > commentsPageLastmodTs) commentsPageLastmodTs = replyLastmodTs;
           const replyLastmod = formatDate(r.editedAt || r.createdAt || c.editedAt || c.createdAt || j.updatedAt || j.publishedAt || j.createdAt);
-          addRoute({ loc: `/journal/view/${id}/comment/${replyId}`, lastmod: replyLastmod, changefreq: 'weekly', priority: '0.5' });
+          addRoute({ loc: `/journal/view/${journalRouteKey}/comment/${replyId}`, lastmod: replyLastmod, changefreq: 'weekly', priority: '0.5' });
           addRoute({ loc: `/journal/comment/${replyId}`, lastmod: replyLastmod, changefreq: 'weekly', priority: '0.5' });
         }
       }
       addRoute({
-        loc: `/journal/view/${id}/comments`,
+        loc: `/journal/view/${journalRouteKey}/comments`,
         lastmod: formatDate(commentsPageLastmodTs ? new Date(commentsPageLastmodTs) : (j.updatedAt || j.publishedAt || j.createdAt)),
         changefreq: 'weekly',
         priority: '0.6',

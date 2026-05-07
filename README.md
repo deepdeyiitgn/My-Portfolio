@@ -46,7 +46,7 @@ All while the author simultaneously prepares for **JEE Advanced 2027** targeting
 ## 🎯 Feature Highlights
 
 ### 🔭 Global Command Palette Search
-Full-stack search engine at `/search` with typewriter-animated suggestions, trending query tracking, localStorage history, and a TF-IDF ML fallback. Searches journals, projects, FAQs, social links, and live status simultaneously. Fully indexed in the sitemap.
+Full-stack search engine at `/search` with typewriter-animated suggestions, trending query tracking, localStorage history, and a TF-IDF ML fallback. Searches journals, projects, FAQs, social links, live status, plus community users and comment permalinks. Fully indexed in the sitemap.
 
 ### 📡 Real-Time System Status Monitor
 Live status page at `/status` probes all website-critical API routes every 60 s (heavy endpoints every 5 min) and displays latency, HTTP status, and connection quality. Monitored endpoints include auth, journal listing/search/top feeds, user profile/activity/community APIs, categories, projects, timeline, links, FAQs, YouTube live feed, contact (GET + POST), sitemap, and upload proxy route metadata. Includes a **Server Health** panel with a highlighted **System Specifications** card showing RAM, storage, CPU model/cores/speed, OS type and kernel, architecture, runtime version, server region, and hostname. A rate-limited **"Refresh Now"** button (global 20/min · per-IP 2/min) triggers a full health snapshot stored in MongoDB for historical tracking.
@@ -88,7 +88,7 @@ Readers can leave comments on any journal post using Google Sign-In — no passw
 Every reader who signs in gets a public profile at `/user/:userId`. Profiles show a customizable title, bio, social links (GitHub, Twitter, LinkedIn, Instagram, YouTube, Website, Custom with Google Favicon auto-detection), a 52-week contribution heatmap, and tabbed views for Overview, Comments, and Activity Log. The `/user` page lists all contributors with the owner card pinned at the top — styled with a **glowing gradient-border frame, `myphoto.png` avatar with an amber halo, and a 👑 Owner badge** for a visually distinct king-vibe presence. Verified tick and crown badges are now rendered as frontend vector icons (not public image files) for a cleaner professional UI. The owner's `/user/owner` profile page carries the same premium styling.
 
 ### 🗺️ Dynamic XML Sitemap with RAM Cache
-`/api/sitemap` auto-generates a valid XML sitemap scoped exclusively to `deepdey.vercel.app`. It covers all static routes (excluding `/dashboard` and `/journal/embed`), dynamically fetches all published journal slugs, all comment threads, and all user profile URLs from MongoDB. Results are stored in-memory and refreshed every 6 hours (`Cache-Control: s-maxage=21600`). Subsequent requests within the TTL window are served instantly from RAM (`X-Sitemap-Cache: HIT`).
+`/api/sitemap` auto-generates a valid XML sitemap scoped exclusively to `deepdey.vercel.app`. It covers all static routes (excluding `/dashboard` and `/journal/embed`), dynamically fetches published journals and emits **slug-based** journal URLs, comment-thread pages, comment permalink routes, and user profile URLs from MongoDB. Results are stored in-memory and refreshed every 6 hours (`Cache-Control: s-maxage=21600`). Subsequent requests within the TTL window are served instantly from RAM (`X-Sitemap-Cache: HIT`).
 
 ### 🚀 Key Features of New Dashboard
 
