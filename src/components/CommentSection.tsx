@@ -84,6 +84,16 @@ function timeAgo(dateString?: string | null): string {
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 
+function getSafeHttpUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 // ── Link Warning Modal ────────────────────────────────────────────────────────
 
 function LinkWarningModal({ url, onClose }: { url: string; onClose: () => void }) {
@@ -147,11 +157,13 @@ function CommentText({ text, onLinkClick, trustedLinks }: { text: string; onLink
   return (
     <span className="whitespace-pre-wrap break-words">
       {parts.map((p, i) =>
-        p.type === 'link' ? (
-          trustedLinks ? (
+        p.type === 'link' ? (() => {
+          const safeUrl = getSafeHttpUrl(p.value);
+          if (!safeUrl) return <span key={i}>{p.value}</span>;
+          return trustedLinks ? (
             <a
               key={i}
-              href={p.value}
+              href={safeUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-amber-400 underline hover:text-amber-300 transition-colors break-all"
@@ -161,13 +173,13 @@ function CommentText({ text, onLinkClick, trustedLinks }: { text: string; onLink
           ) : (
             <button
               key={i}
-              onClick={() => onLinkClick(p.value)}
+              onClick={() => onLinkClick(safeUrl)}
               className="text-amber-400 underline hover:text-amber-300 transition-colors break-all"
             >
               {p.value}
             </button>
-          )
-        ) : (
+          );
+        })() : (
           <span key={i}>{p.value}</span>
         )
       )}

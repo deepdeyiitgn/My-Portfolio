@@ -472,7 +472,9 @@ export default function UserProfile() {
           {!editing && userInfo.socialLinks && userInfo.socialLinks.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-1">
               {userInfo.socialLinks.filter(l => l.url).map((link, i) => (
-                <SocialLinkButton key={i} link={link} />
+                <span key={i}>
+                  <SocialLinkButton link={link} />
+                </span>
               ))}
             </div>
           )}

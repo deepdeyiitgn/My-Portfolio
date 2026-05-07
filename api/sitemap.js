@@ -9,7 +9,7 @@ const DOMAIN = 'https://deepdey.vercel.app';
 const PROJECT_ROOT = process.cwd();
 
 // Fallback if source file date can't be resolved
-const STATIC_PAGE_LASTMOD_FALLBACK = '2025-01-01';
+const STATIC_PAGE_LASTMOD_FALLBACK = new Date().toISOString().split('T')[0];
 
 // All static routes (no /dashboard, no /journal/embed)
 const STATIC_PAGES = [
