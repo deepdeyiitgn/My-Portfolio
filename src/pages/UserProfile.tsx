@@ -1,11 +1,11 @@
-import { useEffect, useState, useCallback, Fragment } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, MessageSquare, Loader2, AlertCircle, User, Calendar,
   Heart, ChevronLeft, ChevronRight, ExternalLink, Edit3, Check, X,
   Plus, Trash2, Globe, Github, Twitter, Linkedin, Instagram, Youtube,
-  Link2, Activity,
+  Link2, Activity, BadgeCheck,
 } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import SEO from '../components/SEO';
@@ -440,7 +440,10 @@ export default function UserProfile() {
                 <div>
                   <h1 className={`font-black text-2xl tracking-tight ${userId === 'owner' ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]' : 'text-white'}`}>{userInfo.userName}</h1>
                   {userId === 'owner' && (
-                    <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/40 font-mono uppercase tracking-wider mt-1">👑 Owner</span>
+                    <span className="inline-flex items-center gap-0.5 mt-1" title="Verified Owner">
+                      <BadgeCheck size={16} className="text-blue-400" />
+                      <span className="text-[13px] leading-none">👑</span>
+                    </span>
                   )}
                   {userInfo.profileTitle && <p className="text-amber-500/80 text-sm font-bold mt-0.5">{userInfo.profileTitle}</p>}
                 </div>
@@ -463,7 +466,7 @@ export default function UserProfile() {
           {!editing && userInfo.socialLinks && userInfo.socialLinks.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-1">
               {userInfo.socialLinks.filter(l => l.url).map((link, i) => (
-                <Fragment key={i}><SocialLinkButton link={link} /></Fragment>
+                <SocialLinkButton key={i} link={link} />
               ))}
             </div>
           )}
