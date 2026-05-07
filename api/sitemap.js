@@ -9,8 +9,23 @@ const SITEMAP_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 const DOMAIN = 'https://deepdey.vercel.app';
 const PROJECT_ROOT = process.cwd();
 
+function resolveStableFallbackDate() {
+  const fallbackSources = ['package.json', 'src/App.tsx', 'api/sitemap.js'];
+  let latest = 0;
+  for (const relPath of fallbackSources) {
+    try {
+      const stat = fs.statSync(path.resolve(PROJECT_ROOT, relPath));
+      if (stat.mtimeMs > latest) latest = stat.mtimeMs;
+    } catch {
+      // ignore missing files
+    }
+  }
+  if (latest > 0) return new Date(latest).toISOString().split('T')[0];
+  return '2025-01-01';
+}
+
 // Fallback if source file date can't be resolved
-const STATIC_PAGE_LASTMOD_FALLBACK = new Date().toISOString().split('T')[0];
+const STATIC_PAGE_LASTMOD_FALLBACK = resolveStableFallbackDate();
 
 // All static routes (no /dashboard, no /journal/embed)
 const STATIC_PAGES = [
@@ -40,6 +55,12 @@ const STATIC_PAGES = [
 function formatDate(dateInput) {
   if (!dateInput) return STATIC_PAGE_LASTMOD_FALLBACK;
   try { return new Date(dateInput).toISOString().split('T')[0]; } catch { return STATIC_PAGE_LASTMOD_FALLBACK; }
+}
+
+function toTimestamp(dateInput) {
+  if (!dateInput) return 0;
+  const parsed = new Date(dateInput).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 const STATIC_ROUTE_SOURCES = {
@@ -191,7 +212,13 @@ async function buildSitemap(baseUrl) {
     // User profiles — include all paginated users
     for (const u of users) {
       if (!u?.userId) continue;
-      const lastmod = formatDate(u.firstCommentAt || u.createdAt || u.lastCommentAt);
+      const lastmod = formatDate(
+        u.profileUpdatedAt ||
+        u.verifiedUpdatedAt ||
+        u.lastCommentAt ||
+        u.firstCommentAt ||
+        u.createdAt,
+      );
       addRoute({ loc: `/user/${encodeURIComponent(u.userId)}`, lastmod, changefreq: 'weekly', priority: '0.6' });
     }
 
@@ -199,25 +226,37 @@ async function buildSitemap(baseUrl) {
     for (const j of journals) {
       const id = String(j?._id || '');
       if (!id) continue;
-      const journalLastmod = formatDate(j.publishedAt || j.createdAt);
+      const journalLastmod = formatDate(j.updatedAt || j.publishedAt || j.createdAt);
       addRoute({ loc: `/journal/view/${id}`, lastmod: journalLastmod, changefreq: 'weekly', priority: '0.7' });
-      addRoute({ loc: `/journal/view/${id}/comments`, lastmod: journalLastmod, changefreq: 'daily', priority: '0.6' });
 
+      let commentsPageLastmodTs = toTimestamp(j.updatedAt || j.publishedAt || j.createdAt);
       const topLevelComments = await fetchAllCommentsForJournal(baseUrl, id);
       for (const c of topLevelComments) {
         const commentId = String(c?._id || '');
         if (!commentId) continue;
-        const commentLastmod = formatDate(c.createdAt || j.publishedAt || j.createdAt);
+        const commentLastmodTs = toTimestamp(c.editedAt || c.createdAt || j.updatedAt || j.publishedAt || j.createdAt);
+        if (commentLastmodTs > commentsPageLastmodTs) commentsPageLastmodTs = commentLastmodTs;
+        const commentLastmod = formatDate(c.editedAt || c.createdAt || j.updatedAt || j.publishedAt || j.createdAt);
         addRoute({ loc: `/journal/view/${id}/comment/${commentId}`, lastmod: commentLastmod, changefreq: 'weekly', priority: '0.5' });
+        addRoute({ loc: `/journal/comment/${commentId}`, lastmod: commentLastmod, changefreq: 'weekly', priority: '0.5' });
 
         const replies = await fetchAllCommentsForJournal(baseUrl, id, commentId);
         for (const r of replies) {
           const replyId = String(r?._id || '');
           if (!replyId) continue;
-          const replyLastmod = formatDate(r.createdAt || c.createdAt);
+          const replyLastmodTs = toTimestamp(r.editedAt || r.createdAt || c.editedAt || c.createdAt || j.updatedAt || j.publishedAt || j.createdAt);
+          if (replyLastmodTs > commentsPageLastmodTs) commentsPageLastmodTs = replyLastmodTs;
+          const replyLastmod = formatDate(r.editedAt || r.createdAt || c.editedAt || c.createdAt || j.updatedAt || j.publishedAt || j.createdAt);
           addRoute({ loc: `/journal/view/${id}/comment/${replyId}`, lastmod: replyLastmod, changefreq: 'weekly', priority: '0.5' });
+          addRoute({ loc: `/journal/comment/${replyId}`, lastmod: replyLastmod, changefreq: 'weekly', priority: '0.5' });
         }
       }
+      addRoute({
+        loc: `/journal/view/${id}/comments`,
+        lastmod: formatDate(commentsPageLastmodTs ? new Date(commentsPageLastmodTs) : (j.updatedAt || j.publishedAt || j.createdAt)),
+        changefreq: 'weekly',
+        priority: '0.6',
+      });
     }
 
     // Project detail pages (static list, kept for completeness)
