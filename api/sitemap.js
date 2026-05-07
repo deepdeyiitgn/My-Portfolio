@@ -45,60 +45,135 @@ function buildXml(routes) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}\n</urlset>`;
 }
 
+async function fetchJson(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function fetchAllPublishedJournals(baseUrl) {
+  const journals = [];
+  const maxPages = 100;
+  for (let page = 1; page <= maxPages; page++) {
+    const data = await fetchJson(`${baseUrl}/api/journal?published=true&page=${page}&limit=20`);
+    if (!data?.ok || !Array.isArray(data.journals)) break;
+    journals.push(...data.journals);
+    const totalPages = Number(data.pagination?.totalPages || 1);
+    if (page >= totalPages) break;
+  }
+  return journals;
+}
+
+async function fetchAllUsers(baseUrl) {
+  const users = [];
+  const maxPages = 200;
+  for (let page = 1; page <= maxPages; page++) {
+    const data = await fetchJson(`${baseUrl}/api/journal?action=all-users&page=${page}`);
+    if (!data?.ok || !Array.isArray(data.users)) break;
+    users.push(...data.users);
+    const totalPages = Number(data.pagination?.totalPages || 1);
+    if (page >= totalPages) break;
+  }
+  return users;
+}
+
+async function fetchAllCommentsForJournal(baseUrl, journalId, parentId = null) {
+  const comments = [];
+  const seen = new Set();
+  const maxPages = 500;
+
+  for (let page = 1; page <= maxPages; page++) {
+    const parentParam = parentId ? `&parentId=${encodeURIComponent(parentId)}` : '';
+    const data = await fetchJson(`${baseUrl}/api/journal?action=comments&journalId=${encodeURIComponent(journalId)}&page=${page}&sort=old${parentParam}`);
+    if (!data?.ok) break;
+
+    const merged = [
+      ...(parentId ? [] : (Array.isArray(data.pinnedComments) ? data.pinnedComments : [])),
+      ...(Array.isArray(data.comments) ? data.comments : []),
+    ];
+
+    for (const c of merged) {
+      const id = String(c?._id || '');
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      comments.push(c);
+    }
+
+    const totalPages = Number(data.pagination?.totalPages || 1);
+    if (page >= totalPages) break;
+  }
+
+  return comments;
+}
+
 async function buildSitemap(baseUrl) {
   const routes = [];
+  const seenLocs = new Set();
+
+  const addRoute = ({ loc, lastmod, changefreq, priority }) => {
+    if (!loc || seenLocs.has(loc)) return;
+    seenLocs.add(loc);
+    routes.push({ loc, lastmod, changefreq, priority });
+  };
 
   // Static pages — fixed lastmod
   for (const page of STATIC_PAGES) {
-    routes.push({
+    addRoute({
       loc: page,
       lastmod: STATIC_PAGE_LASTMOD,
       changefreq: page === '' ? 'daily' : 'weekly',
       priority: page === '' ? '1.0' : '0.8',
     });
   }
+  addRoute({ loc: '/user/owner', lastmod: STATIC_PAGE_LASTMOD, changefreq: 'weekly', priority: '0.6' });
 
   // Dynamic routes from DB
   try {
-    const [journalRes, usersRes] = await Promise.allSettled([
-      fetch(`${baseUrl}/api/journal?published=true&limit=200`),
-      fetch(`${baseUrl}/api/journal?action=all-users&page=1`),
+    const [journals, users] = await Promise.all([
+      fetchAllPublishedJournals(baseUrl),
+      fetchAllUsers(baseUrl),
     ]);
 
-    // Journal post pages — always use ObjectId so URLs are stable and comments load correctly
-    if (journalRes.status === 'fulfilled') {
-      try {
-        const data = await journalRes.value.json();
-        if (data.ok && Array.isArray(data.journals)) {
-          for (const j of data.journals) {
-            const id = String(j._id);
-            const lastmod = formatDate(j.publishedAt || j.createdAt);
-            routes.push({ loc: `/journal/view/${id}`, lastmod, changefreq: 'weekly', priority: '0.7' });
-            routes.push({ loc: `/journal/view/${id}/comments`, lastmod, changefreq: 'daily', priority: '0.6' });
-          }
-        }
-      } catch { /* ignore */ }
+    // User profiles — include all paginated users
+    for (const u of users) {
+      if (!u?.userId) continue;
+      const lastmod = formatDate(u.lastCommentAt || u.createdAt);
+      addRoute({ loc: `/user/${encodeURIComponent(u.userId)}`, lastmod, changefreq: 'weekly', priority: '0.6' });
     }
 
-    // User profiles — use actual lastCommentAt date
-    if (usersRes.status === 'fulfilled') {
-      try {
-        const data = await usersRes.value.json();
-        if (data.ok && Array.isArray(data.users)) {
-          for (const u of data.users) {
-            if (u.userId) {
-              const lastmod = formatDate(u.lastCommentAt || u.createdAt);
-              routes.push({ loc: `/user/${encodeURIComponent(u.userId)}`, lastmod, changefreq: 'weekly', priority: '0.6' });
-            }
-          }
+    // Journal pages + comments/replies permalinks (ID-based only)
+    for (const j of journals) {
+      const id = String(j?._id || '');
+      if (!id) continue;
+      const journalLastmod = formatDate(j.publishedAt || j.createdAt);
+      addRoute({ loc: `/journal/view/${id}`, lastmod: journalLastmod, changefreq: 'weekly', priority: '0.7' });
+      addRoute({ loc: `/journal/view/${id}/comments`, lastmod: journalLastmod, changefreq: 'daily', priority: '0.6' });
+
+      const topLevelComments = await fetchAllCommentsForJournal(baseUrl, id);
+      for (const c of topLevelComments) {
+        const commentId = String(c?._id || '');
+        if (!commentId) continue;
+        const commentLastmod = formatDate(c.updatedAt || c.createdAt || j.publishedAt || j.createdAt);
+        addRoute({ loc: `/journal/view/${id}/comment/${commentId}`, lastmod: commentLastmod, changefreq: 'weekly', priority: '0.5' });
+
+        const replies = await fetchAllCommentsForJournal(baseUrl, id, commentId);
+        for (const r of replies) {
+          const replyId = String(r?._id || '');
+          if (!replyId) continue;
+          const replyLastmod = formatDate(r.updatedAt || r.createdAt || c.createdAt);
+          addRoute({ loc: `/journal/view/${id}/comment/${replyId}`, lastmod: replyLastmod, changefreq: 'weekly', priority: '0.5' });
         }
-      } catch { /* ignore */ }
+      }
     }
 
     // Project detail pages (static list, kept for completeness)
     const projectIds = ['transparent-clock', 'quicklink', 'studybot', 'personal-portfolio', 'qlynk-node-server'];
     for (const id of projectIds) {
-      routes.push({ loc: `/projects/${id}`, lastmod: STATIC_PAGE_LASTMOD, changefreq: 'monthly', priority: '0.7' });
+      addRoute({ loc: `/projects/${id}`, lastmod: STATIC_PAGE_LASTMOD, changefreq: 'monthly', priority: '0.7' });
     }
   } catch { /* ignore dynamic failures */ }
 
