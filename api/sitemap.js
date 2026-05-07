@@ -4,7 +4,7 @@ const SITEMAP_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 const DOMAIN = 'https://deepdey.vercel.app';
 
-// Fixed lastmod for static pages (only changes when manually updated)
+// Fixed lastmod for static pages (manually bump this date whenever STATIC_PAGES content/SEO text is updated)
 const STATIC_PAGE_LASTMOD = '2025-01-01';
 
 // All static routes (no /dashboard, no /journal/embed)
@@ -133,4 +133,3 @@ export default async function handler(req, res) {
     res.status(500).send('Error generating sitemap');
   }
 }
-

@@ -24,6 +24,8 @@
 const { MongoClient, ObjectId } = require('mongodb');
 
 let cachedClient = null;
+// Public/admin user lists should only include real commenter accounts; exclude owner and malformed empty IDs.
+const PUBLIC_USER_FILTER = { userId: { $exists: true, $nin: ['', 'owner'] } };
 
 async function getDb() {
   if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI not set');
@@ -609,7 +611,7 @@ module.exports = async (req, res) => {
         const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
         const limit = 12;
         const usersCol = db.collection('users');
-        const filter = { userId: { $exists: true, $nin: ['', 'owner'] } };
+        const filter = PUBLIC_USER_FILTER;
         const total = await usersCol.countDocuments(filter);
         const users = await usersCol.find(filter).sort({ lastCommentAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
         return json(res, 200, { ok: true, users, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
@@ -635,7 +637,7 @@ module.exports = async (req, res) => {
         const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
         const limit = 10;
         const usersCol = db.collection('users');
-        const filter = { userId: { $exists: true, $nin: ['', 'owner'] } };
+        const filter = PUBLIC_USER_FILTER;
         const total = await usersCol.countDocuments(filter);
         const users = await usersCol.find(filter).sort({ lastCommentAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
         return json(res, 200, { ok: true, users, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });

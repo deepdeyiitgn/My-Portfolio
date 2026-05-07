@@ -36,7 +36,7 @@ interface Comment {
   parentId: string | null;
   createdAt: string;
   editedAt: string | null;
-  journalInfo: { _id?: string; title: string; slug: string } | null;
+  journalInfo: { _id: string; title: string; slug: string } | null;
 }
 
 interface Pagination {
