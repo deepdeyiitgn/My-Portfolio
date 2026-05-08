@@ -901,7 +901,7 @@ export default function NotFound() {
               return (
                 <p
                   key={line.id}
-                  className={`whitespace-pre-wrap break-words leading-relaxed ${toneClass(line.tone)} ${line.pre === false ? '' : ''}`}
+                  className={`whitespace-pre-wrap break-words leading-relaxed ${toneClass(line.tone)}`}
                 >
                   {line.value}
                 </p>
