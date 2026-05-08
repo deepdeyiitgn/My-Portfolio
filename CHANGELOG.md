@@ -9,6 +9,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Advanced Feedback Management System:** Added public `/feedback` page with rating summary distribution bars, interactive star input, subject/sub-subject dropdowns, short subject + paragraph input, real-time character counter, pagination (20 per page), subject/sub-subject filtering, and sorting (Newest/Oldest/Highest/Lowest/Relevant).
+- **Feedback Backend Extensions (No New API Files):**
+  - `GET /api/journal?action=feedbacks` — paginated public feedback list + summary.
+  - `GET /api/journal?action=feedback-stats` — global metrics + pinned feedback feed.
+  - `GET /api/journal?action=feedback-admin-list` — owner moderation list.
+  - `POST /api/journal?action=feedback` — submit feedback with blacklist filtering and one-feedback-per-user-per-subject/sub-subject enforcement.
+  - `POST /api/journal?action=feedback-pin` — owner pin/unpin (unlimited).
+  - `PUT /api/journal?action=feedback-owner-edit` — owner edit any feedback.
+  - `DELETE /api/journal?action=feedback-owner-delete&id=<id>` — owner delete any feedback.
+- **Feedback Category Management:** Extended `/api/categories` with `type=feedback` mode (GET/POST/PUT/DELETE) and dynamic defaults:
+  - Project subjects auto-generated from project data.
+  - Preloaded defaults for `System / Platform` and `Owner (Deep Dey)`.
+  - Editable/removable sub-subjects and custom subject CRUD from dashboard.
+- **Dashboard Feedback Admin UI:** Added a new Feedback tab with category CRUD, moderation edit/delete, and pin controls, plus Storage metrics cards for Total Feedbacks, Categories count, and Pinned count.
+- **Homepage Feedback Integrations:** Added real-time global metrics bar and pinned feedback infinite testimonial scroller above Journal Top Posts with reload-time shuffle, hover pause, long-text “See More”, centered modal, close via `X` or overlay click, and smooth animation resume.
+- **Navigation & Directory Enhancements:** Added header Feedback/All Users quick access and global logout action; `/user` now highlights the logged-in user profile at the top.
+- **SEO Update:** Added static `/feedback` route support in `api/sitemap.js`.
 - **Sitemap Slug-First Dynamic URLs:** `/api/sitemap` now emits journal routes using journal slugs (fallback to ID), including slug-based `/journal/view/:slug`, `/journal/view/:slug/comments`, and `/journal/view/:slug/comment/:commentId` entries while preserving `/journal/comment/:commentId` permalinks and 6-hour in-memory cache behavior.
 - **Community Search Expansion:** Global search API (`GET /api/journal?action=search`) now indexes community users and comment permalinks in addition to journal posts, enabling `/search` to return user profile and comment results.
 - **Frontend-rendered Identity Badges:** Replaced public image-based verification/crown badge rendering (`/verified.svg`, `/crown.svg`) with reusable React vector icons (`IdentityBadges.tsx`). Applied across comment UI, user pages, and dashboard user moderation views.
@@ -60,6 +77,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **UserProfile Owner Page — Glowing King Style (`UserProfile.tsx`):** `/user/owner` profile card now features the same gradient-border glow frame, glowing photo halo, amber-gold name text, and 👑 Owner badge — visually distinct from regular community profiles.
 
 ### Changed
+- **Profile Badge Cleanup:** Removed verification/crown badge rendering from user-facing and dashboard user/profile/comment UIs to keep profile presentation clean; owner identity now consistently uses `myphoto.png`.
+- **Storage Stats Coverage:** Extended `?action=dbstats` collection breakdown to include `feedbacks` and `feedback_categories`.
 - **Comments API Slug Support:** `GET /api/journal?action=comments` and `POST /api/journal?action=comment` now accept journal ID or journal slug, fixing invalid-id errors when pages are opened with slug/title-based journal URLs.
 - **Status Endpoint Layout Fix:** `/status` endpoint cards now wrap long endpoint paths safely (`break-all`, wrapped metrics, overflow protection) to prevent small-screen width/zoom-out issues.
 - Dashboard Settings tab now shows updated serverless function count text (`12 files`, including 11 route handlers + shared logger helper).

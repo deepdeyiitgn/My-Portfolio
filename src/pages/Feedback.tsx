@@ -237,7 +237,7 @@ export default function Feedback() {
         </div>
         <div className="space-y-2">
           {[5, 4, 3, 2, 1].map((star) => {
-            const count = distribution[String(star) as keyof typeof distribution] || 0;
+            const count = distribution[star as 1 | 2 | 3 | 4 | 5] || 0;
             const pct = distributionTotal > 0 ? (count / distributionTotal) * 100 : 0;
             return (
               <div key={star} className="flex items-center gap-3">

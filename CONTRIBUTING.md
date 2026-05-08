@@ -44,6 +44,7 @@ All contributors must follow our [Code of Conduct](./CODE_OF_CONDUCT.md). Respec
 
 - Complete redesigns or theme changes (the Dark-Amber aesthetic is intentional)
 - New page routes without prior discussion via a GitHub Issue
+- New API route files without prior approval (Vercel free-plan function budget is enforced)
 - Changes that increase the production bundle size significantly without justification
 - Hardcoded credentials, API keys, or private data of any kind
 - Automated code generators or AI-generated code dumps without review
@@ -124,6 +125,12 @@ Both `npm run lint` and `npm run build` **must pass** before opening a pull requ
 
 > The same checks run automatically via **GitHub Actions CI** ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)) on every push and pull request. A green CI badge is required for merge.
 
+### Serverless Constraint (Important)
+
+- Keep the backend within the existing `/api` route files.
+- Extend existing handlers (especially `/api/journal` and `/api/categories`) for related features.
+- Do not add a new serverless function just for a small feature slice unless maintainers approve the architectural change.
+
 ### Routes to Validate Manually
 
 If your change touches any of these areas, manually verify them:
@@ -163,6 +170,7 @@ If your change touches any of these areas, manually verify them:
 | **Imports** | No default re-exports from barrel files; import directly |
 | **Comments** | Only when explaining non-obvious logic; no commented-out code |
 | **Secrets** | Never hardcode credentials, tokens, or passwords |
+| **Profile UI** | Do not add verification ticks/crowns/badges; owner photo must be `myphoto.png` |
 
 ---
 

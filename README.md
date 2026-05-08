@@ -84,11 +84,18 @@ Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · 
 ### 💬 Journal Comment System
 Readers can leave comments on any journal post using Google Sign-In — no password needed. Supports threaded replies, likes, and direct comment permalinks (`/journal/view/:id/comment/:commentId`). A full comment thread view (`/journal/view/:id/comments`) shows all comments with sort (top/new/old) and pagination. A step-by-step `/journal/comment` guide explains the rules and how to participate.
 
+### 🗣️ Advanced Feedback Management System
+New public route `/feedback` adds a professional feedback workflow with star-based rating summary, dynamic Subject/Sub-subject taxonomy (project-derived + system/owner defaults), one-feedback-per-user-per-subject-combination enforcement, blacklist filtering, pagination (20/page), advanced filtering, and sorting (Newest, Oldest, Highest, Lowest, Relevant).  
+Owner dashboard now includes a dedicated Feedback management tab for category CRUD, moderation edit/delete, and unlimited pinning. Pinned feedbacks power the homepage testimonial scroller.
+
 ### 👥 Community User Profiles
-Every reader who signs in gets a public profile at `/user/:userId`. Profiles show a customizable title, bio, social links (GitHub, Twitter, LinkedIn, Instagram, YouTube, Website, Custom with Google Favicon auto-detection), a 52-week contribution heatmap, and tabbed views for Overview, Comments, and Activity Log. The `/user` page lists all contributors with the owner card pinned at the top — styled with a **glowing gradient-border frame, `myphoto.png` avatar with an amber halo, and a 👑 Owner badge** for a visually distinct king-vibe presence. Verified tick and crown badges are now rendered as frontend vector icons (not public image files) for a cleaner professional UI. The owner's `/user/owner` profile page carries the same premium styling.
+Every reader who signs in gets a public profile at `/user/:userId`. Profiles show a customizable title, bio, social links (GitHub, Twitter, LinkedIn, Instagram, YouTube, Website, Custom with Google Favicon auto-detection), a 52-week contribution heatmap, and tabbed views for Overview, Comments, and Activity Log. The `/user` page lists all contributors with the owner card pinned at the top using the owner avatar `myphoto.png`.
 
 ### 🗺️ Dynamic XML Sitemap with RAM Cache
 `/api/sitemap` auto-generates a valid XML sitemap scoped exclusively to `deepdey.vercel.app`. It covers all static routes (excluding `/dashboard` and `/journal/embed`), dynamically fetches published journals and emits **slug-based** journal URLs, comment-thread pages, comment permalink routes, and user profile URLs from MongoDB. Results are stored in-memory and refreshed every 6 hours (`Cache-Control: s-maxage=21600`). Subsequent requests within the TTL window are served instantly from RAM (`X-Sitemap-Cache: HIT`).
+
+### ⚙️ Vercel Function Limit Compliance
+The backend intentionally stays inside the Vercel free-plan serverless function budget by extending existing handlers (`/api/journal` and `/api/categories`) for feedback operations instead of creating new API route files.
 
 ### 🚀 Key Features of New Dashboard
 
@@ -139,10 +146,10 @@ Every reader who signs in gets a public profile at `/user/:userId`. Profiles sho
  ┣ 📜 index.html                 # Vite HTML entry point
  ┣ 📂 api                        # Vercel serverless API routes
  ┃ ┣ 📜 auth.js                  # Session authentication handler
- ┃ ┣ 📜 categories.js            # Journal category CRUD
+  ┃ ┣ 📜 categories.js            # Journal + feedback category CRUD
  ┃ ┣ 📜 contact.js               # Contact form handler
  ┃ ┣ 📜 faqs.js                  # FAQ data endpoint
- ┃ ┣ 📜 journal.js               # Journal CRUD · health · rate-limited refresh
+  ┃ ┣ 📜 journal.js               # Journal + feedback CRUD/moderation · health · rate-limited refresh
  ┃ ┣ 📜 links.js                 # Links data endpoint
  ┃ ┣ 📜 live.js                  # YouTube RSS feed parser
  ┃ ┣ 📜 projects.js              # Projects CRUD endpoint
@@ -157,7 +164,8 @@ Every reader who signs in gets a public profile at `/user/:userId`. Profiles sho
  ┣ 📂 src
  ┃ ┣ 📂 components               # Reusable UI components
  ┃ ┃ ┣ 📜 Footer.tsx             # Global footer with legal links
- ┃ ┃ ┣ 📜 Header.tsx             # Responsive navigation header
+  ┃ ┃ ┣ 📜 Header.tsx             # Responsive navigation header
+  ┃ ┃ ┣ 📜 FeedbackManager.tsx    # Dashboard feedback moderation & category management
  ┃ ┃ ┣ 📜 JourneyMarquee.tsx     # GPU-accelerated timeline marquee
  ┃ ┃ ┣ 📜 Layout.tsx             # Page layout wrapper (skips for embeds)
  ┃ ┃ ┣ 📜 LoadingScreen.tsx      # Cinematic intro loading screen
@@ -182,7 +190,8 @@ Every reader who signs in gets a public profile at `/user/:userId`. Profiles sho
  ┃ ┃ ┣ 📜 Copyright.tsx          # Copyright information
  ┃ ┃ ┣ 📜 Dashboard.tsx          # Owner-only CMS dashboard
  ┃ ┃ ┣ 📜 DMCA.tsx               # DMCA takedown policy
- ┃ ┃ ┣ 📜 FAQ.tsx                # Searchable FAQ with accordion
+  ┃ ┃ ┣ 📜 FAQ.tsx                # Searchable FAQ with accordion
+  ┃ ┃ ┣ 📜 Feedback.tsx           # Public feedback page
  ┃ ┃ ┣ 📜 Home.tsx               # Hero / landing page
  ┃ ┃ ┣ 📜 Journal.tsx            # Journal listing page
  ┃ ┃ ┣ 📜 JournalAllComments.tsx # Full comment thread for a post (/journal/view/:id/comments)
@@ -238,6 +247,7 @@ Every reader who signs in gets a public profile at `/user/:userId`. Profiles sho
 | `/proof` | Proof of work and achievements |
 | `/links` | Link-in-bio ecosystem hub (30+ nodes) |
 | `/contact` | Smart 15-category contact routing form |
+| `/feedback` | Public feedback page with rating summary, filters, and submission form |
 | `/journal` | Journal listing with metadata (likes, views, read time) |
 | `/journal/view/:id` | Full journal article with engagement actions |
 | `/journal/view/:id/comments` | Full paginated comment thread for a post |

@@ -64,6 +64,7 @@ This is primarily a **stateless, client-side React SPA** with a small number of 
 | :--- | :--- |
 | **Authentication** | Cookie-based session (`dd_auth`) validated on every API write operation |
 | **Credential Isolation** | `SPACE_PASSWORD` and `MONGODB_URI` are server-side environment variables, never bundled in client code |
+| **Feedback Moderation Safety** | Public feedback text is blacklist-filtered server-side before persistence; owner-only moderation endpoints control edit/delete/pin actions |
 | **Input Validation** | All image URLs validated via `sanitizeImageUrl()` (allowlist: `static.qlynk.me/f/`, `.png`, `.jpg`, `.jpeg`) |
 | **Base64 Validation** | Strict `[A-Za-z0-9+/=\n]+` regex for data URL decoding in upload proxy |
 | **CDN Error Handling** | Upload proxy detects CDN-level `status: "error"` responses even when HTTP status is 200 |
@@ -73,6 +74,7 @@ This is primarily a **stateless, client-side React SPA** with a small number of 
 | **Dependency Scanning** | `npm audit` and GitHub Dependabot (weekly automated PRs) for known CVE detection |
 | **iframe Sandboxing** | Third-party embeds use strict `sandbox` attributes (`allow-scripts allow-same-origin`) |
 | **Slug Uniqueness** | Upload slugs include 6-char random hex suffix to prevent enumeration and 409 collisions |
+| **Serverless Budget Control** | New feature APIs are implemented by extending existing handlers to stay within Vercel free-plan function limits |
 
 ### Data Storage
 
