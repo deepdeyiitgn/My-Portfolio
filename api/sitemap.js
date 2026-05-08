@@ -31,7 +31,7 @@ const STATIC_PAGE_LASTMOD_FALLBACK = resolveStableFallbackDate();
 
 // All static routes (no /dashboard, no /journal/embed)
 const STATIC_PAGES = [
-  '',
+  '/',
   '/projects',
   '/about',
   '/me',
