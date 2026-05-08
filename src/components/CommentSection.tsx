@@ -5,8 +5,9 @@ import { GoogleLogin } from '@react-oauth/google';
 import {
   MessageSquare, Heart, Reply, Trash2, Edit3, Pin, PinOff, Send,
   ChevronDown, ChevronUp, AlertTriangle, X, LogOut, ExternalLink,
-  ChevronLeft, ChevronRight, Loader2, AlertCircle, ArrowDownUp, Link2,
+  ChevronLeft, ChevronRight, Loader2, AlertCircle, ArrowDownUp, Link2, ShieldBan,
 } from 'lucide-react';
+import { CrownBadgeIcon, VerifiedTickIcon } from './IdentityBadges';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,7 @@ interface Comment {
   createdAt: string;
   createdAtIST: string;
   replyCount: number;
+  isVerified?: boolean;
 }
 
 interface Pagination {
@@ -82,6 +84,16 @@ function timeAgo(dateString?: string | null): string {
 }
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+
+function getSafeHttpUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
 
 // ── Link Warning Modal ────────────────────────────────────────────────────────
 
@@ -131,7 +143,7 @@ function LinkWarningModal({ url, onClose }: { url: string; onClose: () => void }
 
 // ── Render comment text with clickable links ──────────────────────────────────
 
-function CommentText({ text, onLinkClick }: { text: string; onLinkClick: (url: string) => void }) {
+function CommentText({ text, onLinkClick, trustedLinks }: { text: string; onLinkClick: (url: string) => void; trustedLinks?: boolean }) {
   const parts: Array<{ type: 'text' | 'link'; value: string }> = [];
   let last = 0;
   let match: RegExpExecArray | null;
@@ -146,15 +158,29 @@ function CommentText({ text, onLinkClick }: { text: string; onLinkClick: (url: s
   return (
     <span className="whitespace-pre-wrap break-words">
       {parts.map((p, i) =>
-        p.type === 'link' ? (
-          <button
-            key={i}
-            onClick={() => onLinkClick(p.value)}
-            className="text-amber-400 underline hover:text-amber-300 transition-colors break-all"
-          >
-            {p.value}
-          </button>
-        ) : (
+        p.type === 'link' ? (() => {
+          const safeUrl = getSafeHttpUrl(p.value);
+          if (!safeUrl) return <span key={i}>{p.value}</span>;
+          return trustedLinks ? (
+            <a
+              key={i}
+              href={safeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-amber-400 underline hover:text-amber-300 transition-colors break-all"
+            >
+              {p.value}
+            </a>
+          ) : (
+            <button
+              key={i}
+              onClick={() => onLinkClick(safeUrl)}
+              className="text-amber-400 underline hover:text-amber-300 transition-colors break-all"
+            >
+              {p.value}
+            </button>
+          );
+        })() : (
           <span key={i}>{p.value}</span>
         )
       )}
@@ -288,13 +314,20 @@ function CommentItem({
   };
 
   const isOwnerComment = comment.userId === 'owner';
+  const isVerifiedComment = isOwnerComment || Boolean(comment.isVerified);
 
   return (
     <div className={`space-y-3 ${comment.isPinned ? 'border-l-2 border-amber-500 pl-3' : ''}`}>
       <div className="flex gap-3">
         {/* Avatar */}
         <div className="shrink-0">
-          {comment.userPic ? (
+          {isOwnerComment ? (
+            <img
+              src="/assets/images/myphoto.png"
+              alt="Deep Dey"
+              className="w-8 h-8 rounded-full border-2 border-amber-500/60 object-cover ring-2 ring-amber-500/20"
+            />
+          ) : comment.userPic ? (
             <img
               src={comment.userPic}
               alt={comment.userName}
@@ -303,7 +336,7 @@ function CommentItem({
               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
             />
           ) : (
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${isOwnerComment ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border bg-zinc-800 border-zinc-700 text-zinc-400">
               {comment.userName.charAt(0).toUpperCase()}
             </div>
           )}
@@ -313,7 +346,12 @@ function CommentItem({
           {/* Name + badges */}
           <div className="flex flex-wrap items-center gap-2">
             {isOwnerComment ? (
-              <span className="text-sm font-bold text-amber-400">{comment.userName}</span>
+              <Link
+                to="/user/owner"
+                className="text-sm font-bold text-amber-400 hover:text-amber-300 transition-colors"
+              >
+                {comment.userName}
+              </Link>
             ) : (
               <Link
                 to={`/user/${encodeURIComponent(comment.userId)}`}
@@ -323,7 +361,15 @@ function CommentItem({
               </Link>
             )}
             {isOwnerComment && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-mono uppercase tracking-wider">Owner</span>
+              <span className="inline-flex items-center gap-0.5" title="Verified Owner">
+                <VerifiedTickIcon className="w-[13px] h-[13px]" />
+                <CrownBadgeIcon className="w-[13px] h-[13px]" />
+              </span>
+            )}
+            {!isOwnerComment && isVerifiedComment && (
+              <span className="inline-flex items-center gap-0.5" title="Verified User">
+                <VerifiedTickIcon className="w-[13px] h-[13px]" />
+              </span>
             )}
             {comment.isPinned && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700 font-mono uppercase tracking-wider flex items-center gap-1">
@@ -369,7 +415,7 @@ function CommentItem({
             </div>
           ) : (
             <p className="text-zinc-300 text-sm leading-relaxed">
-              <CommentText text={comment.text} onLinkClick={onLinkClick} />
+              <CommentText text={comment.text} onLinkClick={onLinkClick} trustedLinks={isVerifiedComment} />
             </p>
           )}
 
@@ -532,6 +578,9 @@ export default function CommentSection({ journalId }: { journalId: string }) {
   const [warnUrl, setWarnUrl] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Block status for current signed-in user
+  const [blockStatus, setBlockStatus] = useState<{ blocked: boolean; message: string | null }>({ blocked: false, message: null });
+
   // Load user from localStorage and check owner status on mount
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -548,7 +597,14 @@ export default function CommentSection({ journalId }: { journalId: string }) {
 
     fetch('/api/auth')
       .then(r => r.json())
-      .then(d => { if (d.authenticated) setIsOwner(true); })
+      .then(d => {
+        if (d.authenticated) {
+          setIsOwner(true);
+          // Force sign out any Google user session when owner is logged in
+          localStorage.removeItem(STORAGE_KEY);
+          setCurrentUser(null);
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -571,6 +627,15 @@ export default function CommentSection({ journalId }: { journalId: string }) {
       setLoading(false);
     }
   }, [journalId, sort]);
+
+  // Check if the signed-in user is blocked for this journal
+  useEffect(() => {
+    if (!currentUser || isOwner || !journalId) { setBlockStatus({ blocked: false, message: null }); return; }
+    fetch(`/api/journal?action=check-block&userId=${encodeURIComponent(currentUser.userId)}&journalId=${encodeURIComponent(journalId)}`)
+      .then(r => r.json())
+      .then(d => { setBlockStatus({ blocked: d.blocked ?? false, message: d.message || null }); })
+      .catch(() => {});
+  }, [currentUser, isOwner, journalId]);
 
   useEffect(() => {
     fetchComments(1, sort);
@@ -714,9 +779,23 @@ export default function CommentSection({ journalId }: { journalId: string }) {
 
       {/* Auth section */}
       <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 space-y-4">
+        {/* Blocked banner — shown when signed-in user is blocked */}
+        {!isOwner && currentUser && blockStatus.blocked && (
+          <div className="flex items-start gap-3 bg-red-950/30 border border-red-800/50 rounded-xl p-3">
+            <ShieldBan size={16} className="text-red-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-red-400 text-sm font-bold">Commenting restricted</p>
+              <p className="text-red-300/80 text-xs mt-0.5">{blockStatus.message || 'You are blocked from commenting.'}</p>
+            </div>
+          </div>
+        )}
         {isOwner ? (
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-amber-400 text-xs font-bold shrink-0">D</div>
+            <img
+              src="/assets/images/myphoto.png"
+              alt="Deep Dey"
+              className="w-8 h-8 rounded-full border-2 border-amber-500/60 object-cover ring-2 ring-amber-500/20 shrink-0"
+            />
             <div className="flex-1 min-w-0">
               <p className="text-amber-400 text-sm font-bold">Deep Dey (Owner)</p>
               <p className="text-zinc-600 text-xs">Posting as owner</p>
@@ -742,6 +821,7 @@ export default function CommentSection({ journalId }: { journalId: string }) {
         ) : (
           <div className="space-y-3">
             <p className="text-zinc-400 text-sm">Sign in with Google to leave a comment.</p>
+            {!isOwner && (
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
               onError={() => alert('Google sign-in failed. Please try again.')}
@@ -750,11 +830,12 @@ export default function CommentSection({ journalId }: { journalId: string }) {
               size="medium"
               text="signin_with"
             />
+            )}
           </div>
         )}
 
         {/* Comment input */}
-        {(currentUser || isOwner) && (
+        {(currentUser || isOwner) && !blockStatus.blocked && (
           <div className="space-y-3 pt-2 border-t border-zinc-800">
             <textarea
               ref={textareaRef}

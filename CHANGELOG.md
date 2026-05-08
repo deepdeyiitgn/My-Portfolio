@@ -9,6 +9,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Sitemap Slug-First Dynamic URLs:** `/api/sitemap` now emits journal routes using journal slugs (fallback to ID), including slug-based `/journal/view/:slug`, `/journal/view/:slug/comments`, and `/journal/view/:slug/comment/:commentId` entries while preserving `/journal/comment/:commentId` permalinks and 6-hour in-memory cache behavior.
+- **Community Search Expansion:** Global search API (`GET /api/journal?action=search`) now indexes community users and comment permalinks in addition to journal posts, enabling `/search` to return user profile and comment results.
+- **Frontend-rendered Identity Badges:** Replaced public image-based verification/crown badge rendering (`/verified.svg`, `/crown.svg`) with reusable React vector icons (`IdentityBadges.tsx`). Applied across comment UI, user pages, and dashboard user moderation views.
+- **Expanded `/status` Endpoint Matrix:** Status page API endpoint panel now includes the complete website-critical route set and method coverage (auth, journal public actions, users/profile/activity, categories/projects/timeline/links/faqs/live, contact GET+POST, sitemap, upload proxy metadata).
 - **Double API Probe on Status Page:** Each endpoint on `/status` is now called **twice** per check cycle — a warm-up call that absorbs Vercel cold-start overhead, followed by the real latency measurement. This ensures the displayed latency reflects an active (warm) serverless instance rather than a cold-boot spike.
 - **Comment Abuse Detection (`hasAbuse` + `originalText`):** When a new comment or edited comment contains blacklisted words, the API now stores the **censored text** in `text`, the **original uncensored text** in `originalText`, and sets `hasAbuse: true`. Only stored when abuse is actually detected — clean comments leave `originalText: null`.
 - **User Block System:** New `blocked_users` MongoDB collection and admin API actions:
@@ -47,8 +51,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `GET ?action=users` — Admin-only paginated list of all users from the `users` collection.
   - `GET ?action=blocks` — Admin-only paginated list of all active user blocks.
 - **dbstats Extended:** The `?action=dbstats` endpoint now includes `comments`, `blocked_users`, and `users` in the per-collection breakdown.
+- **IP & Country Tracking in User Profiles:** The `users` collection now stores `registrationIp`, `registrationCountry`, `lastActivityIp`, and `lastActivityCountry`. These are captured on every comment submission using the request IP resolved through `x-forwarded-for` and geo-looked up via a lightweight country-code mapping. Owner dashboard user detail card displays all four values grouped with their respective timestamps.
+- **Dashboard — Enhanced User Detail Card:** The user detail panel in the Dashboard Users tab now shows two clearly labelled sections — **Account Created** (full datetime + registration IP + country) and **Last Activity** (full datetime + last-activity IP + country) — replacing the previous date-only display and loose IP lines.
+- **Terms of Service Updated:** Section 3 now explicitly discloses that IP address and country of origin are recorded at the time of account creation and most recent activity for moderation purposes (see `Terms.tsx`).
+- **New GitHub Issue Templates:** Added `performance.yml` (performance / SEO issue reports), `user_profile.yml` (user profile / community feature area), and `api_backend.yml` (API / backend issues) to `.github/ISSUE_TEMPLATE/`. Updated `feature_request.yml` with new feature-area options covering all current site features.
+- **Owner Comment Avatar (`CommentSection.tsx`):** Owner's past and new comments now always display `myphoto.png` with an amber ring, replacing any stale or missing Google-profile-URL. Applied to both the comment list and the "posting as owner" auth row.
+- **AllUsers Owner Card — King-Vibe Upgrade (`AllUsers.tsx`):** Owner card on `/user` upgraded with gradient-border glow frame, pulsing amber blur halo around `myphoto.png`, golden name with glow drop-shadow, radial amber overlay, and 👑 Owner badge.
+- **UserProfile Owner Page — Glowing King Style (`UserProfile.tsx`):** `/user/owner` profile card now features the same gradient-border glow frame, glowing photo halo, amber-gold name text, and 👑 Owner badge — visually distinct from regular community profiles.
 
 ### Changed
+- **Comments API Slug Support:** `GET /api/journal?action=comments` and `POST /api/journal?action=comment` now accept journal ID or journal slug, fixing invalid-id errors when pages are opened with slug/title-based journal URLs.
+- **Status Endpoint Layout Fix:** `/status` endpoint cards now wrap long endpoint paths safely (`break-all`, wrapped metrics, overflow protection) to prevent small-screen width/zoom-out issues.
+- Dashboard Settings tab now shows updated serverless function count text (`12 files`, including 11 route handlers + shared logger helper).
 - Comment creation and edit now use `censorTextWithFlag()` (returns `{ text, hasAbuse }`) instead of `censorText()`.
 - Comment creation adds a non-critical upsert to the `users` collection after every successful comment insert.
 
@@ -114,25 +128,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
-
-### Added
-- **Dynamic Projects Dashboard:** Added a fully functional "Projects" tab in the admin dashboard to manage portfolio ecosystem directly via MongoDB. Includes a live split-screen visual and JSON preview.
-- **3-Layer Auto-Screenshot Architecture:** Engineered a highly resilient serverless screenshot generator to bypass Vercel timeouts and Cloudflare bot-protections:
-  - **Layer 1:** Google PageSpeed Insights API (Official Google servers for 0% CAPTCHA block and high compression).
-  - **Layer 2:** Site-Shot API with Global Geolocation Proxies (Brazil/Tokyo) to bypass regional blocks.
-  - **Layer 3:** Thum.io API with massive rotating human-like headers as a fail-safe raw image fallback.
-- **Default vs Custom Ecosystem Mode:** Added a global toggle to seamlessly switch between static file-based projects (`projectsData.ts`) and dynamic MongoDB-driven projects.
-- **Smart Client-Side Image Formatting:** Added CSS-based `object-fit` handling on the frontend to automatically stretch or crop heavily portrait screenshots into perfect 16:10 landscape preview cards.
-
-### Changed
-- Transitioned serverless architecture to Node.js 22 (`engines` updated).
-- Optimized Vercel deployment by shifting from heavy local headless browsers to lightweight Cloud APIs, eliminating 502 memory crashes.
-
-### Removed
-- Removed `@sparticuz/chromium` to reduce build size and prevent Vercel 10-second timeout limits.
-
----
 
 
 ## [3.1.0] — 2026-04-09

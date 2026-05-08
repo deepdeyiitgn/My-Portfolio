@@ -3,10 +3,12 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, MessageSquare, Heart, Loader2, AlertCircle, ExternalLink, User } from 'lucide-react';
 import SEO from '../components/SEO';
+import { CrownBadgeIcon, VerifiedTickIcon } from '../components/IdentityBadges';
 
 interface Comment {
   _id: string;
   userId: string;
+  isVerified?: boolean;
   userName: string;
   userPic: string;
   text: string;
@@ -49,6 +51,7 @@ function CommentCard({
   isHighlight?: boolean;
 }) {
   const isOwner = comment.userId === 'owner';
+  const isVerified = isOwner || Boolean(comment.isVerified);
   return (
     <div
       className={`p-4 rounded-2xl border space-y-3 ${
@@ -59,7 +62,13 @@ function CommentCard({
     >
       <div className="flex items-start gap-3">
         {/* Avatar */}
-        {comment.userPic ? (
+        {isOwner ? (
+          <img
+            src="/assets/images/myphoto.png"
+            alt="Deep Dey"
+            className="w-8 h-8 rounded-full border-2 border-amber-500/60 object-cover shrink-0 ring-2 ring-amber-500/20"
+          />
+        ) : comment.userPic ? (
           <img
             src={comment.userPic}
             alt={comment.userName}
@@ -72,18 +81,22 @@ function CommentCard({
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            {isOwner ? (
-              <span className="text-amber-500 font-bold text-sm">{comment.userName}</span>
-            ) : (
-              <Link
-                to={`/user/${encodeURIComponent(comment.userId)}`}
-                className="text-white font-bold text-sm hover:text-amber-400 transition-colors"
-              >
-                {comment.userName}
-              </Link>
-            )}
+            <Link
+              to={isOwner ? '/user/owner' : `/user/${encodeURIComponent(comment.userId)}`}
+              className={isOwner ? 'text-amber-500 font-bold text-sm hover:text-amber-400 transition-colors' : 'text-white font-bold text-sm hover:text-amber-400 transition-colors'}
+            >
+              {comment.userName}
+            </Link>
             {isOwner && (
-              <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">Owner</span>
+              <span className="inline-flex items-center gap-0.5" title="Verified Owner">
+                <VerifiedTickIcon className="w-[13px] h-[13px]" />
+                <CrownBadgeIcon className="w-[13px] h-[13px]" />
+              </span>
+            )}
+            {!isOwner && isVerified && (
+              <span className="inline-flex items-center gap-0.5" title="Verified User">
+                <VerifiedTickIcon className="w-[13px] h-[13px]" />
+              </span>
             )}
             <span className="text-zinc-600 text-[10px] font-mono">{timeAgo(comment.createdAt)}</span>
             {comment.editedAt && <span className="text-zinc-700 text-[9px] font-mono">(edited)</span>}
@@ -145,7 +158,7 @@ export default function CommentPermalink() {
     );
   }
 
-  const journalViewUrl = `/journal/view/${journal.slug}`;
+  const journalViewUrl = `/journal/view/${journal._id}`;
 
   return (
     <div className="min-h-screen bg-zinc-950 pt-28 pb-20 px-4">

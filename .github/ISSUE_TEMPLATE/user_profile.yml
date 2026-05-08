@@ -1,0 +1,98 @@
+name: 👤 User Profile / Community
+description: Report an issue or suggest an improvement for user profiles, the comment system, or community features
+title: "[Community]: "
+labels: ["community", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for issues related to:
+        - Public user profiles (`/user/:userId`)
+        - The community listing page (`/user`)
+        - The Journal comment system
+        - Comment permalinks (`/journal/comment/:commentId`)
+        - Contribution heatmap / activity log
+        - Profile editing (bio, social links, title)
+        - The owner dashboard Users tab
+
+        > ⚠️ If you believe your **personal data** (IP, country, comments) has been mishandled, email **a@qlynk.me** directly — do NOT open a public issue.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight checklist
+      options:
+        - label: I searched existing issues and this has not been reported before
+          required: true
+        - label: This is NOT a private data concern (I would use email for that)
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature Area
+      options:
+        - Public user profile page (/user/:userId)
+        - Community listing page (/user)
+        - Comment system (posting / replying / liking)
+        - Comment permalink (/journal/comment/:commentId)
+        - Contribution heatmap
+        - Activity log tab
+        - Profile editing (bio, title, social links)
+        - Google Sign-In / authentication
+        - Owner dashboard – Users tab
+        - Block / moderation system
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Issue Type
+      options:
+        - Bug (something is broken)
+        - UI / visual glitch
+        - Feature request / improvement
+        - Data accuracy (wrong count, wrong date, etc.)
+        - Accessibility
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: url
+    attributes:
+      label: Affected URL
+      description: The exact route where the issue occurs
+      placeholder: "/user/abc123 or /journal/view/some-id/comments"
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the issue or suggestion clearly
+      placeholder: "The contribution heatmap on /user/:userId shows 0 contributions for the current year even though the user has 12 comments this year..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce (if a bug)
+      placeholder: |
+        1. Go to /user/abc123
+        2. Switch to the Activity Log tab
+        3. Observe that ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context / Screenshots
+      description: Paste screenshots, console errors, or any other helpful information
+    validations:
+      required: false

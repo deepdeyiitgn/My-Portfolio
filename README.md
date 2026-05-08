@@ -46,10 +46,10 @@ All while the author simultaneously prepares for **JEE Advanced 2027** targeting
 ## 🎯 Feature Highlights
 
 ### 🔭 Global Command Palette Search
-Full-stack search engine at `/search` with typewriter-animated suggestions, trending query tracking, localStorage history, and a TF-IDF ML fallback. Searches journals, projects, FAQs, social links, and live status simultaneously. Fully indexed in the sitemap.
+Full-stack search engine at `/search` with typewriter-animated suggestions, trending query tracking, localStorage history, and a TF-IDF ML fallback. Searches journals, projects, FAQs, social links, live status, plus community users and comment permalinks. Fully indexed in the sitemap.
 
 ### 📡 Real-Time System Status Monitor
-Live status page at `/status` probes all API endpoints every 60 s (heavy endpoints every 5 min) and displays latency, HTTP status, and connection quality. Includes a **Server Health** panel with a highlighted **System Specifications** card showing RAM, storage, CPU model/cores/speed, OS type and kernel, architecture, runtime version, server region, and hostname. A rate-limited **"Refresh Now"** button (global 20/min · per-IP 2/min) triggers a full health snapshot stored in MongoDB for historical tracking.
+Live status page at `/status` probes all website-critical API routes every 60 s (heavy endpoints every 5 min) and displays latency, HTTP status, and connection quality. Monitored endpoints include auth, journal listing/search/top feeds, user profile/activity/community APIs, categories, projects, timeline, links, FAQs, YouTube live feed, contact (GET + POST), sitemap, and upload proxy route metadata. Includes a **Server Health** panel with a highlighted **System Specifications** card showing RAM, storage, CPU model/cores/speed, OS type and kernel, architecture, runtime version, server region, and hostname. A rate-limited **"Refresh Now"** button (global 20/min · per-IP 2/min) triggers a full health snapshot stored in MongoDB for historical tracking.
 
 ### 🎬 Cinematic Loading Engine
 A system-parsing intro screen with a live progress bar and 50-quote rotating archive. Masks lazy-loaded asset hydration with an AAA-grade first impression.
@@ -85,10 +85,10 @@ Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · 
 Readers can leave comments on any journal post using Google Sign-In — no password needed. Supports threaded replies, likes, and direct comment permalinks (`/journal/view/:id/comment/:commentId`). A full comment thread view (`/journal/view/:id/comments`) shows all comments with sort (top/new/old) and pagination. A step-by-step `/journal/comment` guide explains the rules and how to participate.
 
 ### 👥 Community User Profiles
-Every reader who signs in gets a public profile at `/user/:userId`. Profiles show a customizable title, bio, social links (GitHub, Twitter, LinkedIn, Instagram, YouTube, Website, Custom with Google Favicon auto-detection), a 52-week contribution heatmap, and tabbed views for Overview, Comments, and Activity Log. The `/user` page lists all contributors with the owner card pinned at the top.
+Every reader who signs in gets a public profile at `/user/:userId`. Profiles show a customizable title, bio, social links (GitHub, Twitter, LinkedIn, Instagram, YouTube, Website, Custom with Google Favicon auto-detection), a 52-week contribution heatmap, and tabbed views for Overview, Comments, and Activity Log. The `/user` page lists all contributors with the owner card pinned at the top — styled with a **glowing gradient-border frame, `myphoto.png` avatar with an amber halo, and a 👑 Owner badge** for a visually distinct king-vibe presence. Verified tick and crown badges are now rendered as frontend vector icons (not public image files) for a cleaner professional UI. The owner's `/user/owner` profile page carries the same premium styling.
 
 ### 🗺️ Dynamic XML Sitemap with RAM Cache
-`/api/sitemap` auto-generates a valid XML sitemap scoped exclusively to `deepdey.vercel.app`. It covers all static routes (excluding `/dashboard` and `/journal/embed`), dynamically fetches all published journal slugs, all comment threads, and all user profile URLs from MongoDB. Results are stored in-memory and refreshed every 6 hours (`Cache-Control: s-maxage=21600`). Subsequent requests within the TTL window are served instantly from RAM (`X-Sitemap-Cache: HIT`).
+`/api/sitemap` auto-generates a valid XML sitemap scoped exclusively to `deepdey.vercel.app`. It covers all static routes (excluding `/dashboard` and `/journal/embed`), dynamically fetches published journals and emits **slug-based** journal URLs, comment-thread pages, comment permalink routes, and user profile URLs from MongoDB. Results are stored in-memory and refreshed every 6 hours (`Cache-Control: s-maxage=21600`). Subsequent requests within the TTL window are served instantly from RAM (`X-Sitemap-Cache: HIT`).
 
 ### 🚀 Key Features of New Dashboard
 
@@ -97,6 +97,7 @@ Every reader who signs in gets a public profile at `/user/:userId`. Profiles sho
   * Uses Google's PageSpeed API, Global Geo-Proxies, and rotating Human-Agent headers to completely bypass bot protection (Cloudflare, CAPTCHAs) and Vercel's strict serverless timeout limits.
 * **Smart UI Previews:** Auto-crops and formats dynamic Base64 images directly on the client side to maintain perfect aspect ratios without overloading the backend.
 * **Media Embeds:** Insert images, YouTube iframes, MP4 videos, and audio tracks directly into journal posts via toolbar prompt buttons.
+* **Owner User Monitoring:** The Dashboard Users tab lists all registered commenters. Clicking a user reveals a detail panel with their full metadata including **account creation datetime + IP + country**, **last activity datetime + IP + country**, comment history with abuse flags, quick-block controls, and a link to their public profile.
 
 ---
 

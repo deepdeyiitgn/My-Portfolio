@@ -10,6 +10,7 @@ import {
 import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
 import { ICON_NAMES, renderIcon } from '../utils/iconMap';
+import { VerifiedTickIcon } from '../components/IdentityBadges';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 
@@ -88,7 +89,7 @@ interface CommentDoc {
   isDeleted: boolean;
   createdAt: string;
   createdAtIST: string;
-  journalInfo?: { title: string; slug: string } | null;
+  journalInfo?: { _id?: string; title: string; slug: string } | null;
 }
 
 interface JournalCommentStat {
@@ -104,12 +105,18 @@ interface JournalCommentStat {
 
 interface UserDoc {
   _id: string;
+  userId: string;
   userName: string;
   userPic: string;
+  verified?: boolean;
   totalComments: number;
   firstCommentAt: string;
   lastCommentAt: string;
   lastJournalId: string;
+  registrationIp?: string;
+  registrationCountry?: string;
+  lastActivityIp?: string;
+  lastActivityCountry?: string;
 }
 
 interface BlockDoc {
@@ -1340,6 +1347,8 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   const [userCommentsTotal, setUserCommentsTotal] = useState(0);
   const [userCommentsTotalPages, setUserCommentsTotalPages] = useState(1);
   const [userCommentsLoading, setUserCommentsLoading] = useState(false);
+  const [userBlocks, setUserBlocks] = useState<BlockDoc[]>([]);
+  const [userBlocksLoading, setUserBlocksLoading] = useState(false);
 
   // ── Blacklist state ──────────────────────────────────────────────────────
   const [blacklist, setBlacklist] = useState<Array<{ _id: string; word: string }>>([]);
@@ -1415,7 +1424,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       const r = await fetch(`/api/journal?action=users&page=${p}`);
       const d = await r.json();
       if (d.ok) {
-        setUsers(d.users);
+        setUsers((d.users || []).filter((u: UserDoc) => Boolean(u?.userId) && u.userId !== 'owner'));
         setUsersPage(d.pagination.page);
         setUsersTotal(d.pagination.total);
         setUsersTotalPages(d.pagination.totalPages);
@@ -1439,6 +1448,47 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
     finally { setUserCommentsLoading(false); }
   }, []);
 
+  const fetchUserBlocks = useCallback(async (userId: string) => {
+    setUserBlocksLoading(true);
+    try {
+      const r = await fetch(`/api/journal?action=user-blocks&userId=${encodeURIComponent(userId)}`);
+      const d = await r.json();
+      if (d.ok) setUserBlocks(d.blocks || []);
+    } catch { /* ignore */ }
+    finally { setUserBlocksLoading(false); }
+  }, []);
+
+  const handleUnblockUser = async (blockId: string) => {
+    try {
+      const r = await fetch(`/api/journal?action=block&id=${encodeURIComponent(blockId)}`, { method: 'DELETE' });
+      const d = await r.json();
+      if (d.ok) {
+        showToast('Block removed');
+        if (selectedUser) fetchUserBlocks(selectedUser.userId);
+      } else showToast(d.message || 'Error removing block', 'error');
+    } catch { showToast('Network error', 'error'); }
+  };
+
+  const handleToggleUserVerified = async (userId: string, nextVerified: boolean) => {
+    try {
+      const r = await fetch('/api/journal?action=user-verify', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, verified: nextVerified }),
+      });
+      const d = await r.json();
+      if (!d.ok) {
+        showToast(d.message || 'Failed to update verification', 'error');
+        return;
+      }
+      setUsers(prev => prev.map(u => (u.userId === userId ? { ...u, verified: nextVerified } : u)));
+      setSelectedUser(prev => (prev && prev.userId === userId ? { ...prev, verified: nextVerified } : prev));
+      showToast(nextVerified ? 'User verified' : 'User unverified');
+    } catch {
+      showToast('Network error', 'error');
+    }
+  };
+
   const handleDeleteComment = async (commentId: string, journalId?: string) => {
     if (!confirm('Delete this comment?')) return;
     try {
@@ -1447,7 +1497,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       if (d.ok) {
         showToast('Comment deleted');
         if (journalId) fetchPostComments(journalId, postCommentsPage);
-        if (selectedUser) fetchUserComments(selectedUser._id, userCommentsPage);
+        if (selectedUser) fetchUserComments(selectedUser.userId, userCommentsPage);
       } else showToast(d.message || 'Error', 'error');
     } catch { showToast('Network error', 'error'); }
   };
@@ -1479,6 +1529,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
         showToast(`User blocked (${blockType})`);
         setBlockModalUser(null);
         setBlockReason(''); setBlockHours(''); setBlockMinutes(''); setBlockDays('');
+        if (selectedUser && selectedUser.userId === blockModalUser.userId) fetchUserBlocks(selectedUser.userId);
       } else showToast(d.message || 'Error blocking user', 'error');
     } catch { showToast('Network error', 'error'); }
     finally { setBlockSaving(false); }
@@ -1717,6 +1768,8 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       const d = await r.json();
       if (d.ok) {
         setAuthenticated(true);
+        // Clear any Google user session to avoid conflicts
+        localStorage.removeItem('dd_comment_user');
       } else {
         setLoginError(d.message || 'Incorrect password');
       }
@@ -3001,7 +3054,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                             <p className="text-white font-bold text-sm truncate">{selectedCommentPost.title}</p>
                             <p className="text-zinc-500 text-xs">{selectedCommentPost.count} comments · {selectedCommentPost.abuseCount > 0 && <span className="text-red-400 font-bold">{selectedCommentPost.abuseCount} flagged</span>}</p>
                           </div>
-                          <Link to={`/journal/view/${selectedCommentPost.slug}`} className="text-amber-500 text-xs hover:underline shrink-0">View Post ↗</Link>
+                          <Link to={`/journal/view/${selectedCommentPost._id}`} className="text-amber-500 text-xs hover:underline shrink-0">View Post ↗</Link>
                         </div>
 
                         {postCommentsLoading ? (
@@ -3234,7 +3287,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
             /* ── Selected user detail + comments ── */
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <button onClick={() => { setSelectedUser(null); setUserComments([]); }} className="p-2 rounded-xl hover:bg-zinc-800 text-zinc-400 transition-colors"><ChevronLeft size={18} /></button>
+                <button onClick={() => { setSelectedUser(null); setUserComments([]); setUserBlocks([]); }} className="p-2 rounded-xl hover:bg-zinc-800 text-zinc-400 transition-colors"><ChevronLeft size={18} /></button>
                 <h2 className="text-white font-bold text-lg">User: {selectedUser.userName}</h2>
               </div>
               {/* User info card */}
@@ -3245,18 +3298,83 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                   <div className="w-12 h-12 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0"><User size={20} className="text-zinc-500" /></div>
                 )}
                 <div className="flex-1 min-w-0 space-y-1">
-                  <p className="text-white font-black text-lg">{selectedUser.userName}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-white font-black text-lg">{selectedUser.userName}</p>
+                    {selectedUser.verified && <span className="inline-flex items-center gap-1 text-blue-300 text-[10px] font-bold"><VerifiedTickIcon className="w-3 h-3" /> Verified</span>}
+                  </div>
                   <p className="text-zinc-500 text-xs font-mono">{selectedUser._id}</p>
-                  <div className="flex items-center gap-4 flex-wrap text-xs text-zinc-500">
+                  <div className="flex items-center gap-3 flex-wrap text-xs text-zinc-500">
                     <span className="flex items-center gap-1"><MessageSquare size={11} /> {selectedUser.totalComments} comments</span>
-                    <span className="flex items-center gap-1"><Clock size={11} /> First: {new Date(selectedUser.firstCommentAt).toLocaleDateString('en-IN')}</span>
-                    <span className="flex items-center gap-1"><Clock size={11} /> Last: {new Date(selectedUser.lastCommentAt).toLocaleDateString('en-IN')}</span>
+                  </div>
+                  <div className="flex flex-col gap-1.5 mt-2 text-[10px] font-mono">
+                    {/* Account created */}
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-zinc-600 uppercase tracking-widest text-[9px]">Account Created</span>
+                      <span className="text-zinc-400 flex items-center gap-1">
+                        <Clock size={9} className="text-zinc-600 shrink-0" />
+                        {new Date(selectedUser.firstCommentAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </span>
+                      {selectedUser.registrationIp && (
+                        <span className="text-zinc-500">
+                          📍 IP: <span className="text-zinc-300">{selectedUser.registrationIp}</span>
+                          {selectedUser.registrationCountry ? <span className="text-zinc-500"> · {selectedUser.registrationCountry}</span> : null}
+                        </span>
+                      )}
+                    </div>
+                    {/* Last activity */}
+                    <div className="flex flex-col gap-0.5 border-t border-zinc-800/60 pt-1.5">
+                      <span className="text-zinc-600 uppercase tracking-widest text-[9px]">Last Activity</span>
+                      <span className="text-zinc-400 flex items-center gap-1">
+                        <Clock size={9} className="text-zinc-600 shrink-0" />
+                        {new Date(selectedUser.lastCommentAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </span>
+                      {selectedUser.lastActivityIp && (
+                        <span className="text-zinc-500">
+                          🕐 IP: <span className="text-zinc-300">{selectedUser.lastActivityIp}</span>
+                          {selectedUser.lastActivityCountry ? <span className="text-zinc-500"> · {selectedUser.lastActivityCountry}</span> : null}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
-                  <Link to={`/user/${encodeURIComponent(selectedUser._id)}`} className="text-amber-500 text-xs hover:underline">Public Profile ↗</Link>
-                  <button onClick={() => setBlockModalUser({ userId: selectedUser._id, userName: selectedUser.userName, userPic: selectedUser.userPic })} className={`${btnCls} bg-zinc-800 border border-zinc-700 text-orange-400 hover:bg-zinc-700 flex items-center gap-1 text-xs`}><ShieldBan size={12} /> Block</button>
+                  <Link to={`/user/${encodeURIComponent(selectedUser.userId)}`} className="text-amber-500 text-xs hover:underline">Public Profile ↗</Link>
+                  <button
+                    onClick={() => handleToggleUserVerified(selectedUser.userId, !selectedUser.verified)}
+                    className={`${btnCls} ${selectedUser.verified ? 'bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700' : 'bg-blue-500/10 border border-blue-500/40 text-blue-300 hover:bg-blue-500/20'} flex items-center gap-1 text-xs`}
+                  >
+                    <VerifiedTickIcon className="w-3 h-3" />
+                    {selectedUser.verified ? 'Unverify' : 'Verify'}
+                  </button>
+                  <button onClick={() => setBlockModalUser({ userId: selectedUser.userId, userName: selectedUser.userName, userPic: selectedUser.userPic })} className={`${btnCls} bg-zinc-800 border border-zinc-700 text-orange-400 hover:bg-zinc-700 flex items-center gap-1 text-xs`}><ShieldBan size={12} /> Block</button>
                 </div>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-zinc-400 text-sm font-bold flex items-center gap-2"><ShieldBan size={14} /> Active Blocks</h3>
+                {userBlocksLoading ? (
+                  <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-amber-500" /></div>
+                ) : userBlocks.length === 0 ? (
+                  <p className="text-zinc-600 text-xs">No active blocks.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {userBlocks.map((b) => (
+                      <div key={b._id} className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-3 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-zinc-300 text-xs font-bold">
+                            {b.blockType === 'all' ? 'All posts' : b.blockType === 'post' ? 'This post only' : 'Temporary'}
+                          </p>
+                          <p className="text-zinc-600 text-[10px] font-mono">
+                            {b.blockType === 'temp' && b.expiresAt
+                              ? `Until ${new Date(b.expiresAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}`
+                              : b.createdAtIST}
+                          </p>
+                          {b.reason && <p className="text-zinc-500 text-[10px] mt-0.5 truncate">Reason: {b.reason}</p>}
+                        </div>
+                        <button onClick={() => handleUnblockUser(b._id)} className={`${btnCls} bg-zinc-800 border border-zinc-700 text-amber-400 hover:bg-zinc-700 text-xs px-3 py-1.5`}>Unblock</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               {/* User comments */}
               <div className="space-y-3">
@@ -3271,7 +3389,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                       {userComments.map(c => (
                         <div key={c._id} className={`border rounded-xl p-4 space-y-2 ${c.hasAbuse ? 'border-red-900/40 bg-red-950/10' : 'border-zinc-800 bg-zinc-900/40'}`}>
                           {c.journalInfo && (
-                            <Link to={`/journal/view/${c.journalInfo.slug}`} className="text-amber-500/70 text-[10px] font-mono hover:text-amber-400 transition-colors truncate block">
+                            <Link to={`/journal/view/${c.journalInfo._id || c.journalInfo.slug}`} className="text-amber-500/70 text-[10px] font-mono hover:text-amber-400 transition-colors truncate block">
                               ↗ {c.journalInfo.title}
                             </Link>
                           )}
@@ -3293,9 +3411,9 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                     </div>
                     {userCommentsTotalPages > 1 && (
                       <div className="flex items-center justify-center gap-3 pt-1">
-                        <button onClick={() => { fetchUserComments(selectedUser._id, userCommentsPage - 1); }} disabled={userCommentsPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}><ChevronLeft size={14} /> Prev</button>
+                        <button onClick={() => { fetchUserComments(selectedUser.userId, userCommentsPage - 1); }} disabled={userCommentsPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}><ChevronLeft size={14} /> Prev</button>
                         <span className="text-zinc-500 text-sm">Page {userCommentsPage} / {userCommentsTotalPages}</span>
-                        <button onClick={() => { fetchUserComments(selectedUser._id, userCommentsPage + 1); }} disabled={userCommentsPage >= userCommentsTotalPages} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}>Next <ChevronRight size={14} /></button>
+                        <button onClick={() => { fetchUserComments(selectedUser.userId, userCommentsPage + 1); }} disabled={userCommentsPage >= userCommentsTotalPages} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}>Next <ChevronRight size={14} /></button>
                       </div>
                     )}
                   </>
@@ -3325,7 +3443,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition-all cursor-pointer"
-                        onClick={() => { setSelectedUser(u); fetchUserComments(u._id, 1); }}
+                        onClick={() => { setSelectedUser(u); fetchUserComments(u.userId, 1); fetchUserBlocks(u.userId); }}
                       >
                         <div className="flex items-center gap-4">
                           {u.userPic ? (
@@ -3336,6 +3454,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                           <div className="flex-1 min-w-0">
                             <p className="text-white font-bold text-base">{u.userName}</p>
                             <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                              {u.verified && <span className="inline-flex items-center gap-1 text-blue-300 text-[10px] font-bold"><VerifiedTickIcon className="w-3 h-3" /> Verified</span>}
                               <span className="text-zinc-500 text-xs flex items-center gap-1"><MessageSquare size={10} /> {u.totalComments} comments</span>
                               <span className="text-zinc-600 text-[10px] font-mono">Joined: {new Date(u.firstCommentAt).toLocaleDateString('en-IN')}</span>
                               <span className="text-zinc-600 text-[10px] font-mono">Last: {new Date(u.lastCommentAt).toLocaleDateString('en-IN')}</span>
@@ -3377,8 +3496,8 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                 <span>MongoDB (MONGODB_URI env)</span>
               </div>
               <div className="flex justify-between">
-                <span className="font-mono text-zinc-600 uppercase text-[10px] tracking-widest self-center">API Files</span>
-                <span>11 / 12 (Vercel free tier)</span>
+                <span className="font-mono text-zinc-600 uppercase text-[10px] tracking-widest self-center">Serverless Functions</span>
+                <span>12 files in `/api` (routes + shared helpers)</span>
               </div>
             </div>
             <button

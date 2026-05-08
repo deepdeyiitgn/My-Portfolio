@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Users, MessageSquare, Calendar, Loader2, ChevronLeft, ChevronRight, User, Star } from 'lucide-react';
+import { Users, MessageSquare, Calendar, Loader2, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import SEO from '../components/SEO';
+import { CrownBadgeIcon, VerifiedTickIcon } from '../components/IdentityBadges';
 
 interface Contributor {
   _id?: string;
@@ -13,6 +14,7 @@ interface Contributor {
   firstCommentAt: string;
   lastCommentAt: string;
   profileTitle?: string;
+  verified?: boolean;
 }
 
 interface Pagination {
@@ -81,24 +83,37 @@ export default function AllUsers() {
 
         {/* Owner card — always at the top */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <div className="relative overflow-hidden bg-gradient-to-br from-amber-500/10 to-zinc-900/60 border border-amber-500/30 rounded-2xl p-5 flex items-center gap-4">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(245,158,11,0.07)_0%,_transparent_60%)] pointer-events-none" />
-            <div className="w-14 h-14 rounded-full bg-amber-500/20 border-2 border-amber-500/40 flex items-center justify-center shrink-0">
-              <Star size={22} className="text-amber-500" fill="currentColor" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-amber-500 font-black text-lg">Deep Dey</span>
-                <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">Owner</span>
+          <div className="relative overflow-hidden rounded-2xl p-[1px] bg-gradient-to-br from-amber-400 via-amber-500/60 to-amber-900/40 shadow-[0_0_32px_rgba(245,158,11,0.25)]">
+            <div className="relative rounded-[calc(1rem-1px)] bg-gradient-to-br from-zinc-900 via-zinc-950 to-zinc-900 p-5 flex items-center gap-4">
+              {/* Radial glow overlay */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(245,158,11,0.12)_0%,_transparent_65%)] pointer-events-none rounded-[calc(1rem-1px)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(245,158,11,0.06)_0%,_transparent_60%)] pointer-events-none rounded-[calc(1rem-1px)]" />
+              {/* Photo with glow ring */}
+              <div className="relative shrink-0">
+                <div className="absolute inset-0 rounded-full bg-amber-500/30 blur-md scale-125" />
+                <img
+                  src="/assets/images/myphoto.png"
+                  alt="Deep Dey"
+                  className="relative w-14 h-14 rounded-full object-cover border-2 border-amber-400/70 ring-4 ring-amber-500/20 shadow-[0_0_16px_rgba(245,158,11,0.35)]"
+                />
               </div>
-              <p className="text-zinc-400 text-xs mt-0.5">Founder & author of this journal</p>
-              <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                <span className="text-zinc-500 text-[11px] flex items-center gap-1"><MessageSquare size={10} /> Writes all journal posts</span>
+              <div className="flex-1 min-w-0 z-10">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-amber-400 font-black text-lg tracking-tight drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]">Deep Dey</span>
+                  <span className="inline-flex items-center gap-0.5" title="Verified Owner">
+                    <VerifiedTickIcon className="w-[15px] h-[15px]" />
+                    <CrownBadgeIcon className="w-[15px] h-[15px]" />
+                  </span>
+                </div>
+                <p className="text-zinc-400 text-xs mt-0.5">Founder · Software Architect · JEE 2027</p>
+                <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                  <span className="text-zinc-500 text-[11px] flex items-center gap-1"><MessageSquare size={10} /> Writes all journal posts</span>
+                </div>
               </div>
+              <Link to="/user/owner" className="shrink-0 z-10 px-4 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-400 text-xs font-bold hover:bg-amber-500/25 hover:border-amber-400/70 transition-all shadow-[0_0_8px_rgba(245,158,11,0.15)]">
+                Profile
+              </Link>
             </div>
-            <Link to="/about" className="shrink-0 px-4 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs font-bold hover:bg-amber-500/20 transition-colors">
-              About
-            </Link>
           </div>
         </motion.div>
 
@@ -140,6 +155,11 @@ export default function AllUsers() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-bold text-sm truncate group-hover:text-amber-400 transition-colors">{u.userName}</p>
+                        {u.verified && (
+                          <span className="inline-flex items-center gap-1 text-blue-300 text-[10px] font-bold mt-0.5">
+                            <VerifiedTickIcon className="w-3 h-3" /> Verified
+                          </span>
+                        )}
                         {u.profileTitle && <p className="text-zinc-500 text-[11px] truncate">{u.profileTitle}</p>}
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="flex items-center gap-1 text-zinc-600 text-[11px]">
