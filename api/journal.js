@@ -343,7 +343,7 @@ module.exports = async (req, res) => {
           clusterTotalSize = listResult.totalSize || 0;
         } catch { /* Atlas M0 may not allow this — fall back to current DB size */ }
 
-        const collectionNames = ['journals', 'projects', 'timeline', 'categories', 'live_status', 'settings', 'config', 'search_analytics', 'comments', 'blocked_users', 'users'];
+        const collectionNames = ['journals', 'projects', 'timeline', 'categories', 'live_status', 'settings', 'config', 'search_analytics', 'comments', 'blocked_users', 'users', 'feedbacks', 'feedback_subjects'];
         const collections = {};
         for (const name of collectionNames) {
           try {

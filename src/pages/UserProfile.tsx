@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import SEO from '../components/SEO';
-import { CrownBadgeIcon, VerifiedTickIcon } from '../components/IdentityBadges';
 
 interface SocialLink {
   platform: string;
@@ -442,14 +441,8 @@ export default function UserProfile() {
                 <div>
                   <h1 className={`font-black text-2xl tracking-tight ${userId === 'owner' ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]' : 'text-white'}`}>{userInfo.userName}</h1>
                   {userId === 'owner' && (
-                    <span className="inline-flex items-center gap-0.5 mt-1" title="Verified Owner">
-                      <VerifiedTickIcon className="w-[16px] h-[16px]" />
-                      <CrownBadgeIcon className="w-[16px] h-[16px]" />
-                    </span>
-                  )}
-                  {userId !== 'owner' && userInfo.verified && (
-                    <span className="inline-flex items-center gap-0.5 mt-1" title="Verified User">
-                      <VerifiedTickIcon className="w-[16px] h-[16px]" />
+                    <span className="mt-1 inline-flex rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.25em] text-amber-300">
+                      Owner
                     </span>
                   )}
                   {userInfo.profileTitle && <p className="text-amber-500/80 text-sm font-bold mt-0.5">{userInfo.profileTitle}</p>}

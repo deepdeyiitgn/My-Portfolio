@@ -10,9 +10,9 @@ import {
 import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
 import { ICON_NAMES, renderIcon } from '../utils/iconMap';
-import { VerifiedTickIcon } from '../components/IdentityBadges';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
+import type { FeedbackEntry, FeedbackMetrics, FeedbackSubject, FeedbackSummary } from '../types/feedback';
 
 // ── types ────────────────────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ interface Journal {
   images?: string[];
 }
 
-type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'status' | 'storage' | 'users';
+type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'status' | 'feedback' | 'storage' | 'users';
 
 // ── Projects types ────────────────────────────────────────────────────────────
 export interface ProjectDB {
@@ -72,6 +72,11 @@ interface StorageStats {
   indexSize: number;
   clusterTotalSize: number; // all databases on this Atlas cluster
   collections: Record<string, CollectionStat>;
+}
+
+interface FeedbackStorage {
+  count: number;
+  approxBytes: number;
 }
 
 // ── Comments & Users types ────────────────────────────────────────────────────
@@ -1305,7 +1310,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   // ── Storage state ────────────────────────────────────────────────────────
   const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
   const [storageLoading, setStorageLoading] = useState(false);
-  const [storageSubTab, setStorageSubTab] = useState<'journals' | 'projects' | 'journey' | 'comments'>('journals');
+  const [storageSubTab, setStorageSubTab] = useState<'journals' | 'projects' | 'journey' | 'comments' | 'feedback'>('journals');
   const [storageJournals, setStorageJournals] = useState<Journal[]>([]);
   const [storageJournalPage, setStorageJournalPage] = useState(1);
   const [storageProjectPage, setStorageProjectPage] = useState(1);
@@ -1356,6 +1361,16 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   const [newBlacklistWord, setNewBlacklistWord] = useState('');
   const [addingBlacklistWord, setAddingBlacklistWord] = useState(false);
 
+  // ── Feedback state ───────────────────────────────────────────────────────
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackSubjects, setFeedbackSubjects] = useState<FeedbackSubject[]>([]);
+  const [feedbackEntries, setFeedbackEntries] = useState<FeedbackEntry[]>([]);
+  const [feedbackSummary, setFeedbackSummary] = useState<FeedbackSummary>({ total: 0, average: 0, distribution: [5, 4, 3, 2, 1].map((rating) => ({ rating, count: 0 })) });
+  const [feedbackMetrics, setFeedbackMetrics] = useState<FeedbackMetrics>({ totalFeedbacks: 0, pinnedFeedbacks: 0, totalSubjects: 0, totalSubSubjects: 0 });
+  const [feedbackStorage, setFeedbackStorage] = useState<FeedbackStorage>({ count: 0, approxBytes: 0 });
+  const [newFeedbackSubjectName, setNewFeedbackSubjectName] = useState('');
+  const [savingFeedbackSubject, setSavingFeedbackSubject] = useState(false);
+
   // ── Client-side pagination for Projects & Journey ────────────────────────
   const [projectPage, setProjectPage] = useState(1);
   const PROJECT_PAGE_SIZE = 10;
@@ -1386,6 +1401,22 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       if (journalsData.ok) setStorageJournals(journalsData.journals);
     } catch { /* ignore */ }
     finally { setStorageLoading(false); }
+  }, []);
+
+  const fetchFeedbackAdminData = useCallback(async () => {
+    setFeedbackLoading(true);
+    try {
+      const r = await fetch('/api/feedback?action=admin');
+      const d = await r.json();
+      if (d.ok) {
+        setFeedbackSubjects(d.subjects || []);
+        setFeedbackEntries(d.feedbacks || []);
+        setFeedbackSummary(d.summary || { total: 0, average: 0, distribution: [] });
+        setFeedbackMetrics(d.metrics || { totalFeedbacks: 0, pinnedFeedbacks: 0, totalSubjects: 0, totalSubSubjects: 0 });
+        setFeedbackStorage(d.storage || { count: 0, approxBytes: 0 });
+      }
+    } catch { /* ignore */ }
+    finally { setFeedbackLoading(false); }
   }, []);
 
   const fetchCommentPosts = useCallback(async (p = 1) => {
@@ -1469,26 +1500,6 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
     } catch { showToast('Network error', 'error'); }
   };
 
-  const handleToggleUserVerified = async (userId: string, nextVerified: boolean) => {
-    try {
-      const r = await fetch('/api/journal?action=user-verify', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, verified: nextVerified }),
-      });
-      const d = await r.json();
-      if (!d.ok) {
-        showToast(d.message || 'Failed to update verification', 'error');
-        return;
-      }
-      setUsers(prev => prev.map(u => (u.userId === userId ? { ...u, verified: nextVerified } : u)));
-      setSelectedUser(prev => (prev && prev.userId === userId ? { ...prev, verified: nextVerified } : prev));
-      showToast(nextVerified ? 'User verified' : 'User unverified');
-    } catch {
-      showToast('Network error', 'error');
-    }
-  };
-
   const handleDeleteComment = async (commentId: string, journalId?: string) => {
     if (!confirm('Delete this comment?')) return;
     try {
@@ -1552,6 +1563,12 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   }, [tab, authenticated, storageSubTab, fetchCommentPosts]);
 
   useEffect(() => {
+    if (authenticated && (tab === 'feedback' || (tab === 'storage' && storageSubTab === 'feedback'))) {
+      fetchFeedbackAdminData();
+    }
+  }, [tab, authenticated, storageSubTab, fetchFeedbackAdminData]);
+
+  useEffect(() => {
     if (tab === 'users' && authenticated) fetchUsers(1);
   }, [tab, authenticated, fetchUsers]);
 
@@ -1599,6 +1616,160 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
         showToast(d.message || 'Error', 'error');
       }
     } catch { showToast('Network error', 'error'); }
+  };
+
+  const handleAddFeedbackSubject = async () => {
+    if (!newFeedbackSubjectName.trim()) return;
+    setSavingFeedbackSubject(true);
+    try {
+      const r = await fetch('/api/feedback?action=subject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newFeedbackSubjectName.trim() }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        setNewFeedbackSubjectName('');
+        showToast('Feedback subject added');
+        fetchFeedbackAdminData();
+      } else {
+        showToast(d.message || 'Unable to add subject', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    } finally {
+      setSavingFeedbackSubject(false);
+    }
+  };
+
+  const handleEditFeedbackSubject = async (subject: FeedbackSubject) => {
+    const nextName = prompt('Rename subject', subject.name)?.trim();
+    if (!nextName || nextName === subject.name) return;
+    try {
+      const r = await fetch('/api/feedback?action=subject', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentSlug: subject.slug, name: nextName }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        showToast('Subject updated');
+        fetchFeedbackAdminData();
+      } else {
+        showToast(d.message || 'Unable to update subject', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    }
+  };
+
+  const handleDeleteFeedbackSubject = async (subject: FeedbackSubject) => {
+    if (!confirm(`Delete subject "${subject.name}"?`)) return;
+    try {
+      const r = await fetch(`/api/feedback?action=subject&subjectSlug=${encodeURIComponent(subject.slug)}`, { method: 'DELETE' });
+      const d = await r.json();
+      if (d.ok) {
+        showToast('Subject deleted');
+        fetchFeedbackAdminData();
+      } else {
+        showToast(d.message || 'Unable to delete subject', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    }
+  };
+
+  const handleAddSubSubject = async (subject: FeedbackSubject) => {
+    const name = prompt(`Add sub-subject under ${subject.name}`)?.trim();
+    if (!name) return;
+    try {
+      const r = await fetch('/api/feedback?action=sub-subject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subjectSlug: subject.slug, name }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        showToast('Sub-subject added');
+        fetchFeedbackAdminData();
+      } else {
+        showToast(d.message || 'Unable to add sub-subject', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    }
+  };
+
+  const handleEditSubSubject = async (subject: FeedbackSubject, subSubjectId: string, currentName: string) => {
+    const name = prompt('Rename sub-subject', currentName)?.trim();
+    if (!name || name === currentName) return;
+    try {
+      const r = await fetch('/api/feedback?action=sub-subject', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subjectSlug: subject.slug, subSubjectId, name }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        showToast('Sub-subject updated');
+        fetchFeedbackAdminData();
+      } else {
+        showToast(d.message || 'Unable to update sub-subject', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    }
+  };
+
+  const handleDeleteSubSubject = async (subject: FeedbackSubject, subSubjectId: string, currentName: string) => {
+    if (!confirm(`Delete sub-subject "${currentName}"?`)) return;
+    try {
+      const r = await fetch(`/api/feedback?action=sub-subject&subjectSlug=${encodeURIComponent(subject.slug)}&subSubjectId=${encodeURIComponent(subSubjectId)}`, { method: 'DELETE' });
+      const d = await r.json();
+      if (d.ok) {
+        showToast('Sub-subject deleted');
+        fetchFeedbackAdminData();
+      } else {
+        showToast(d.message || 'Unable to delete sub-subject', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    }
+  };
+
+  const handlePinFeedbackEntry = async (feedbackId: string, pin: boolean) => {
+    try {
+      const r = await fetch('/api/feedback?action=pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: feedbackId, pin }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        showToast(pin ? 'Feedback pinned to homepage' : 'Feedback unpinned');
+        fetchFeedbackAdminData();
+      } else {
+        showToast(d.message || 'Unable to update pin state', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    }
+  };
+
+  const handleDeleteFeedbackEntry = async (feedbackId: string) => {
+    if (!confirm('Delete this feedback entry?')) return;
+    try {
+      const r = await fetch(`/api/feedback?id=${encodeURIComponent(feedbackId)}`, { method: 'DELETE' });
+      const d = await r.json();
+      if (d.ok) {
+        showToast('Feedback deleted');
+        fetchFeedbackAdminData();
+      } else {
+        showToast(d.message || 'Unable to delete feedback', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    }
   };
 
   const handleStatusDelete = async (id: string) => {
@@ -2055,11 +2226,12 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       </div>
 
       {/* Stats bar */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-3">
         {[
           { label: 'Total Journals', value: journalTotal },
           { label: 'Published', value: journals.filter((j) => j.published).length },
           { label: 'Ecosystem', value: projectMode === 'custom' ? projects.length : 'Default' }, // <-- YE NAYA HAI
+          { label: 'Feedbacks', value: feedbackMetrics.totalFeedbacks },
           { label: 'Drafts', value: journals.filter((j) => !j.published).length },
           { label: 'Categories', value: categories.length },
         ].map((stat) => (
@@ -2100,6 +2272,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
           { id: 'journals', label: 'Journals', icon: <BookOpen size={14} /> },
           { id: 'projects', label: 'Projects', icon: <Layers size={14} /> },    // <-- YE NAYA TAB HAI
           { id: 'status', label: 'Live Status', icon: <Activity size={14} /> },     // <-- YE NAYA TAB HAI v2
+          { id: 'feedback', label: 'Feedback', icon: <MessageSquare size={14} /> },
           { id: 'categories', label: 'Categories', icon: <Tag size={14} /> },
           { id: 'journey', label: 'Journey', icon: <Clock size={14} /> },
           { id: 'storage', label: 'Storage', icon: <HardDrive size={14} /> },
@@ -2615,6 +2788,173 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
         </div>
       )}
 
+      {/* ── Feedback Tab ──────────────────────────────────────────────────── */}
+      {tab === 'feedback' && (
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-4">
+            {[
+              { label: 'Total Feedbacks', value: feedbackMetrics.totalFeedbacks },
+              { label: 'Pinned on Homepage', value: feedbackMetrics.pinnedFeedbacks },
+              { label: 'Subjects', value: feedbackMetrics.totalSubjects },
+              { label: 'Sub-Subjects', value: feedbackMetrics.totalSubSubjects },
+            ].map((item) => (
+              <div key={item.label} className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
+                <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-500">{item.label}</p>
+                <p className="mt-2 text-2xl font-black text-amber-500">{item.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-white">Subjects &amp; sub-subjects</h2>
+                  <p className="text-xs text-zinc-500">Projects auto-seed primary subjects, and you can fully manage the tree from here.</p>
+                </div>
+                <button onClick={fetchFeedbackAdminData} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 text-xs`}>Refresh</button>
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  value={newFeedbackSubjectName}
+                  onChange={(e) => setNewFeedbackSubjectName(e.target.value)}
+                  placeholder="Add new subject..."
+                  className={`${inputCls} flex-1`}
+                />
+                <button
+                  onClick={handleAddFeedbackSubject}
+                  disabled={savingFeedbackSubject || !newFeedbackSubjectName.trim()}
+                  className={`${btnCls} bg-amber-500 text-black hover:bg-amber-400 disabled:opacity-50 flex items-center gap-2`}
+                >
+                  {savingFeedbackSubject ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                  Add
+                </button>
+              </div>
+
+              {feedbackLoading ? (
+                <div className="flex justify-center py-10"><Loader2 size={20} className="animate-spin text-amber-500" /></div>
+              ) : feedbackSubjects.length === 0 ? (
+                <p className="py-6 text-center text-sm text-zinc-600">No feedback subjects available.</p>
+              ) : (
+                <div className="space-y-3 max-h-[820px] overflow-y-auto pr-1">
+                  {feedbackSubjects.map((subject) => (
+                    <div key={subject.id} className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-bold text-white">{subject.name}</p>
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.2em] ${subject.source === 'auto' ? 'border border-amber-500/20 bg-amber-500/10 text-amber-400' : 'border border-zinc-700 bg-zinc-900 text-zinc-400'}`}>
+                              {subject.source}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-zinc-600">{subject.slug}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleAddSubSubject(subject)} className="text-xs font-bold text-amber-500 hover:text-amber-400">Add sub</button>
+                          <button onClick={() => handleEditFeedbackSubject(subject)} className="text-zinc-500 hover:text-zinc-300"><Edit3 size={14} /></button>
+                          <button onClick={() => handleDeleteFeedbackSubject(subject)} className="text-zinc-600 hover:text-red-400"><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {subject.subSubjects.map((item) => (
+                          <div key={item.id} className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300">
+                            <span>{item.name}</span>
+                            <button onClick={() => handleEditSubSubject(subject, item.id, item.name)} className="text-zinc-500 hover:text-zinc-300"><Edit3 size={11} /></button>
+                            <button onClick={() => handleDeleteSubSubject(subject, item.id, item.name)} className="text-zinc-600 hover:text-red-400"><X size={11} /></button>
+                          </div>
+                        ))}
+                        {subject.subSubjects.length === 0 && <span className="text-xs text-zinc-600">No sub-subjects yet.</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-white">Rating summary</h2>
+                    <p className="text-xs text-zinc-500">Visible feedback metrics stay synced with moderation changes and storage reporting.</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-black text-amber-500">{feedbackSummary.average.toFixed(1)}</p>
+                    <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-600">{feedbackSummary.total} entries</p>
+                  </div>
+                </div>
+                <div className="mt-5 space-y-3">
+                  {feedbackSummary.distribution.map((bucket) => {
+                    const width = feedbackSummary.total === 0 ? 0 : (bucket.count / feedbackSummary.total) * 100;
+                    return (
+                      <div key={bucket.rating} className="grid grid-cols-[34px_1fr_44px] items-center gap-3 text-sm">
+                        <span className="font-bold text-white">{bucket.rating}★</span>
+                        <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+                          <div className="h-full rounded-full bg-amber-500" style={{ width: `${width}%` }} />
+                        </div>
+                        <span className="text-right text-zinc-500">{bucket.count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-bold text-white">Moderation queue</h2>
+                    <p className="text-xs text-zinc-500">Pin unlimited homepage testimonials or remove inappropriate posts instantly.</p>
+                  </div>
+                  <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-600">{feedbackStorage.count} docs · {formatBytes(feedbackStorage.approxBytes)}</p>
+                </div>
+
+                {feedbackLoading ? (
+                  <div className="flex justify-center py-10"><Loader2 size={20} className="animate-spin text-amber-500" /></div>
+                ) : feedbackEntries.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-zinc-600">No feedback entries yet.</p>
+                ) : (
+                  <div className="space-y-3 max-h-[820px] overflow-y-auto pr-1">
+                    {feedbackEntries.map((feedback) => (
+                      <div key={feedback._id} className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 space-y-3">
+                        <div className="flex items-start gap-3">
+                          {feedback.userPic ? (
+                            <img src={feedback.userPic} alt={feedback.userName} className="w-10 h-10 rounded-full border border-zinc-700 object-cover shrink-0" referrerPolicy="no-referrer" />
+                          ) : (
+                            <div className="flex w-10 h-10 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-sm font-bold text-zinc-400 shrink-0">
+                              {feedback.userName.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-white font-bold">{feedback.userName}</p>
+                              <span className="text-amber-400 text-xs font-bold">{feedback.rating}★</span>
+                              {feedback.isPinned && <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.2em] text-amber-400">Pinned</span>}
+                            </div>
+                            <p className="text-[10px] font-mono uppercase tracking-[0.25em] text-zinc-600">{feedback.subjectName} · {feedback.subSubjectName}</p>
+                            <p className="mt-2 text-sm font-bold text-zinc-100">{feedback.headline}</p>
+                            <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-zinc-400">{feedback.message}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 border-t border-zinc-800 pt-3">
+                          <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-zinc-600">{feedback.createdAtIST}</span>
+                          <button onClick={() => handlePinFeedbackEntry(feedback._id, !feedback.isPinned)} className={`${btnCls} ${feedback.isPinned ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'} text-xs px-3 py-1.5`}>
+                            {feedback.isPinned ? 'Unpin' : 'Pin to homepage'}
+                          </button>
+                          <button onClick={() => handleDeleteFeedbackEntry(feedback._id)} className={`${btnCls} bg-red-900/20 border border-red-900/40 text-red-300 hover:bg-red-900/30 text-xs px-3 py-1.5 flex items-center gap-1`}>
+                            <Trash2 size={12} /> Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Live Status Tab ──────────────────────────────────────────────── */}
       {tab === 'status' && (
         <div className="space-y-6 max-w-2xl">
@@ -2890,13 +3230,13 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
               {/* Sub-tabs: per-item breakdown */}
               <div className="space-y-4">
                 <div className="flex gap-2 border-b border-zinc-800">
-                  {(['journals', 'projects', 'journey', 'comments'] as const).map(st => (
+                  {(['journals', 'projects', 'journey', 'comments', 'feedback'] as const).map(st => (
                     <button
                       key={st}
                       onClick={() => { setStorageSubTab(st); setStorageJournalPage(1); setStorageProjectPage(1); setStorageJourneyPage(1); }}
                       className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-colors capitalize ${storageSubTab === st ? 'border-amber-500 text-amber-500' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
                     >
-                      {st === 'comments' ? <span className="flex items-center gap-1"><MessageSquare size={12} /> Comments</span> : st}
+                      {st === 'comments' ? <span className="flex items-center gap-1"><MessageSquare size={12} /> Comments</span> : st === 'feedback' ? <span className="flex items-center gap-1"><MessageSquare size={12} /> Feedback</span> : st}
                     </button>
                   ))}
                 </div>
@@ -3300,7 +3640,6 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2">
                     <p className="text-white font-black text-lg">{selectedUser.userName}</p>
-                    {selectedUser.verified && <span className="inline-flex items-center gap-1 text-blue-300 text-[10px] font-bold"><VerifiedTickIcon className="w-3 h-3" /> Verified</span>}
                   </div>
                   <p className="text-zinc-500 text-xs font-mono">{selectedUser._id}</p>
                   <div className="flex items-center gap-3 flex-wrap text-xs text-zinc-500">
@@ -3339,13 +3678,6 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <Link to={`/user/${encodeURIComponent(selectedUser.userId)}`} className="text-amber-500 text-xs hover:underline">Public Profile ↗</Link>
-                  <button
-                    onClick={() => handleToggleUserVerified(selectedUser.userId, !selectedUser.verified)}
-                    className={`${btnCls} ${selectedUser.verified ? 'bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700' : 'bg-blue-500/10 border border-blue-500/40 text-blue-300 hover:bg-blue-500/20'} flex items-center gap-1 text-xs`}
-                  >
-                    <VerifiedTickIcon className="w-3 h-3" />
-                    {selectedUser.verified ? 'Unverify' : 'Verify'}
-                  </button>
                   <button onClick={() => setBlockModalUser({ userId: selectedUser.userId, userName: selectedUser.userName, userPic: selectedUser.userPic })} className={`${btnCls} bg-zinc-800 border border-zinc-700 text-orange-400 hover:bg-zinc-700 flex items-center gap-1 text-xs`}><ShieldBan size={12} /> Block</button>
                 </div>
               </div>
@@ -3454,7 +3786,6 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                           <div className="flex-1 min-w-0">
                             <p className="text-white font-bold text-base">{u.userName}</p>
                             <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                              {u.verified && <span className="inline-flex items-center gap-1 text-blue-300 text-[10px] font-bold"><VerifiedTickIcon className="w-3 h-3" /> Verified</span>}
                               <span className="text-zinc-500 text-xs flex items-center gap-1"><MessageSquare size={10} /> {u.totalComments} comments</span>
                               <span className="text-zinc-600 text-[10px] font-mono">Joined: {new Date(u.firstCommentAt).toLocaleDateString('en-IN')}</span>
                               <span className="text-zinc-600 text-[10px] font-mono">Last: {new Date(u.lastCommentAt).toLocaleDateString('en-IN')}</span>

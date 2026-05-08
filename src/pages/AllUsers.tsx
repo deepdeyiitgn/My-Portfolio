@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Users, MessageSquare, Calendar, Loader2, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import SEO from '../components/SEO';
-import { CrownBadgeIcon, VerifiedTickIcon } from '../components/IdentityBadges';
+import { useCommunityAuth } from '../hooks/useCommunityAuth';
 
 interface Contributor {
   _id?: string;
@@ -40,6 +40,7 @@ function timeAgo(d?: string | null) {
 }
 
 export default function AllUsers() {
+  const { currentUser } = useCommunityAuth();
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<Contributor[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -63,6 +64,17 @@ export default function AllUsers() {
   useEffect(() => { fetchPage(1); }, [fetchPage]);
 
   const total = pagination?.total ?? 0;
+  const pinnedUser = currentUser
+    ? users.find((user) => user.userId === currentUser.userId) || {
+        userId: currentUser.userId,
+        userName: currentUser.name,
+        userPic: currentUser.picture,
+        totalComments: 0,
+        firstCommentAt: new Date().toISOString(),
+        lastCommentAt: new Date().toISOString(),
+      }
+    : null;
+  const visibleUsers = pinnedUser ? users.filter((user) => user.userId !== pinnedUser.userId) : users;
 
   return (
     <div className="min-h-screen bg-zinc-950 pt-28 pb-20 px-4">
@@ -100,10 +112,7 @@ export default function AllUsers() {
               <div className="flex-1 min-w-0 z-10">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-amber-400 font-black text-lg tracking-tight drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]">Deep Dey</span>
-                  <span className="inline-flex items-center gap-0.5" title="Verified Owner">
-                    <VerifiedTickIcon className="w-[15px] h-[15px]" />
-                    <CrownBadgeIcon className="w-[15px] h-[15px]" />
-                  </span>
+                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.25em] text-amber-300">Owner</span>
                 </div>
                 <p className="text-zinc-400 text-xs mt-0.5">Founder · Software Architect · JEE 2027</p>
                 <div className="flex items-center gap-3 mt-1.5 flex-wrap">
@@ -131,11 +140,32 @@ export default function AllUsers() {
             <div className="space-y-1">
               <p className="text-zinc-500 text-xs font-mono uppercase tracking-widest">{total} contributor{total !== 1 ? 's' : ''} · sorted by recent activity</p>
             </div>
+            {pinnedUser && (
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4">
+                <p className="mb-3 text-[10px] font-mono uppercase tracking-[0.35em] text-amber-400">Your profile</p>
+                <Link
+                  to={`/user/${encodeURIComponent(pinnedUser.userId)}`}
+                  className="flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-zinc-950/60 p-4 transition-all hover:border-amber-500/40"
+                >
+                  {pinnedUser.userPic ? (
+                    <img src={pinnedUser.userPic} alt={pinnedUser.userName} className="h-11 w-11 rounded-full border border-zinc-700 object-cover shrink-0" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 shrink-0">
+                      <User size={18} className="text-zinc-500" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-white">{pinnedUser.userName}</p>
+                    <p className="text-[11px] text-zinc-500">Pinned to the top while you are logged in.</p>
+                  </div>
+                </Link>
+              </motion.div>
+            )}
             {pageLoading ? (
               <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-amber-500" /></div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {users.map((u, i) => (
+                {visibleUsers.map((u, i) => (
                   <motion.div
                     key={u.userId}
                     initial={{ opacity: 0, y: 8 }}
@@ -155,11 +185,6 @@ export default function AllUsers() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-bold text-sm truncate group-hover:text-amber-400 transition-colors">{u.userName}</p>
-                        {u.verified && (
-                          <span className="inline-flex items-center gap-1 text-blue-300 text-[10px] font-bold mt-0.5">
-                            <VerifiedTickIcon className="w-3 h-3" /> Verified
-                          </span>
-                        )}
                         {u.profileTitle && <p className="text-zinc-500 text-[11px] truncate">{u.profileTitle}</p>}
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="flex items-center gap-1 text-zinc-600 text-[11px]">

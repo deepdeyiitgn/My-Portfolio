@@ -7,7 +7,6 @@ import {
   ChevronDown, ChevronUp, AlertTriangle, X, LogOut, ExternalLink,
   ChevronLeft, ChevronRight, Loader2, AlertCircle, ArrowDownUp, Link2, ShieldBan,
 } from 'lucide-react';
-import { CrownBadgeIcon, VerifiedTickIcon } from './IdentityBadges';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -343,7 +342,7 @@ function CommentItem({
         </div>
 
         <div className="flex-1 min-w-0 space-y-1">
-          {/* Name + badges */}
+          {/* Name + meta */}
           <div className="flex flex-wrap items-center gap-2">
             {isOwnerComment ? (
               <Link
@@ -361,14 +360,8 @@ function CommentItem({
               </Link>
             )}
             {isOwnerComment && (
-              <span className="inline-flex items-center gap-0.5" title="Verified Owner">
-                <VerifiedTickIcon className="w-[13px] h-[13px]" />
-                <CrownBadgeIcon className="w-[13px] h-[13px]" />
-              </span>
-            )}
-            {!isOwnerComment && isVerifiedComment && (
-              <span className="inline-flex items-center gap-0.5" title="Verified User">
-                <VerifiedTickIcon className="w-[13px] h-[13px]" />
+              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.25em] text-amber-300">
+                Owner
               </span>
             )}
             {comment.isPinned && (
