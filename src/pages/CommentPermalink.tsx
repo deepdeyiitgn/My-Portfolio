@@ -158,7 +158,7 @@ export default function CommentPermalink() {
     );
   }
 
-  const journalViewUrl = `/journal/view/${journal._id}`;
+  const journalViewUrl = `/journal/view/${encodeURIComponent(journal.slug || journal._id)}`;
 
   return (
     <div className="min-h-screen bg-zinc-950 pt-28 pb-20 px-4">

@@ -86,6 +86,10 @@ function slugify(str) {
     .replace(/-+/g, '-');
 }
 
+function escapeRegexLiteral(s) {
+  return String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function estimateReadMinutes(body) {
   const words = (body || '').trim().split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.ceil(words / 110));
@@ -260,23 +264,43 @@ async function getJournalByIdOrSlug(col, req) {
   const slugParam = getParam(req, 'slug');
   const idParam = getParam(req, 'id');
   const authed = isAuthenticated(req);
+  const refs = [slugParam, idParam].filter(Boolean);
+  if (refs.length === 0) return null;
+  for (const ref of refs) {
+    const doc = await resolveJournalByRef(col, ref, !authed);
+    if (doc) return doc;
+  }
+  return null;
+}
 
-  const query = {};
-  if (slugParam) query.slug = slugParam;
-  if (idParam && ObjectId.isValid(idParam)) query._id = new ObjectId(idParam);
+async function resolveJournalByRef(col, journalIdOrSlugOrTitle, onlyPublished = true) {
+  const token = String(journalIdOrSlugOrTitle || '').trim();
+  if (!token) return null;
 
-  if (!query.slug && !query._id) return null;
-  if (!authed) query.published = true;
+  const titleLikeToken = token.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const slugToken = slugify(token);
+  const queryVariants = [];
 
-  return col.findOne(query);
+  if (ObjectId.isValid(token)) {
+    queryVariants.push({ _id: new ObjectId(token) });
+  }
+  queryVariants.push({ slug: token });
+  if (slugToken && slugToken !== token) queryVariants.push({ slug: slugToken });
+  queryVariants.push({ title: new RegExp(`^${escapeRegexLiteral(token)}$`, 'i') });
+  if (titleLikeToken && titleLikeToken !== token) {
+    queryVariants.push({ title: new RegExp(`^${escapeRegexLiteral(titleLikeToken)}$`, 'i') });
+  }
+
+  for (const q of queryVariants) {
+    const query = onlyPublished ? { ...q, published: true } : q;
+    const doc = await col.findOne(query);
+    if (doc) return doc;
+  }
+  return null;
 }
 
 async function resolveJournalObjectId(col, journalIdOrSlug, onlyPublished = true) {
-  const token = String(journalIdOrSlug || '').trim();
-  if (!token) return null;
-  const query = ObjectId.isValid(token) ? { _id: new ObjectId(token) } : { slug: token };
-  if (onlyPublished) query.published = true;
-  const doc = await col.findOne(query, { projection: { _id: 1 } });
+  const doc = await resolveJournalByRef(col, journalIdOrSlug, onlyPublished);
   return doc?._id || null;
 }
 
@@ -499,8 +523,8 @@ module.exports = async (req, res) => {
         // Community users
         const usersCol = db.collection('users');
         const userQuery = keywords.length
-          ? { $and: keywords.map((kw) => ({ $or: [{ userName: new RegExp(escapeRegex(kw), 'i') }, { userId: new RegExp(escapeRegex(kw), 'i') }, { profileTitle: new RegExp(escapeRegex(kw), 'i') }, { bio: new RegExp(escapeRegex(kw), 'i') }, { description: new RegExp(escapeRegex(kw), 'i') }] })) }
-          : {};
+          ? { $and: [PUBLIC_USER_FILTER, ...keywords.map((kw) => ({ $or: [{ userName: new RegExp(escapeRegex(kw), 'i') }, { userId: new RegExp(escapeRegex(kw), 'i') }, { profileTitle: new RegExp(escapeRegex(kw), 'i') }, { bio: new RegExp(escapeRegex(kw), 'i') }, { description: new RegExp(escapeRegex(kw), 'i') }] }))] }
+          : PUBLIC_USER_FILTER;
         const matchedUsers = await usersCol.find(userQuery).sort({ lastCommentAt: -1, firstCommentAt: -1 }).limit(8).toArray();
         const userResults = matchedUsers
           .filter((u) => String(u?.userId || '').trim())

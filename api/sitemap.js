@@ -63,6 +63,23 @@ function toTimestamp(dateInput) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function slugifyToken(value) {
+  return String(value || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+function getJournalRouteKey(journal) {
+  const directSlug = String(journal?.slug || '').trim();
+  if (directSlug) return directSlug;
+  const fallbackSlug = slugifyToken(journal?.title || '');
+  if (fallbackSlug) return fallbackSlug;
+  return String(journal?._id || '').trim();
+}
+
 const STATIC_ROUTE_SOURCES = {
   '': ['src/pages/Home.tsx', 'src/App.tsx'],
   '/projects': ['src/pages/Projects.tsx'],
@@ -201,6 +218,7 @@ async function buildSitemap(baseUrl) {
     });
   }
   addRoute({ loc: '/user/owner', lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES['/user/owner']), changefreq: 'weekly', priority: '0.6' });
+  addRoute({ loc: '/user/owner?tab=comments', lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES['/user/owner']), changefreq: 'weekly', priority: '0.5' });
 
   // Dynamic routes from DB
   try {
@@ -220,13 +238,14 @@ async function buildSitemap(baseUrl) {
         u.createdAt,
       );
       addRoute({ loc: `/user/${encodeURIComponent(u.userId)}`, lastmod, changefreq: 'weekly', priority: '0.6' });
+      addRoute({ loc: `/user/${encodeURIComponent(u.userId)}?tab=comments`, lastmod, changefreq: 'weekly', priority: '0.5' });
     }
 
     // Journal pages + comments/replies permalinks (slug-first)
     for (const j of journals) {
       const id = String(j?._id || '');
       if (!id) continue;
-      const journalRouteKey = encodeURIComponent(String(j?.slug || id));
+      const journalRouteKey = encodeURIComponent(getJournalRouteKey(j));
       const journalLastmod = formatDate(j.updatedAt || j.publishedAt || j.createdAt);
       addRoute({ loc: `/journal/view/${journalRouteKey}`, lastmod: journalLastmod, changefreq: 'weekly', priority: '0.7' });
 
