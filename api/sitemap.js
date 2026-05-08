@@ -75,8 +75,7 @@ function slugifyToken(value) {
 function getJournalRouteKey(journal) {
   const directSlug = String(journal?.slug || '').trim();
   if (directSlug) return directSlug;
-  const fallbackSlug = slugifyToken(journal?.title || '');
-  if (fallbackSlug) return fallbackSlug;
+  // Title fallback removed, directly using journal id
   return String(journal?._id || '').trim();
 }
 
