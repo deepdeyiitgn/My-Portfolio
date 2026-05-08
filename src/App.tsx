@@ -29,6 +29,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Live = lazy(() => import('./pages/Live'));
 const SearchResults = lazy(() => import('./pages/SearchResults')); // <-- NAYA
 const Status = lazy(() => import('./pages/Status'));
+const Feedback = lazy(() => import('./pages/Feedback'));
 const CommentPermalink = lazy(() => import('./pages/CommentPermalink'));
 const CommentGuide = lazy(() => import('./pages/CommentGuide'));
 const JournalAllComments = lazy(() => import('./pages/JournalAllComments'));
@@ -106,6 +107,7 @@ function AnimatedRoutes() {
             <Route path="/live" element={<Live />} />
             <Route path="/search" element={<SearchResults />} /> {/* <-- NAYA ROUTE */}
             <Route path="/status" element={<Status />} />
+            <Route path="/feedback" element={<Feedback />} />
             <Route path="/journal/comment" element={<CommentGuide />} />
             <Route path="/journal/comment/:commentId" element={<CommentPermalink />} />
             <Route path="/journal/view/:id/comments" element={<JournalAllComments />} />

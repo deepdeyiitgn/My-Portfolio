@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, Radio, Search, Activity, Users, MessageSquare } from 'lucide-react';
+import { Menu, X, Radio, Search, Activity, Users, MessageSquare, LogOut } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { useCommunityAuth } from '../hooks/useCommunityAuth';
 
 const NAV_LINKS = [
   { key: 'nav.home', path: '/' },
@@ -25,6 +26,7 @@ export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const { language, setLanguage, t } = useLanguage();
+  const { currentUser, isOwner, signOutGoogle, signOutOwner } = useCommunityAuth();
 
   // Ctrl+K / Cmd+K — navigate to the Search page
   useEffect(() => {
@@ -97,6 +99,20 @@ export default function Header() {
           </div>
 
           <div className="hidden lg:flex items-center gap-3 shrink-0">
+            <Link
+              to="/user"
+              className="hidden xl:flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] font-black uppercase tracking-wider text-zinc-300 transition-colors hover:border-amber-500/40 hover:text-amber-500"
+            >
+              <Users size={14} />
+              All Users
+            </Link>
+            <Link
+              to="/feedback"
+              className="hidden xl:flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] font-black uppercase tracking-wider text-zinc-300 transition-colors hover:border-amber-500/40 hover:text-amber-500"
+            >
+              <MessageSquare size={14} />
+              Feedback
+            </Link>
             {/* 🔍 Search Icon Button (Desktop) — navigates to /search, Ctrl+K */}
             <button
               onClick={() => navigate('/search')}
@@ -127,6 +143,15 @@ export default function Header() {
               <option value="ko">KO</option>
               <option value="zh">ZH</option>
             </select>
+            {(currentUser || isOwner) && (
+              <button
+                onClick={() => { if (isOwner) signOutOwner(); else signOutGoogle(); }}
+                className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] font-black uppercase tracking-wider text-zinc-300 transition-colors hover:border-red-500/40 hover:text-red-400"
+              >
+                <LogOut size={14} />
+                Logout
+              </button>
+            )}
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -251,6 +276,23 @@ export default function Header() {
                     transition={{ delay: 0.85, ease: [0.22, 1, 0.36, 1] }}
                   >
                     <Link
+                      to="/feedback"
+                      className="group flex flex-col items-center"
+                    >
+                      <span className={`text-xl font-black tracking-tight transition-all duration-300 flex items-center gap-2 ${
+                        location.pathname === '/feedback' ? 'text-amber-500 scale-110' : 'text-zinc-700 hover:text-amber-500'
+                      }`}>
+                        <MessageSquare size={16} />
+                        Feedback
+                      </span>
+                    </Link>
+                  </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.9, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <Link
                       to="/journal/comment"
                       className="group flex flex-col items-center"
                     >
@@ -262,6 +304,19 @@ export default function Header() {
                       </span>
                     </Link>
                   </motion.div>
+                  {(currentUser || isOwner) && (
+                    <button
+                      onClick={() => {
+                        if (isOwner) signOutOwner();
+                        else signOutGoogle();
+                        setIsOpen(false);
+                      }}
+                      className="mt-4 flex items-center gap-2 rounded-xl border border-zinc-800 px-5 py-3 text-sm font-mono uppercase tracking-[0.25em] text-zinc-400 transition-colors hover:border-red-500/40 hover:text-red-400"
+                    >
+                      <LogOut size={14} />
+                      Logout
+                    </button>
+                  )}
                 </div>
               </div>
 

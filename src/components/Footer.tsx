@@ -29,12 +29,14 @@ export default function Footer() {
           <div className="space-y-6">
             <h4 className="text-xs font-mono text-zinc-300 uppercase tracking-[0.4em] font-black">Architecture</h4>
             <ul className="space-y-4">
-              {[
-                { name: 'Home Node', path: '/' },
-                { name: 'Projects Ledger', path: '/projects' },
-                { name: 'Proof Dashboard', path: '/proof' },
-                { name: 'Build Journal', path: '/journal' },
-                { name: 'Now / Roadmap', path: '/now' },
+                {[
+                  { name: 'Home Node', path: '/' },
+                  { name: 'Projects Ledger', path: '/projects' },
+                  { name: 'Feedback System', path: '/feedback' },
+                  { name: 'Proof Dashboard', path: '/proof' },
+                  { name: 'Build Journal', path: '/journal' },
+                  { name: 'All Users', path: '/user' },
+                  { name: 'Now / Roadmap', path: '/now' },
                 { name: 'System Status', path: '/status' },
                 { name: 'Contact Engine', path: '/contact' },
                 { name: 'Portfolio V2', path: 'https://qlynk.vercel.app/v2/portfolio', external: true },

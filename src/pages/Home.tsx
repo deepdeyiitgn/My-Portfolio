@@ -9,6 +9,8 @@ import { timelineData, type TimelineItem } from '../data/timelineData';
 import SocialProof from '../components/SocialProof';
 import { useLanguage } from '../context/LanguageContext';
 import { renderIcon } from '../utils/iconMap';
+import FeedbackMarquee from '../components/FeedbackMarquee';
+import type { FeedbackEntry } from '../types/feedback';
 
 interface TopJournal {
   _id: string;
@@ -29,6 +31,7 @@ export default function Home() {
   const { t } = useLanguage();
 
   const [topJournals, setTopJournals] = useState<TopJournal[]>([]);
+  const [featuredFeedbacks, setFeaturedFeedbacks] = useState<FeedbackEntry[]>([]);
 
   // Timeline — default is local data; replaced with MongoDB items when mode='custom'
   const [activeTimeline, setActiveTimeline] = useState<TimelineItem[]>(timelineData);
@@ -72,6 +75,15 @@ export default function Home() {
     fetch('/api/journal?action=top-journals&limit=6')
       .then(r => r.json())
       .then(d => { if (d.ok && Array.isArray(d.journals)) setTopJournals(d.journals); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/feedback?action=featured')
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.ok && Array.isArray(data.feedbacks)) setFeaturedFeedbacks(data.feedbacks);
+      })
       .catch(() => {});
   }, []);
 
@@ -178,6 +190,17 @@ export default function Home() {
       <section className="py-10 border-y border-zinc-900 bg-zinc-950/20">
         <JourneyMarquee />
       </section>
+
+      {featuredFeedbacks.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          className="space-y-6"
+        >
+          <FeedbackMarquee feedbacks={featuredFeedbacks} />
+        </motion.section>
+      )}
 
       {/* Timeline Section */}
       <motion.section 

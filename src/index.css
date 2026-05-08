@@ -91,3 +91,22 @@
   opacity: 0;
   transition: opacity 300ms ease-out;
 }
+
+@keyframes feedback-marquee-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.feedback-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: feedback-marquee-scroll 70s linear infinite;
+}
+
+.feedback-marquee-paused {
+  animation-play-state: paused;
+}
