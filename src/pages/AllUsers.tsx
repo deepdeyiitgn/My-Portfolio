@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Users, MessageSquare, Calendar, Loader2, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import SEO from '../components/SEO';
-import { CrownBadgeIcon, VerifiedTickIcon } from '../components/IdentityBadges';
 
 interface Contributor {
   _id?: string;
@@ -23,6 +22,16 @@ interface Pagination {
   total: number;
   totalPages: number;
 }
+
+interface GoogleUser {
+  userId: string;
+  name: string;
+  picture: string;
+  credential: string;
+  exp: number;
+}
+
+const STORAGE_KEY = 'dd_comment_user';
 
 function timeAgo(d?: string | null) {
   if (!d) return '';
@@ -45,6 +54,46 @@ export default function AllUsers() {
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [page, setPage] = useState(1);
   const [pageLoading, setPageLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState('');
+  const [currentUserProfile, setCurrentUserProfile] = useState<Contributor | null>(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed: GoogleUser = JSON.parse(stored);
+        if (parsed.exp * 1000 > Date.now()) setCurrentUserId(parsed.userId);
+        else localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+    fetch('/api/auth')
+      .then(r => r.json())
+      .then(d => {
+        if (d.authenticated) setCurrentUserId('owner');
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    fetch(`/api/journal?action=user-profile&userId=${encodeURIComponent(currentUserId)}&page=1`)
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok || !d.user) return;
+        setCurrentUserProfile({
+          userId: d.user.userId,
+          userName: d.user.userName,
+          userPic: d.user.userPic,
+          totalComments: d.user.totalComments || 0,
+          firstCommentAt: d.user.firstCommentAt,
+          lastCommentAt: d.user.lastCommentAt || d.user.firstCommentAt,
+          profileTitle: d.user.profileTitle,
+        });
+      })
+      .catch(() => {});
+  }, [currentUserId]);
 
   const fetchPage = useCallback(async (p: number) => {
     if (p === 1) setLoading(true); else setPageLoading(true);
@@ -82,6 +131,22 @@ export default function AllUsers() {
         </motion.div>
 
         {/* Owner card — always at the top */}
+        {currentUserProfile && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <Link to={`/user/${encodeURIComponent(currentUserProfile.userId)}`} className="block relative overflow-hidden rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4 hover:bg-amber-500/10 transition-colors">
+              <p className="text-[10px] uppercase tracking-[0.3em] font-mono text-amber-500 mb-2">Your Profile</p>
+              <div className="flex items-center gap-3">
+                {currentUserProfile.userPic ? <img src={currentUserProfile.userPic} alt={currentUserProfile.userName} className="w-11 h-11 rounded-full object-cover border border-amber-500/40" /> : <div className="w-11 h-11 rounded-full bg-zinc-800 border border-zinc-700" />}
+                <div className="min-w-0">
+                  <p className="text-white font-bold truncate">{currentUserProfile.userName}</p>
+                  <p className="text-zinc-500 text-[11px] truncate">{currentUserProfile.profileTitle || `${currentUserProfile.totalComments} comments`}</p>
+                </div>
+              </div>
+            </Link>
+          </motion.div>
+        )}
+
+        {/* Owner card */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <div className="relative overflow-hidden rounded-2xl p-[1px] bg-gradient-to-br from-amber-400 via-amber-500/60 to-amber-900/40 shadow-[0_0_32px_rgba(245,158,11,0.25)]">
             <div className="relative rounded-[calc(1rem-1px)] bg-gradient-to-br from-zinc-900 via-zinc-950 to-zinc-900 p-5 flex items-center gap-4">
@@ -100,10 +165,6 @@ export default function AllUsers() {
               <div className="flex-1 min-w-0 z-10">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-amber-400 font-black text-lg tracking-tight drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]">Deep Dey</span>
-                  <span className="inline-flex items-center gap-0.5" title="Verified Owner">
-                    <VerifiedTickIcon className="w-[15px] h-[15px]" />
-                    <CrownBadgeIcon className="w-[15px] h-[15px]" />
-                  </span>
                 </div>
                 <p className="text-zinc-400 text-xs mt-0.5">Founder · Software Architect · JEE 2027</p>
                 <div className="flex items-center gap-3 mt-1.5 flex-wrap">
@@ -155,11 +216,6 @@ export default function AllUsers() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-bold text-sm truncate group-hover:text-amber-400 transition-colors">{u.userName}</p>
-                        {u.verified && (
-                          <span className="inline-flex items-center gap-1 text-blue-300 text-[10px] font-bold mt-0.5">
-                            <VerifiedTickIcon className="w-3 h-3" /> Verified
-                          </span>
-                        )}
                         {u.profileTitle && <p className="text-zinc-500 text-[11px] truncate">{u.profileTitle}</p>}
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="flex items-center gap-1 text-zinc-600 text-[11px]">

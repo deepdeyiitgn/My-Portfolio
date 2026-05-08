@@ -10,7 +10,7 @@ import {
 import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
 import { ICON_NAMES, renderIcon } from '../utils/iconMap';
-import { VerifiedTickIcon } from '../components/IdentityBadges';
+import FeedbackManager from '../components/FeedbackManager';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 
@@ -42,7 +42,7 @@ interface Journal {
   images?: string[];
 }
 
-type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'status' | 'storage' | 'users';
+type Tab = 'journals' | 'feedback' | 'categories' | 'settings' | 'journey' | 'projects' | 'status' | 'storage' | 'users';
 
 // ── Projects types ────────────────────────────────────────────────────────────
 export interface ProjectDB {
@@ -1304,6 +1304,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
 
   // ── Storage state ────────────────────────────────────────────────────────
   const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
+  const [feedbackMetrics, setFeedbackMetrics] = useState<{ totalFeedbacks: number; categoryCount: number; pinnedCount: number }>({ totalFeedbacks: 0, categoryCount: 0, pinnedCount: 0 });
   const [storageLoading, setStorageLoading] = useState(false);
   const [storageSubTab, setStorageSubTab] = useState<'journals' | 'projects' | 'journey' | 'comments'>('journals');
   const [storageJournals, setStorageJournals] = useState<Journal[]>([]);
@@ -1376,14 +1377,23 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   const fetchStorageStats = useCallback(async () => {
     setStorageLoading(true);
     try {
-      const [statsRes, journalsRes] = await Promise.all([
+      const [statsRes, journalsRes, feedbackRes] = await Promise.all([
         fetch('/api/journal?action=dbstats'),
         fetch('/api/journal?page=1&limit=100'),
+        fetch('/api/journal?action=feedback-stats'),
       ]);
       const statsData = await statsRes.json();
       if (statsData.ok) setStorageStats(statsData);
       const journalsData = await journalsRes.json();
       if (journalsData.ok) setStorageJournals(journalsData.journals);
+      const feedbackData = await feedbackRes.json();
+      if (feedbackData.ok) {
+        setFeedbackMetrics({
+          totalFeedbacks: Number(feedbackData.metrics?.totalFeedbacks || 0),
+          categoryCount: Number(feedbackData.metrics?.categoryCount || 0),
+          pinnedCount: Number(feedbackData.metrics?.pinnedCount || 0),
+        });
+      }
     } catch { /* ignore */ }
     finally { setStorageLoading(false); }
   }, []);
@@ -1467,26 +1477,6 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
         if (selectedUser) fetchUserBlocks(selectedUser.userId);
       } else showToast(d.message || 'Error removing block', 'error');
     } catch { showToast('Network error', 'error'); }
-  };
-
-  const handleToggleUserVerified = async (userId: string, nextVerified: boolean) => {
-    try {
-      const r = await fetch('/api/journal?action=user-verify', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, verified: nextVerified }),
-      });
-      const d = await r.json();
-      if (!d.ok) {
-        showToast(d.message || 'Failed to update verification', 'error');
-        return;
-      }
-      setUsers(prev => prev.map(u => (u.userId === userId ? { ...u, verified: nextVerified } : u)));
-      setSelectedUser(prev => (prev && prev.userId === userId ? { ...prev, verified: nextVerified } : prev));
-      showToast(nextVerified ? 'User verified' : 'User unverified');
-    } catch {
-      showToast('Network error', 'error');
-    }
   };
 
   const handleDeleteComment = async (commentId: string, journalId?: string) => {
@@ -2043,7 +2033,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black text-white">Content Dashboard</h1>
-          <p className="text-zinc-500 text-sm mt-0.5">Manage journals, categories, journey timeline, and settings</p>
+          <p className="text-zinc-500 text-sm mt-0.5">Manage journals, feedback, categories, journey timeline, and settings</p>
         </div>
         <button
           onClick={handleLogout}
@@ -2055,14 +2045,15 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       </div>
 
       {/* Stats bar */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        {[
-          { label: 'Total Journals', value: journalTotal },
-          { label: 'Published', value: journals.filter((j) => j.published).length },
-          { label: 'Ecosystem', value: projectMode === 'custom' ? projects.length : 'Default' }, // <-- YE NAYA HAI
-          { label: 'Drafts', value: journals.filter((j) => !j.published).length },
-          { label: 'Categories', value: categories.length },
-        ].map((stat) => (
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-3">
+          {[
+            { label: 'Total Journals', value: journalTotal },
+            { label: 'Published', value: journals.filter((j) => j.published).length },
+            { label: 'Ecosystem', value: projectMode === 'custom' ? projects.length : 'Default' }, // <-- YE NAYA HAI
+            { label: 'Drafts', value: journals.filter((j) => !j.published).length },
+            { label: 'Categories', value: categories.length },
+            { label: 'Feedbacks', value: feedbackMetrics.totalFeedbacks },
+          ].map((stat) => (
           <div key={stat.label} className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4">
             <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">{stat.label}</p>
             <p className="text-amber-500 text-2xl font-black mt-1">{stat.value}</p>
@@ -2098,6 +2089,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       <div className="flex gap-2 border-b border-zinc-800 pb-0 overflow-x-auto">
         {([
           { id: 'journals', label: 'Journals', icon: <BookOpen size={14} /> },
+          { id: 'feedback', label: 'Feedback', icon: <MessageSquare size={14} /> },
           { id: 'projects', label: 'Projects', icon: <Layers size={14} /> },    // <-- YE NAYA TAB HAI
           { id: 'status', label: 'Live Status', icon: <Activity size={14} /> },     // <-- YE NAYA TAB HAI v2
           { id: 'categories', label: 'Categories', icon: <Tag size={14} /> },
@@ -2268,6 +2260,13 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
         </div>
       )}
 
+      {tab === 'feedback' && (
+        <FeedbackManager
+          onToast={showToast}
+          onMetricsChange={(metrics) => setFeedbackMetrics(metrics)}
+        />
+      )}
+      
       {/* ── Projects Tab ─────────────────────────────────────────────────── */}
       {tab === 'projects' && (
         <div className="space-y-6">
@@ -2887,6 +2886,21 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                 )}
               </div>
 
+              <div className="grid sm:grid-cols-3 gap-3">
+                <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4">
+                  <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">Total Feedbacks</p>
+                  <p className="text-amber-500 font-black text-2xl mt-1">{feedbackMetrics.totalFeedbacks}</p>
+                </div>
+                <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4">
+                  <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">Feedback Categories</p>
+                  <p className="text-amber-500 font-black text-2xl mt-1">{feedbackMetrics.categoryCount}</p>
+                </div>
+                <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4">
+                  <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">Pinned Feedbacks</p>
+                  <p className="text-amber-500 font-black text-2xl mt-1">{feedbackMetrics.pinnedCount}</p>
+                </div>
+              </div>
+
               {/* Sub-tabs: per-item breakdown */}
               <div className="space-y-4">
                 <div className="flex gap-2 border-b border-zinc-800">
@@ -3300,7 +3314,6 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2">
                     <p className="text-white font-black text-lg">{selectedUser.userName}</p>
-                    {selectedUser.verified && <span className="inline-flex items-center gap-1 text-blue-300 text-[10px] font-bold"><VerifiedTickIcon className="w-3 h-3" /> Verified</span>}
                   </div>
                   <p className="text-zinc-500 text-xs font-mono">{selectedUser._id}</p>
                   <div className="flex items-center gap-3 flex-wrap text-xs text-zinc-500">
@@ -3339,13 +3352,6 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <Link to={`/user/${encodeURIComponent(selectedUser.userId)}`} className="text-amber-500 text-xs hover:underline">Public Profile ↗</Link>
-                  <button
-                    onClick={() => handleToggleUserVerified(selectedUser.userId, !selectedUser.verified)}
-                    className={`${btnCls} ${selectedUser.verified ? 'bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700' : 'bg-blue-500/10 border border-blue-500/40 text-blue-300 hover:bg-blue-500/20'} flex items-center gap-1 text-xs`}
-                  >
-                    <VerifiedTickIcon className="w-3 h-3" />
-                    {selectedUser.verified ? 'Unverify' : 'Verify'}
-                  </button>
                   <button onClick={() => setBlockModalUser({ userId: selectedUser.userId, userName: selectedUser.userName, userPic: selectedUser.userPic })} className={`${btnCls} bg-zinc-800 border border-zinc-700 text-orange-400 hover:bg-zinc-700 flex items-center gap-1 text-xs`}><ShieldBan size={12} /> Block</button>
                 </div>
               </div>
@@ -3454,7 +3460,6 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                           <div className="flex-1 min-w-0">
                             <p className="text-white font-bold text-base">{u.userName}</p>
                             <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                              {u.verified && <span className="inline-flex items-center gap-1 text-blue-300 text-[10px] font-bold"><VerifiedTickIcon className="w-3 h-3" /> Verified</span>}
                               <span className="text-zinc-500 text-xs flex items-center gap-1"><MessageSquare size={10} /> {u.totalComments} comments</span>
                               <span className="text-zinc-600 text-[10px] font-mono">Joined: {new Date(u.firstCommentAt).toLocaleDateString('en-IN')}</span>
                               <span className="text-zinc-600 text-[10px] font-mono">Last: {new Date(u.lastCommentAt).toLocaleDateString('en-IN')}</span>

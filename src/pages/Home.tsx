@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Target, Lightbulb, GraduationCap, ArrowRight, Zap, History, Milestone, Lock, Activity, BookOpen, Heart, Eye, Clock, Tag, Users, MessageSquare } from 'lucide-react';
+import { Target, Lightbulb, GraduationCap, ArrowRight, Zap, History, Milestone, Lock, Activity, BookOpen, Heart, Eye, Clock, Tag, Users, MessageSquare, Star, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import TechGalaxy from '../components/TechGalaxy';
 import JourneyMarquee from '../components/JourneyMarquee';
@@ -23,12 +23,26 @@ interface TopJournal {
   publishedAtIST: string | null;
 }
 
+interface PinnedFeedback {
+  _id: string;
+  userName: string;
+  userPic: string;
+  subjectName: string;
+  shortSubject: string;
+  text: string;
+  rating: number;
+}
+
 export default function Home() {
   const [isHoverable, setIsHoverable] = useState(true);
   const currentYear = new Date().getFullYear();
   const { t } = useLanguage();
 
   const [topJournals, setTopJournals] = useState<TopJournal[]>([]);
+  const [feedbackMetrics, setFeedbackMetrics] = useState({ totalUsers: 0, totalFeedbacks: 0, averageRating: 0 });
+  const [pinnedFeedbacks, setPinnedFeedbacks] = useState<PinnedFeedback[]>([]);
+  const [feedbackPaused, setFeedbackPaused] = useState(false);
+  const [activeFeedback, setActiveFeedback] = useState<PinnedFeedback | null>(null);
 
   // Timeline — default is local data; replaced with MongoDB items when mode='custom'
   const [activeTimeline, setActiveTimeline] = useState<TimelineItem[]>(timelineData);
@@ -72,6 +86,24 @@ export default function Home() {
     fetch('/api/journal?action=top-journals&limit=6')
       .then(r => r.json())
       .then(d => { if (d.ok && Array.isArray(d.journals)) setTopJournals(d.journals); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/journal?action=feedback-stats')
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) return;
+        const metrics = d.metrics || {};
+        setFeedbackMetrics({
+          totalUsers: Number(metrics.totalUsers || 0),
+          totalFeedbacks: Number(metrics.totalFeedbacks || 0),
+          averageRating: Number(metrics.totalFeedbacks || 0) > 0 ? Number(metrics.averageRating || 0) : 0,
+        });
+        const items = Array.isArray(d.pinnedFeedbacks) ? [...d.pinnedFeedbacks] : [];
+        items.sort(() => Math.random() - 0.5);
+        setPinnedFeedbacks(items);
+      })
       .catch(() => {});
   }, []);
 
@@ -259,6 +291,91 @@ export default function Home() {
           })}
         </div>
       </motion.section>
+
+      {/* Feedback Metrics */}
+      <motion.section
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6"
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { label: 'Total Users', value: feedbackMetrics.totalUsers },
+            { label: 'Total Feedbacks', value: feedbackMetrics.totalFeedbacks },
+            { label: 'Average Rating', value: feedbackMetrics.totalFeedbacks > 0 ? feedbackMetrics.averageRating.toFixed(1) : '0.0' },
+          ].map((metric) => (
+            <div key={metric.label} className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5">
+              <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.3em]">{metric.label}</p>
+              <p className="text-3xl font-black text-amber-500 mt-1">{metric.value}</p>
+            </div>
+          ))}
+        </div>
+      </motion.section>
+
+      {/* Pinned Feedback Infinite Scroller */}
+      {pinnedFeedbacks.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.15 }}
+          className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6"
+        >
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <h2 className="text-amber-500 font-mono tracking-[0.4em] uppercase text-[10px] font-black">Testimonials</h2>
+              <h3 className="text-3xl md:text-4xl font-black tracking-tighter text-white">
+                What people are saying about Deep Dey
+              </h3>
+            </div>
+            <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/20 py-4">
+              <div
+                className="flex w-max gap-4 px-4"
+                onMouseEnter={() => setFeedbackPaused(true)}
+                onMouseLeave={() => { if (!activeFeedback) setFeedbackPaused(false); }}
+                style={{
+                  animation: 'feedback-marquee 70s linear infinite',
+                  animationPlayState: feedbackPaused || activeFeedback ? 'paused' : 'running',
+                }}
+              >
+                {[...pinnedFeedbacks, ...pinnedFeedbacks].map((item, idx) => {
+                  const longText = item.text.length > 140;
+                  return (
+                    <article key={`${item._id}-${idx}`} className="w-[320px] shrink-0 rounded-2xl border border-zinc-800 bg-zinc-950/80 p-4 space-y-3 shadow-xl shadow-black/20">
+                      <div className="flex items-center gap-3">
+                        {item.userPic ? (
+                          <img src={item.userPic} alt={item.userName} className="w-10 h-10 rounded-full object-cover border border-zinc-700" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-zinc-800" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-white text-sm font-bold truncate">{item.userName}</p>
+                          <p className="text-zinc-500 text-[10px] truncate">{item.subjectName}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-0.5 text-amber-500">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star key={i} size={12} fill={i < Number(item.rating || 0) ? 'currentColor' : 'none'} />
+                        ))}
+                      </div>
+                      <p className="text-zinc-200 text-sm font-semibold">{item.shortSubject}</p>
+                      <p className="text-zinc-400 text-xs leading-relaxed">{longText ? `${item.text.slice(0, 140)}...` : item.text}</p>
+                      {longText && (
+                        <button
+                          onClick={() => { setFeedbackPaused(true); setActiveFeedback(item); }}
+                          className="text-amber-500 hover:text-amber-400 text-xs font-bold"
+                        >
+                          See More
+                        </button>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </motion.section>
+      )}
 
       {/* ── Journal Spotlight Section ─────────────────────────────────────── */}
       <motion.section
@@ -517,6 +634,48 @@ export default function Home() {
           </Link>
         </div>
       </motion.section>
+
+      {activeFeedback && (
+        <div
+          className="fixed inset-0 z-[210] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setActiveFeedback(null);
+              setFeedbackPaused(false);
+            }
+          }}
+        >
+          <div className="w-full max-w-2xl rounded-3xl border border-zinc-700 bg-zinc-900 p-6 space-y-4 relative">
+            <button
+              onClick={() => { setActiveFeedback(null); setFeedbackPaused(false); }}
+              className="absolute top-4 right-4 p-2 rounded-lg hover:bg-zinc-800 text-zinc-400"
+            >
+              <X size={16} />
+            </button>
+            <div className="flex items-center gap-3">
+              {activeFeedback.userPic ? <img src={activeFeedback.userPic} alt={activeFeedback.userName} className="w-10 h-10 rounded-full border border-zinc-700 object-cover" /> : <div className="w-10 h-10 rounded-full bg-zinc-800" />}
+              <div>
+                <p className="text-white font-bold text-sm">{activeFeedback.userName}</p>
+                <p className="text-zinc-500 text-[10px]">{activeFeedback.subjectName}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-0.5 text-amber-500">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star key={i} size={13} fill={i < Number(activeFeedback.rating || 0) ? 'currentColor' : 'none'} />
+              ))}
+            </div>
+            <h4 className="text-zinc-100 text-lg font-bold">{activeFeedback.shortSubject}</h4>
+            <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">{activeFeedback.text}</p>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes feedback-marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+      `}</style>
     </div>
   );
 }

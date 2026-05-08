@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, Radio, Search, Activity, Users, MessageSquare } from 'lucide-react';
+import { Menu, X, Radio, Search, Activity, Users, MessageSquare, LogOut } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 const NAV_LINKS = [
@@ -16,15 +16,31 @@ const NAV_LINKS = [
   { key: 'nav.now', path: '/now' },
   { key: 'nav.faq', path: '/faq' },
   { key: 'nav.contact', path: '/contact' },
+  { key: 'nav.feedback', path: '/feedback' },
   { key: 'nav.live', path: '/live', isLive: true },
   { key: 'nav.status', path: '/status', isStatus: true },
 ];
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { language, setLanguage, t } = useLanguage();
+
+  const handleGlobalLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await fetch('/api/auth', { method: 'DELETE' });
+    } catch {
+      // ignore
+    } finally {
+      localStorage.removeItem('dd_comment_user');
+      setLoggingOut(false);
+      navigate('/', { replace: false });
+    }
+  };
 
   // Ctrl+K / Cmd+K — navigate to the Search page
   useEffect(() => {
@@ -97,6 +113,18 @@ export default function Header() {
           </div>
 
           <div className="hidden lg:flex items-center gap-3 shrink-0">
+            <button
+              onClick={() => navigate('/user')}
+              className="hidden xl:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900/70 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-amber-500 transition-all text-xs font-black uppercase tracking-wider"
+            >
+              <Users size={12} /> {t('nav.users', 'All Users')}
+            </button>
+            <button
+              onClick={() => navigate('/feedback')}
+              className="hidden xl:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900/70 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-amber-500 transition-all text-xs font-black uppercase tracking-wider"
+            >
+              <MessageSquare size={12} /> {t('nav.feedback', 'Feedback')}
+            </button>
             {/* 🔍 Search Icon Button (Desktop) — navigates to /search, Ctrl+K */}
             <button
               onClick={() => navigate('/search')}
@@ -127,6 +155,15 @@ export default function Header() {
               <option value="ko">KO</option>
               <option value="zh">ZH</option>
             </select>
+            <button
+              onClick={handleGlobalLogout}
+              disabled={loggingOut}
+              className="flex items-center justify-center w-9 h-9 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 text-red-400 transition-all duration-300 disabled:opacity-50"
+              aria-label="Logout"
+              title={t('nav.logout', 'Logout')}
+            >
+              <LogOut size={14} />
+            </button>
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -262,6 +299,23 @@ export default function Header() {
                       </span>
                     </Link>
                   </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.9, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <Link
+                      to="/feedback"
+                      className="group flex flex-col items-center"
+                    >
+                      <span className={`text-xl font-black tracking-tight transition-all duration-300 flex items-center gap-2 ${
+                        location.pathname === '/feedback' ? 'text-amber-500 scale-110' : 'text-zinc-700 hover:text-amber-500'
+                      }`}>
+                        <MessageSquare size={16} />
+                        Feedback
+                      </span>
+                    </Link>
+                  </motion.div>
                 </div>
               </div>
 
@@ -278,6 +332,12 @@ export default function Header() {
                   className="w-10 h-10 rounded-full object-cover border border-amber-500/40 mx-auto"
                 />
                 <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">IIT KGP 2027 Aspirant</p>
+                <button
+                  onClick={handleGlobalLogout}
+                  className="mx-auto mt-2 text-[10px] px-3 py-1 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-1"
+                >
+                  <LogOut size={10} /> {loggingOut ? 'Logging out...' : 'Logout'}
+                </button>
               </motion.div>
             </motion.div>
           )}

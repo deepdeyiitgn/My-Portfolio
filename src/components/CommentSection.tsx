@@ -7,7 +7,6 @@ import {
   ChevronDown, ChevronUp, AlertTriangle, X, LogOut, ExternalLink,
   ChevronLeft, ChevronRight, Loader2, AlertCircle, ArrowDownUp, Link2, ShieldBan,
 } from 'lucide-react';
-import { CrownBadgeIcon, VerifiedTickIcon } from './IdentityBadges';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -314,7 +313,6 @@ function CommentItem({
   };
 
   const isOwnerComment = comment.userId === 'owner';
-  const isVerifiedComment = isOwnerComment || Boolean(comment.isVerified);
 
   return (
     <div className={`space-y-3 ${comment.isPinned ? 'border-l-2 border-amber-500 pl-3' : ''}`}>
@@ -343,8 +341,8 @@ function CommentItem({
         </div>
 
         <div className="flex-1 min-w-0 space-y-1">
-          {/* Name + badges */}
-          <div className="flex flex-wrap items-center gap-2">
+            {/* Name */}
+            <div className="flex flex-wrap items-center gap-2">
             {isOwnerComment ? (
               <Link
                 to="/user/owner"
@@ -359,17 +357,6 @@ function CommentItem({
               >
                 {comment.userName}
               </Link>
-            )}
-            {isOwnerComment && (
-              <span className="inline-flex items-center gap-0.5" title="Verified Owner">
-                <VerifiedTickIcon className="w-[13px] h-[13px]" />
-                <CrownBadgeIcon className="w-[13px] h-[13px]" />
-              </span>
-            )}
-            {!isOwnerComment && isVerifiedComment && (
-              <span className="inline-flex items-center gap-0.5" title="Verified User">
-                <VerifiedTickIcon className="w-[13px] h-[13px]" />
-              </span>
             )}
             {comment.isPinned && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700 font-mono uppercase tracking-wider flex items-center gap-1">
@@ -415,7 +402,7 @@ function CommentItem({
             </div>
           ) : (
             <p className="text-zinc-300 text-sm leading-relaxed">
-              <CommentText text={comment.text} onLinkClick={onLinkClick} trustedLinks={isVerifiedComment} />
+              <CommentText text={comment.text} onLinkClick={onLinkClick} trustedLinks={isOwnerComment} />
             </p>
           )}
 

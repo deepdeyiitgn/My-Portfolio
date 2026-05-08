@@ -3,7 +3,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, MessageSquare, Heart, Loader2, AlertCircle, ExternalLink, User } from 'lucide-react';
 import SEO from '../components/SEO';
-import { CrownBadgeIcon, VerifiedTickIcon } from '../components/IdentityBadges';
 
 interface Comment {
   _id: string;
@@ -51,7 +50,6 @@ function CommentCard({
   isHighlight?: boolean;
 }) {
   const isOwner = comment.userId === 'owner';
-  const isVerified = isOwner || Boolean(comment.isVerified);
   return (
     <div
       className={`p-4 rounded-2xl border space-y-3 ${
@@ -87,17 +85,6 @@ function CommentCard({
             >
               {comment.userName}
             </Link>
-            {isOwner && (
-              <span className="inline-flex items-center gap-0.5" title="Verified Owner">
-                <VerifiedTickIcon className="w-[13px] h-[13px]" />
-                <CrownBadgeIcon className="w-[13px] h-[13px]" />
-              </span>
-            )}
-            {!isOwner && isVerified && (
-              <span className="inline-flex items-center gap-0.5" title="Verified User">
-                <VerifiedTickIcon className="w-[13px] h-[13px]" />
-              </span>
-            )}
             <span className="text-zinc-600 text-[10px] font-mono">{timeAgo(comment.createdAt)}</span>
             {comment.editedAt && <span className="text-zinc-700 text-[9px] font-mono">(edited)</span>}
           </div>
