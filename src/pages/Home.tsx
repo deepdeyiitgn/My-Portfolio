@@ -260,6 +260,16 @@ export default function Home() {
         </div>
       </motion.section>
 
+      {/* ── Feedback Spotlight (above Journal Top Post section) ───────────── */}
+      <motion.section
+        initial={{ opacity: 0, y: 35 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.15 }}
+        className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6"
+      >
+        <SocialProof />
+      </motion.section>
+
       {/* ── Journal Spotlight Section ─────────────────────────────────────── */}
       <motion.section
         initial={{ opacity: 0, y: 50 }}
@@ -397,8 +407,6 @@ export default function Home() {
           </div>
         </div>
       </motion.section>
-
-      <SocialProof />
 
       {/* System Status Banner */}
       <motion.section

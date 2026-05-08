@@ -42,6 +42,7 @@ function timeAgo(d?: string | null) {
 export default function AllUsers() {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<Contributor[]>([]);
+  const [selfUserId, setSelfUserId] = useState('');
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [page, setPage] = useState(1);
   const [pageLoading, setPageLoading] = useState(false);
@@ -61,6 +62,18 @@ export default function AllUsers() {
   }, []);
 
   useEffect(() => { fetchPage(1); }, [fetchPage]);
+
+  useEffect(() => {
+    const raw = localStorage.getItem('dd_comment_user');
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      const exp = Number(parsed?.exp || 0);
+      if (parsed?.userId && exp * 1000 > Date.now()) setSelfUserId(String(parsed.userId));
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const total = pagination?.total ?? 0;
 
@@ -135,7 +148,12 @@ export default function AllUsers() {
               <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-amber-500" /></div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {users.map((u, i) => (
+                {[...users].sort((a, b) => {
+                  if (!selfUserId) return 0;
+                  if (a.userId === selfUserId) return -1;
+                  if (b.userId === selfUserId) return 1;
+                  return 0;
+                }).map((u, i) => (
                   <motion.div
                     key={u.userId}
                     initial={{ opacity: 0, y: 8 }}
@@ -144,7 +162,9 @@ export default function AllUsers() {
                   >
                     <Link
                       to={`/user/${encodeURIComponent(u.userId)}`}
-                      className="flex items-center gap-3 bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 hover:border-zinc-700 hover:bg-zinc-900/70 transition-all group"
+                      className={`flex items-center gap-3 bg-zinc-900/40 border rounded-2xl p-4 hover:bg-zinc-900/70 transition-all group ${
+                        u.userId === selfUserId ? 'border-amber-500/60 shadow-[0_0_20px_rgba(245,158,11,0.2)]' : 'border-zinc-800 hover:border-zinc-700'
+                      }`}
                     >
                       {u.userPic ? (
                         <img src={u.userPic} alt={u.userName} className="w-11 h-11 rounded-full border border-zinc-700 object-cover shrink-0 group-hover:border-amber-500/40 transition-colors" />
@@ -155,6 +175,9 @@ export default function AllUsers() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-bold text-sm truncate group-hover:text-amber-400 transition-colors">{u.userName}</p>
+                        {u.userId === selfUserId && (
+                          <span className="inline-flex items-center text-[10px] font-bold text-amber-400 mt-0.5">Your profile</span>
+                        )}
                         {u.verified && (
                           <span className="inline-flex items-center gap-1 text-blue-300 text-[10px] font-bold mt-0.5">
                             <VerifiedTickIcon className="w-3 h-3" /> Verified

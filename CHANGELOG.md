@@ -9,6 +9,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Professional Feedback Management System (`/feedback`):** Added a dedicated feedback page with interactive 5-star submissions, rating-distribution summary bars, subject/sub-subject taxonomy, strict one-feedback-per-subject-sub-subject enforcement, blacklist-filtered text persistence, sorting/filtering, 20-per-page pagination, and long-text see-more modal flow.
+- **Feedback APIs without new serverless files:** Extended existing handlers only:
+  - `GET /api/journal?action=feedback-list|feedback-stats|feedback-pinned|feedback-admin-list`
+  - `POST /api/journal?action=feedback|feedback-pin`
+  - `PUT /api/journal?action=feedback-admin`
+  - `DELETE /api/journal?action=feedback-admin&id=<id>`
+  - `GET/POST/PUT/DELETE /api/categories?type=feedback` for subject and sub-subject CRUD.
+- **Owner Dashboard Feedback Tab:** Added owner-facing feedback moderation panel with unlimited pinning, admin edit/delete of any feedback, and feedback subject/sub-subject management.
+- **Homepage Dynamic Feedback Integration:** Replaced static social-proof content with real-time global metrics (Total Users, Total Feedbacks, Average Rating with safe zero-feedback handling) and a horizontal infinite pinned-feedback scroller that shuffles on reload, pauses on hover, supports see-more modal, closes on overlay/X, and resumes smoothly.
+- **Global Navigation Enhancements:** Header now includes direct links to **All Users** and **Feedback**, plus globally accessible owner logout action.
+- **All Users Self-Priority Behavior:** Logged-in community users now see their own profile card auto-prioritized at the top of `/user` with highlight styling.
+- **Sitemap coverage update:** Added static `/feedback` route to `api/sitemap.js` for indexing.
+
 - **Sitemap Slug-First Dynamic URLs:** `/api/sitemap` now emits journal routes using journal slugs (fallback to ID), including slug-based `/journal/view/:slug`, `/journal/view/:slug/comments`, and `/journal/view/:slug/comment/:commentId` entries while preserving `/journal/comment/:commentId` permalinks and 6-hour in-memory cache behavior.
 - **Community Search Expansion:** Global search API (`GET /api/journal?action=search`) now indexes community users and comment permalinks in addition to journal posts, enabling `/search` to return user profile and comment results.
 - **Frontend-rendered Identity Badges:** Replaced public image-based verification/crown badge rendering (`/verified.svg`, `/crown.svg`) with reusable React vector icons (`IdentityBadges.tsx`). Applied across comment UI, user pages, and dashboard user moderation views.

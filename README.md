@@ -76,7 +76,7 @@ A JSON-driven hub mapping 30+ internal/external nodes with dynamic inline SVG ic
 The milestone timeline uses `new Date().getFullYear()` to auto-highlight the current active phase with a glowing amber radar pulse (extends to 2035).
 
 ### 🔍 Max-Level SEO
-`react-helmet-async` drives per-route metadata injection: Canonical URLs, OpenGraph/Twitter cards, and `Schema.org` JSON-LD (Person, FAQPage, SoftwareApplication). All routes including `/search`, `/user`, and `/journal/comment` are included in the XML sitemap.
+`react-helmet-async` drives per-route metadata injection: Canonical URLs, OpenGraph/Twitter cards, and `Schema.org` JSON-LD (Person, FAQPage, SoftwareApplication). All routes including `/search`, `/user`, `/feedback`, and `/journal/comment` are included in the XML sitemap.
 
 ### 🌍 12-Language i18n
 Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · JA · KO · ZH via a custom React Context provider.
@@ -84,11 +84,17 @@ Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · 
 ### 💬 Journal Comment System
 Readers can leave comments on any journal post using Google Sign-In — no password needed. Supports threaded replies, likes, and direct comment permalinks (`/journal/view/:id/comment/:commentId`). A full comment thread view (`/journal/view/:id/comments`) shows all comments with sort (top/new/old) and pagination. A step-by-step `/journal/comment` guide explains the rules and how to participate.
 
+### ⭐ Professional Feedback Management System
+Dedicated public feedback page at `/feedback` with rating distribution bars, interactive 5-star submission, subject/sub-subject taxonomy, strict one-feedback-per-subject-sub-subject enforcement, blacklist filtering, sorting, filtering, and paginated listing (20/page). Owner dashboard includes full moderation (edit/delete), unlimited pinning, and feedback category/sub-subject CRUD without adding any new API route file.
+
 ### 👥 Community User Profiles
 Every reader who signs in gets a public profile at `/user/:userId`. Profiles show a customizable title, bio, social links (GitHub, Twitter, LinkedIn, Instagram, YouTube, Website, Custom with Google Favicon auto-detection), a 52-week contribution heatmap, and tabbed views for Overview, Comments, and Activity Log. The `/user` page lists all contributors with the owner card pinned at the top — styled with a **glowing gradient-border frame, `myphoto.png` avatar with an amber halo, and a 👑 Owner badge** for a visually distinct king-vibe presence. Verified tick and crown badges are now rendered as frontend vector icons (not public image files) for a cleaner professional UI. The owner's `/user/owner` profile page carries the same premium styling.
 
 ### 🗺️ Dynamic XML Sitemap with RAM Cache
-`/api/sitemap` auto-generates a valid XML sitemap scoped exclusively to `deepdey.vercel.app`. It covers all static routes (excluding `/dashboard` and `/journal/embed`), dynamically fetches published journals and emits **slug-based** journal URLs, comment-thread pages, comment permalink routes, and user profile URLs from MongoDB. Results are stored in-memory and refreshed every 6 hours (`Cache-Control: s-maxage=21600`). Subsequent requests within the TTL window are served instantly from RAM (`X-Sitemap-Cache: HIT`).
+`/api/sitemap` auto-generates a valid XML sitemap scoped exclusively to `deepdey.vercel.app`. It covers all static routes (excluding `/dashboard` and `/journal/embed`) including `/feedback`, dynamically fetches published journals and emits **slug-based** journal URLs, comment-thread pages, comment permalink routes, and user profile URLs from MongoDB. Results are stored in-memory and refreshed every 6 hours (`Cache-Control: s-maxage=21600`). Subsequent requests within the TTL window are served instantly from RAM (`X-Sitemap-Cache: HIT`).
+
+### ⚙️ Vercel Free Plan Compliance (Function Limit)
+Feedback and moderation features are implemented by extending existing handlers (`/api/journal`, `/api/categories`) instead of creating new API files, keeping the deployment within the Vercel Free Plan serverless function limit.
 
 ### 🚀 Key Features of New Dashboard
 
@@ -139,10 +145,10 @@ Every reader who signs in gets a public profile at `/user/:userId`. Profiles sho
  ┣ 📜 index.html                 # Vite HTML entry point
  ┣ 📂 api                        # Vercel serverless API routes
  ┃ ┣ 📜 auth.js                  # Session authentication handler
- ┃ ┣ 📜 categories.js            # Journal category CRUD
+ ┃ ┣ 📜 categories.js            # Journal + feedback category/sub-subject CRUD
  ┃ ┣ 📜 contact.js               # Contact form handler
  ┃ ┣ 📜 faqs.js                  # FAQ data endpoint
- ┃ ┣ 📜 journal.js               # Journal CRUD · health · rate-limited refresh
+ ┃ ┣ 📜 journal.js               # Journal + feedback APIs · health · rate-limited refresh
  ┃ ┣ 📜 links.js                 # Links data endpoint
  ┃ ┣ 📜 live.js                  # YouTube RSS feed parser
  ┃ ┣ 📜 projects.js              # Projects CRUD endpoint
@@ -163,7 +169,8 @@ Every reader who signs in gets a public profile at `/user/:userId`. Profiles sho
  ┃ ┃ ┣ 📜 LoadingScreen.tsx      # Cinematic intro loading screen
  ┃ ┃ ┣ 📜 ScrollToTop.tsx        # Scroll-to-top floating button
  ┃ ┃ ┣ 📜 SEO.tsx                # JSON-LD + OpenGraph meta manager
- ┃ ┃ ┣ 📜 SocialProof.tsx        # Social proof / testimonials component
+ ┃ ┃ ┣ 📜 FeedbackAdminPanel.tsx # Owner feedback moderation + category manager
+┃ ┃ ┣ 📜 SocialProof.tsx        # Dynamic feedback metrics + pinned testimonial scroller
  ┃ ┃ ┣ 📜 StatusWidget.tsx       # Floating live-status popup widget
  ┃ ┃ ┗ 📜 TechGalaxy.tsx         # Animated tech stack visual
  ┃ ┣ 📂 context
@@ -183,6 +190,7 @@ Every reader who signs in gets a public profile at `/user/:userId`. Profiles sho
  ┃ ┃ ┣ 📜 Dashboard.tsx          # Owner-only CMS dashboard
  ┃ ┃ ┣ 📜 DMCA.tsx               # DMCA takedown policy
  ┃ ┃ ┣ 📜 FAQ.tsx                # Searchable FAQ with accordion
+┃ ┃ ┣ 📜 Feedback.tsx           # Public feedback submission + listing page
  ┃ ┃ ┣ 📜 Home.tsx               # Hero / landing page
  ┃ ┃ ┣ 📜 Journal.tsx            # Journal listing page
  ┃ ┃ ┣ 📜 JournalAllComments.tsx # Full comment thread for a post (/journal/view/:id/comments)
@@ -244,6 +252,7 @@ Every reader who signs in gets a public profile at `/user/:userId`. Profiles sho
 | `/journal/view/:id/comment/:commentId` | Standalone comment permalink |
 | `/journal/comment` | Step-by-step guide for commenting and community rules |
 | `/journal/embed/:id` | Embeddable iframe view (no header/footer) |
+| `/feedback` | Public feedback page with rating summary, filters, sorting, and pagination |
 | `/user` | Community user listing — owner pinned at top, contributors below |
 | `/user/:userId` | Public user profile with bio, social links, contribution heatmap, and activity tabs |
 | `/live` | YouTube live stream + All/Stream/Video/Shorts hub |

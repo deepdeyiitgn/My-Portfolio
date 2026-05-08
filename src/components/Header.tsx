@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, Radio, Search, Activity, Users, MessageSquare } from 'lucide-react';
+import { Menu, X, Radio, Search, Activity, Users, MessageSquare, LogOut } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 const NAV_LINKS = [
@@ -22,6 +22,7 @@ const NAV_LINKS = [
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const [ownerAuthed, setOwnerAuthed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { language, setLanguage, t } = useLanguage();
@@ -53,6 +54,19 @@ export default function Header() {
       document.body.style.overflow = 'unset';
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    fetch('/api/auth')
+      .then((r) => r.json())
+      .then((d) => setOwnerAuthed(Boolean(d?.authenticated)))
+      .catch(() => setOwnerAuthed(false));
+  }, [location.pathname]);
+
+  const handleLogout = async () => {
+    await fetch('/api/auth', { method: 'DELETE' });
+    setOwnerAuthed(false);
+    navigate('/');
+  };
 
   return (
     <header className="fixed top-0 left-0 w-full z-[100] transition-all duration-300">
@@ -97,6 +111,33 @@ export default function Header() {
           </div>
 
           <div className="hidden lg:flex items-center gap-3 shrink-0">
+            <Link
+              to="/user"
+              className={`hidden xl:inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider transition-colors ${
+                location.pathname === '/user' ? 'text-amber-500' : 'text-zinc-500 hover:text-amber-500'
+              }`}
+            >
+              <Users size={10} />
+              All Users
+            </Link>
+            <Link
+              to="/feedback"
+              className={`hidden xl:inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider transition-colors ${
+                location.pathname === '/feedback' ? 'text-amber-500' : 'text-zinc-500 hover:text-amber-500'
+              }`}
+            >
+              <MessageSquare size={10} />
+              Feedback
+            </Link>
+            {ownerAuthed && (
+              <button
+                onClick={handleLogout}
+                className="hidden xl:inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-zinc-500 hover:text-red-400 transition-colors"
+              >
+                <LogOut size={10} />
+                Logout
+              </button>
+            )}
             {/* 🔍 Search Icon Button (Desktop) — navigates to /search, Ctrl+K */}
             <button
               onClick={() => navigate('/search')}
@@ -248,6 +289,23 @@ export default function Header() {
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.83, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <Link
+                      to="/feedback"
+                      className="group flex flex-col items-center"
+                    >
+                      <span className={`text-xl font-black tracking-tight transition-all duration-300 flex items-center gap-2 ${
+                        location.pathname === '/feedback' ? 'text-amber-500 scale-110' : 'text-zinc-700 hover:text-amber-500'
+                      }`}>
+                        <MessageSquare size={16} />
+                        Feedback
+                      </span>
+                    </Link>
+                  </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.85, ease: [0.22, 1, 0.36, 1] }}
                   >
                     <Link
@@ -262,6 +320,20 @@ export default function Header() {
                       </span>
                     </Link>
                   </motion.div>
+                  {ownerAuthed && (
+                    <motion.button
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.9, ease: [0.22, 1, 0.36, 1] }}
+                      onClick={handleLogout}
+                      className="group flex flex-col items-center"
+                    >
+                      <span className="text-xl font-black tracking-tight transition-all duration-300 flex items-center gap-2 text-zinc-700 hover:text-red-400">
+                        <LogOut size={16} />
+                        Logout
+                      </span>
+                    </motion.button>
+                  )}
                 </div>
               </div>
 

@@ -11,6 +11,7 @@ import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
 import { ICON_NAMES, renderIcon } from '../utils/iconMap';
 import { VerifiedTickIcon } from '../components/IdentityBadges';
+import FeedbackAdminPanel from '../components/FeedbackAdminPanel';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 
@@ -42,7 +43,7 @@ interface Journal {
   images?: string[];
 }
 
-type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'status' | 'storage' | 'users';
+type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'status' | 'storage' | 'users' | 'feedback';
 
 // ── Projects types ────────────────────────────────────────────────────────────
 export interface ProjectDB {
@@ -1311,6 +1312,11 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   const [storageProjectPage, setStorageProjectPage] = useState(1);
   const [storageJourneyPage, setStorageJourneyPage] = useState(1);
   const STORAGE_PAGE_SIZE = 5;
+  const [feedbackStorageMeta, setFeedbackStorageMeta] = useState<{ totalFeedbacks: number; pinnedCount: number; categoriesCount: number }>({
+    totalFeedbacks: 0,
+    pinnedCount: 0,
+    categoriesCount: 0,
+  });
 
   // ── Comments storage sub-tab state ────────────────────────────────────────
   const [commentPosts, setCommentPosts] = useState<JournalCommentStat[]>([]);
@@ -1376,14 +1382,23 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   const fetchStorageStats = useCallback(async () => {
     setStorageLoading(true);
     try {
-      const [statsRes, journalsRes] = await Promise.all([
+      const [statsRes, journalsRes, feedbackStatsRes, feedbackCatsRes] = await Promise.all([
         fetch('/api/journal?action=dbstats'),
         fetch('/api/journal?page=1&limit=100'),
+        fetch('/api/journal?action=feedback-stats'),
+        fetch('/api/categories?type=feedback'),
       ]);
       const statsData = await statsRes.json();
       if (statsData.ok) setStorageStats(statsData);
       const journalsData = await journalsRes.json();
       if (journalsData.ok) setStorageJournals(journalsData.journals);
+      const feedbackStatsData = await feedbackStatsRes.json();
+      const feedbackCatsData = await feedbackCatsRes.json();
+      setFeedbackStorageMeta({
+        totalFeedbacks: Number(feedbackStatsData?.stats?.totalFeedbacks || 0),
+        pinnedCount: Number(feedbackStatsData?.stats?.pinnedCount || 0),
+        categoriesCount: Array.isArray(feedbackCatsData?.categories) ? feedbackCatsData.categories.length : 0,
+      });
     } catch { /* ignore */ }
     finally { setStorageLoading(false); }
   }, []);
@@ -2043,7 +2058,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black text-white">Content Dashboard</h1>
-          <p className="text-zinc-500 text-sm mt-0.5">Manage journals, categories, journey timeline, and settings</p>
+          <p className="text-zinc-500 text-sm mt-0.5">Manage journals, categories, feedback, journey timeline, and settings</p>
         </div>
         <button
           onClick={handleLogout}
@@ -2062,6 +2077,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
           { label: 'Ecosystem', value: projectMode === 'custom' ? projects.length : 'Default' }, // <-- YE NAYA HAI
           { label: 'Drafts', value: journals.filter((j) => !j.published).length },
           { label: 'Categories', value: categories.length },
+          { label: 'Feedbacks', value: feedbackStorageMeta.totalFeedbacks },
         ].map((stat) => (
           <div key={stat.label} className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4">
             <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">{stat.label}</p>
@@ -2100,6 +2116,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
           { id: 'journals', label: 'Journals', icon: <BookOpen size={14} /> },
           { id: 'projects', label: 'Projects', icon: <Layers size={14} /> },    // <-- YE NAYA TAB HAI
           { id: 'status', label: 'Live Status', icon: <Activity size={14} /> },     // <-- YE NAYA TAB HAI v2
+          { id: 'feedback', label: 'Feedback', icon: <MessageSquare size={14} /> },
           { id: 'categories', label: 'Categories', icon: <Tag size={14} /> },
           { id: 'journey', label: 'Journey', icon: <Clock size={14} /> },
           { id: 'storage', label: 'Storage', icon: <HardDrive size={14} /> },
@@ -2266,6 +2283,11 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
             </div>
           )}
         </div>
+      )}
+
+      {/* ── Feedback Tab ─────────────────────────────────────────────────── */}
+      {tab === 'feedback' && (
+        <FeedbackAdminPanel onChanged={fetchStorageStats} />
       )}
 
       {/* ── Projects Tab ─────────────────────────────────────────────────── */}
@@ -3256,9 +3278,24 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                     <div className="space-y-1">
                       <label className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">Minutes</label>
                       <input type="number" min="0" max="59" value={blockMinutes} onChange={e => setBlockMinutes(e.target.value)} className={inputCls} placeholder="0" />
-                    </div>
-                  </div>
-                )}
+                </div>
+              </div>
+            )}
+
+            <div className="grid sm:grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/35 p-4">
+                <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Total Feedbacks</p>
+                <p className="text-amber-500 text-2xl font-black mt-1">{feedbackStorageMeta.totalFeedbacks}</p>
+              </div>
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/35 p-4">
+                <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Feedback Categories</p>
+                <p className="text-amber-500 text-2xl font-black mt-1">{feedbackStorageMeta.categoriesCount}</p>
+              </div>
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/35 p-4">
+                <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Pinned Feedbacks</p>
+                <p className="text-amber-500 text-2xl font-black mt-1">{feedbackStorageMeta.pinnedCount}</p>
+              </div>
+            </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Reason (optional)</label>
                   <input value={blockReason} onChange={e => setBlockReason(e.target.value)} className={inputCls} placeholder="e.g., Spam, abuse..." />

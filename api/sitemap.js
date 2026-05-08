@@ -52,6 +52,7 @@ const STATIC_PAGES = [
   '/search',
   '/status',
   '/user',
+  '/feedback',
   '/journal/comment',
 ];
 
@@ -101,6 +102,7 @@ const STATIC_ROUTE_SOURCES = {
   '/search': ['src/pages/SearchResults.tsx'],
   '/status': ['src/pages/Status.tsx'],
   '/user': ['src/pages/AllUsers.tsx'],
+  '/feedback': ['src/pages/Feedback.tsx'],
   '/journal/comment': ['src/pages/CommentGuide.tsx'],
   '/404': ['src/pages/NotFound.tsx'],
   '/user/owner': ['src/pages/UserProfile.tsx'],

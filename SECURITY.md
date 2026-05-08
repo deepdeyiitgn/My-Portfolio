@@ -65,6 +65,8 @@ This is primarily a **stateless, client-side React SPA** with a small number of 
 | **Authentication** | Cookie-based session (`dd_auth`) validated on every API write operation |
 | **Credential Isolation** | `SPACE_PASSWORD` and `MONGODB_URI` are server-side environment variables, never bundled in client code |
 | **Input Validation** | All image URLs validated via `sanitizeImageUrl()` (allowlist: `static.qlynk.me/f/`, `.png`, `.jpg`, `.jpeg`) |
+| **Feedback Abuse Filtering** | Feedback text is automatically passed through server-side blacklist filtering before persistence |
+| **Feedback Integrity Rules** | Public users cannot edit/delete posted feedback; one feedback per user per subject/sub-subject pair is enforced server-side |
 | **Base64 Validation** | Strict `[A-Za-z0-9+/=\n]+` regex for data URL decoding in upload proxy |
 | **CDN Error Handling** | Upload proxy detects CDN-level `status: "error"` responses even when HTTP status is 200 |
 | **Rate Limiting** | `POST /api/journal?action=refresh` enforces global 20 req/min and per-IP 2 req/min via MongoDB `refresh_rate_limits` collection; returns `429` on breach |
@@ -77,6 +79,7 @@ This is primarily a **stateless, client-side React SPA** with a small number of 
 ### Data Storage
 
 - **Journal & Category data:** MongoDB Atlas with connection string stored only in Vercel environment.
+- **Feedback data:** Stored in MongoDB collections (`feedbacks`, `feedback_categories`) via existing handlers (`/api/journal`, `/api/categories`) to stay within Vercel function limits.
 - **Images:** Uploaded to `static.qlynk.me` via a server-side proxy. Raw `SPACE_PASSWORD` never reaches the browser.
 - **No PII stored client-side.** Session state uses session storage only for per-session like/view tracking.
 

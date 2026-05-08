@@ -7,17 +7,24 @@
  * GET  ?action=comment-count&journalIds=X,Y             → comment counts for multiple journals
  * GET  ?action=top-journals&limit=6                     → top N most-liked published journals
  * GET  ?action=blacklist                                → get blacklist words (auth required)
+ * GET  ?action=feedback-list&page=1&limit=20             → feedback list (public)
+ * GET  ?action=feedback-stats                             → feedback stats summary (public)
+ * GET  ?action=feedback-pinned                            → pinned feedback for homepage (public)
  * POST ?action=like&id=<id>&session=<sessionId>         → like a journal once/session
  * POST ?action=status                                   → CREATE LIVE STATUS (auth required)
  * POST ?action=comment                                  → add comment (Google token or owner cookie)
  * POST ?action=comment-like&id=<id>&session=<s>         → like a comment once/session
  * POST ?action=comment-pin                              → pin/unpin comment (auth required)
  * POST ?action=blacklist                                → add blacklist word (auth required)
+ * POST ?action=feedback                                 → add feedback (Google token or owner cookie)
+ * POST ?action=feedback-pin                             → pin/unpin feedback (auth required)
  * POST                                                  → create journal (auth required)
  * PUT  ?action=comment                                  → edit own comment (Google token or owner cookie)
+ * PUT  ?action=feedback-admin                           → owner edit any feedback
  * PUT                                                   → update journal (auth required); body must include _id
  * DELETE ?action=comment&id=<id>                        → delete comment (Google token or owner cookie)
  * DELETE ?action=blacklist&id=<id>                      → delete blacklist word (auth required)
+ * DELETE ?action=feedback-admin&id=<id>                 → owner delete any feedback
  * DELETE ?id=<id>                                       → delete journal (auth required)
  */
 
@@ -304,6 +311,62 @@ async function resolveJournalObjectId(col, journalIdOrSlug, onlyPublished = true
   return doc?._id || null;
 }
 
+
+const FEEDBACK_DEFAULT_LIMIT = 20;
+
+function normalizeFeedbackSort(sortToken) {
+  const token = String(sortToken || 'newest').trim().toLowerCase();
+  if (['newest', 'oldest', 'highest', 'lowest', 'relevant'].includes(token)) return token;
+  return 'newest';
+}
+
+function getFeedbackSort(sortToken) {
+  const sort = normalizeFeedbackSort(sortToken);
+  if (sort === 'oldest') return { createdAt: 1 };
+  if (sort === 'highest') return { rating: -1, createdAt: -1 };
+  if (sort === 'lowest') return { rating: 1, createdAt: -1 };
+  if (sort === 'relevant') return { isPinned: -1, rating: -1, createdAt: -1 };
+  return { createdAt: -1 };
+}
+
+function normalizeFeedbackRating(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(1, Math.min(5, Math.round(n)));
+}
+
+async function getFeedbackCategoriesMap(db) {
+  const categories = await db.collection('feedback_categories').find({ type: 'feedback' }).toArray();
+  const map = new Map();
+  for (const cat of categories) {
+    const subjectSlug = String(cat?.subjectSlug || '').trim();
+    if (!subjectSlug) continue;
+    const sub = new Map();
+    const subSubjects = Array.isArray(cat?.subSubjects) ? cat.subSubjects : [];
+    for (const item of subSubjects) {
+      const slug = String(item?.slug || '').trim();
+      const name = String(item?.name || '').trim();
+      if (!slug || !name) continue;
+      sub.set(slug, name);
+    }
+    map.set(subjectSlug, {
+      subject: String(cat?.subject || '').trim(),
+      subjectSlug,
+      sub,
+    });
+  }
+  return map;
+}
+
+async function buildFeedbackRatingSummary(db, filter = {}) {
+  const rows = await db.collection('feedbacks').aggregate([
+    { $match: filter },
+    { $group: { _id: '$rating', count: { $sum: 1 } } },
+  ]).toArray();
+  const map = new Map(rows.map((r) => [Number(r._id), Number(r.count || 0)]));
+  return [5, 4, 3, 2, 1].map((star) => ({ star, count: map.get(star) || 0 }));
+}
+
 module.exports = async (req, res) => {
   try {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -343,7 +406,7 @@ module.exports = async (req, res) => {
           clusterTotalSize = listResult.totalSize || 0;
         } catch { /* Atlas M0 may not allow this — fall back to current DB size */ }
 
-        const collectionNames = ['journals', 'projects', 'timeline', 'categories', 'live_status', 'settings', 'config', 'search_analytics', 'comments', 'blocked_users', 'users'];
+        const collectionNames = ['journals', 'projects', 'timeline', 'categories', 'feedback_categories', 'feedbacks', 'live_status', 'settings', 'config', 'search_analytics', 'comments', 'blocked_users', 'users'];
         const collections = {};
         for (const name of collectionNames) {
           try {
@@ -591,6 +654,116 @@ module.exports = async (req, res) => {
         }
 
         return json(res, 200, { ok: true, results, easterEgg, trending });
+      }
+
+      // --- Feedback stats (public) ---
+      if (action === 'feedback-stats') {
+        const feedbackCol = db.collection('feedbacks');
+        const [totalFeedbacks, pinnedCount, usersCount, avgAgg, distribution] = await Promise.all([
+          feedbackCol.countDocuments({}),
+          feedbackCol.countDocuments({ isPinned: true }),
+          db.collection('users').countDocuments(PUBLIC_USER_FILTER),
+          feedbackCol.aggregate([{ $group: { _id: null, avg: { $avg: '$rating' } } }]).toArray(),
+          buildFeedbackRatingSummary(db),
+        ]);
+
+        const averageRating = totalFeedbacks > 0 ? Number((avgAgg?.[0]?.avg || 0).toFixed(2)) : 0;
+        return json(res, 200, {
+          ok: true,
+          stats: {
+            totalUsers: Math.max(1, usersCount + 1),
+            totalFeedbacks,
+            pinnedCount,
+            averageRating,
+            ratingSummary: distribution,
+          },
+        });
+      }
+
+      // --- Feedback list (public) ---
+      if (action === 'feedback-list') {
+        const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
+        const limit = Math.min(FEEDBACK_DEFAULT_LIMIT, Math.max(1, parseInt(getParam(req, 'limit') || String(FEEDBACK_DEFAULT_LIMIT), 10)));
+        const subject = String(getParam(req, 'subject') || '').trim().toLowerCase();
+        const subSubject = String(getParam(req, 'subSubject') || '').trim().toLowerCase();
+        const sort = normalizeFeedbackSort(getParam(req, 'sort'));
+        const filter = {};
+        if (subject) filter.subjectSlug = subject;
+        if (subSubject) filter.subSubjectSlug = subSubject;
+
+        const feedbackCol = db.collection('feedbacks');
+        const [total, feedbacks, ratingSummary] = await Promise.all([
+          feedbackCol.countDocuments(filter),
+          feedbackCol.find(filter, {
+            projection: {
+              userName: 1,
+              userPic: 1,
+              subject: 1,
+              subjectSlug: 1,
+              subSubject: 1,
+              subSubjectSlug: 1,
+              title: 1,
+              text: 1,
+              rating: 1,
+              isPinned: 1,
+              createdAt: 1,
+              updatedAt: 1,
+              isOwner: 1,
+            },
+          }).sort(getFeedbackSort(sort)).skip((page - 1) * limit).limit(limit).toArray(),
+          buildFeedbackRatingSummary(db, filter),
+        ]);
+
+        return json(res, 200, {
+          ok: true,
+          feedbacks,
+          ratingSummary,
+          pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+        });
+      }
+
+      // --- Pinned feedback for homepage (public) ---
+      if (action === 'feedback-pinned') {
+        const limit = Math.min(200, Math.max(1, parseInt(getParam(req, 'limit') || '80', 10)));
+        const feedbacks = await db.collection('feedbacks').find(
+          { isPinned: true },
+          {
+            projection: {
+              userName: 1,
+              userPic: 1,
+              subject: 1,
+              subSubject: 1,
+              title: 1,
+              text: 1,
+              rating: 1,
+              createdAt: 1,
+              isOwner: 1,
+            },
+          },
+        ).sort({ createdAt: -1 }).limit(limit).toArray();
+        return json(res, 200, { ok: true, feedbacks });
+      }
+
+      // --- Feedback list for owner dashboard (auth) ---
+      if (action === 'feedback-admin-list') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
+        const limit = Math.min(20, Math.max(1, parseInt(getParam(req, 'limit') || '20', 10)));
+        const sort = normalizeFeedbackSort(getParam(req, 'sort'));
+        const subject = String(getParam(req, 'subject') || '').trim().toLowerCase();
+        const subSubject = String(getParam(req, 'subSubject') || '').trim().toLowerCase();
+
+        const filter = {};
+        if (subject) filter.subjectSlug = subject;
+        if (subSubject) filter.subSubjectSlug = subSubject;
+
+        const feedbackCol = db.collection('feedbacks');
+        const [total, feedbacks] = await Promise.all([
+          feedbackCol.countDocuments(filter),
+          feedbackCol.find(filter).sort(getFeedbackSort(sort)).skip((page - 1) * limit).limit(limit).toArray(),
+        ]);
+
+        return json(res, 200, { ok: true, feedbacks, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
       }
 
       // --- Comments: Get paginated comments ---
@@ -1153,6 +1326,119 @@ module.exports = async (req, res) => {
         return json(res, 200, { ok: true, likes: Number(existing.likes || 0) + 1, alreadyLiked: false });
       }
 
+      // --- Feedback add (public with Google token OR owner cookie) ---
+      if (action === 'feedback') {
+        const body = await readBody(req);
+        const credential = String(body.credential || '').trim();
+        const ownerPosting = isAuthenticated(req);
+
+        let userInfo = null;
+        if (ownerPosting) {
+          userInfo = {
+            userId: 'owner',
+            name: 'Deep Dey',
+            picture: '/assets/images/myphoto.png',
+            email: '',
+          };
+        } else {
+          userInfo = await verifyGoogleToken(credential);
+          if (!userInfo) return json(res, 401, { ok: false, message: 'Authentication required' });
+        }
+
+        const subjectSlug = slugify(String(body.subject || body.subjectSlug || ''));
+        const subSubjectSlug = slugify(String(body.subSubject || body.subSubjectSlug || ''));
+        const title = String(body.title || '').trim().slice(0, 160);
+        const text = String(body.text || '').trim().slice(0, 3000);
+        const rating = normalizeFeedbackRating(body.rating);
+
+        if (!subjectSlug) return json(res, 400, { ok: false, message: 'Subject required' });
+        if (!subSubjectSlug) return json(res, 400, { ok: false, message: 'Sub-subject required' });
+        if (!title) return json(res, 400, { ok: false, message: 'Subject line required' });
+        if (!text) return json(res, 400, { ok: false, message: 'Feedback text required' });
+        if (!rating) return json(res, 400, { ok: false, message: 'Rating required' });
+
+        const feedbackCategories = await getFeedbackCategoriesMap(db);
+        const subjectInfo = feedbackCategories.get(subjectSlug);
+        if (!subjectInfo) return json(res, 400, { ok: false, message: 'Invalid subject' });
+        const validSubSubjectName = subjectInfo.sub.get(subSubjectSlug);
+        if (!validSubSubjectName) return json(res, 400, { ok: false, message: 'Invalid sub-subject' });
+
+        const feedbackCol = db.collection('feedbacks');
+        const exists = await feedbackCol.findOne({ userId: userInfo.userId, subjectSlug, subSubjectSlug });
+        if (exists) {
+          return json(res, 409, { ok: false, message: 'You can submit only one feedback for this subject and sub-subject.' });
+        }
+
+        const { text: censoredText } = await censorTextWithFlag(db, text);
+        const now = new Date();
+
+        const doc = {
+          userId: userInfo.userId,
+          userName: userInfo.name,
+          userPic: userInfo.picture,
+          isOwner: ownerPosting,
+          subject: subjectInfo.subject,
+          subjectSlug,
+          subSubject: validSubSubjectName,
+          subSubjectSlug,
+          title,
+          text: censoredText,
+          rating,
+          isPinned: false,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        const result = await feedbackCol.insertOne(doc);
+
+        if (!ownerPosting) {
+          try {
+            const clientIp = getClientIp(req);
+            const clientCountry = (req.headers['x-vercel-ip-country'] || req.headers['cf-ipcountry'] || '').toString().trim();
+            await db.collection('users').updateOne(
+              { userId: userInfo.userId },
+              {
+                $set: {
+                  userName: userInfo.name,
+                  userPic: userInfo.picture,
+                  lastCommentAt: now,
+                  lastActivityIp: clientIp,
+                  lastActivityCountry: clientCountry,
+                },
+                $setOnInsert: {
+                  userId: userInfo.userId,
+                  firstCommentAt: now,
+                  createdAt: now,
+                  verified: false,
+                  registrationIp: clientIp,
+                  registrationCountry: clientCountry,
+                },
+              },
+              { upsert: true },
+            );
+          } catch { /* ignore */ }
+        }
+
+        return json(res, 201, { ok: true, feedback: { ...doc, _id: result.insertedId } });
+      }
+
+      // --- Feedback pin/unpin (admin only, unlimited) ---
+      if (action === 'feedback-pin') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const body = await readBody(req);
+        const feedbackId = String(body.feedbackId || '').trim();
+        const pin = body.pin !== false;
+        if (!feedbackId || !ObjectId.isValid(feedbackId)) return json(res, 400, { ok: false, message: 'feedbackId required' });
+
+        const result = await db.collection('feedbacks').updateOne(
+          { _id: new ObjectId(feedbackId) },
+          { $set: { isPinned: pin, updatedAt: new Date() } },
+        );
+
+        if (!result.matchedCount) return json(res, 404, { ok: false, message: 'Feedback not found' });
+        return json(res, 200, { ok: true });
+      }
+
       // --- Comment: Add new comment (Google user or owner) ---
       if (action === 'comment') {
         const body = await readBody(req);
@@ -1400,6 +1686,62 @@ module.exports = async (req, res) => {
       const action = getParam(req, 'action');
       const body = await readBody(req);
 
+
+
+      // --- Feedback admin update (owner only) ---
+      if (action === 'feedback-admin') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+
+        const feedbackId = String(body.feedbackId || body._id || '').trim();
+        if (!feedbackId || !ObjectId.isValid(feedbackId)) return json(res, 400, { ok: false, message: 'feedbackId required' });
+
+        const feedbackCol = db.collection('feedbacks');
+        const existingFeedback = await feedbackCol.findOne({ _id: new ObjectId(feedbackId) });
+        if (!existingFeedback) return json(res, 404, { ok: false, message: 'Feedback not found' });
+
+        const nextSubjectSlug = slugify(body.subject || body.subjectSlug || existingFeedback.subjectSlug || '');
+        const nextSubSubjectSlug = slugify(body.subSubject || body.subSubjectSlug || existingFeedback.subSubjectSlug || '');
+        const nextTitle = body.title !== undefined ? String(body.title || '').trim().slice(0, 160) : existingFeedback.title;
+        const rawText = body.text !== undefined ? String(body.text || '').trim().slice(0, 3000) : existingFeedback.text;
+        const nextRating = body.rating !== undefined ? normalizeFeedbackRating(body.rating) : Number(existingFeedback.rating || 0);
+        const nextPinned = body.isPinned !== undefined ? Boolean(body.isPinned) : Boolean(existingFeedback.isPinned);
+
+        if (!nextSubjectSlug) return json(res, 400, { ok: false, message: 'Subject required' });
+        if (!nextSubSubjectSlug) return json(res, 400, { ok: false, message: 'Sub-subject required' });
+        if (!nextTitle) return json(res, 400, { ok: false, message: 'Subject line required' });
+        if (!rawText) return json(res, 400, { ok: false, message: 'Feedback text required' });
+        if (!nextRating) return json(res, 400, { ok: false, message: 'Rating required' });
+
+        const feedbackCategories = await getFeedbackCategoriesMap(db);
+        const subjectInfo = feedbackCategories.get(nextSubjectSlug);
+        if (!subjectInfo) return json(res, 400, { ok: false, message: 'Invalid subject' });
+        const subName = subjectInfo.sub.get(nextSubSubjectSlug);
+        if (!subName) return json(res, 400, { ok: false, message: 'Invalid sub-subject' });
+
+        const { text: censoredText } = await censorTextWithFlag(db, rawText);
+
+        await feedbackCol.updateOne(
+          { _id: new ObjectId(feedbackId) },
+          {
+            $set: {
+              subject: subjectInfo.subject,
+              subjectSlug: nextSubjectSlug,
+              subSubject: subName,
+              subSubjectSlug: nextSubSubjectSlug,
+              title: nextTitle,
+              text: censoredText,
+              rating: nextRating,
+              isPinned: nextPinned,
+              updatedAt: new Date(),
+              moderatedAt: new Date(),
+            },
+          },
+        );
+
+        const updated = await feedbackCol.findOne({ _id: new ObjectId(feedbackId) });
+        return json(res, 200, { ok: true, feedback: updated });
+      }
+
       // --- User profile update (self, authenticated via Google token or owner session) ---
       if (action === 'user-profile-update') {
         const credential = String(body.credential || '').trim();
@@ -1564,6 +1906,17 @@ module.exports = async (req, res) => {
 
         await commentsCol.updateOne({ _id: new ObjectId(commentId) }, { $set: { isDeleted: true } });
         return json(res, 200, { ok: true, message: 'Comment deleted' });
+      }
+
+
+
+      // --- Feedback admin delete (owner only) ---
+      if (action === 'feedback-admin') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const feedbackId = String(getParam(req, 'id') || getParam(req, 'feedbackId') || '').trim();
+        if (!feedbackId || !ObjectId.isValid(feedbackId)) return json(res, 400, { ok: false, message: 'id required' });
+        await db.collection('feedbacks').deleteOne({ _id: new ObjectId(feedbackId) });
+        return json(res, 200, { ok: true, message: 'Feedback deleted' });
       }
 
       // --- Blacklist: Delete word (admin only) ---

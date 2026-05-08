@@ -33,6 +33,7 @@ const CommentPermalink = lazy(() => import('./pages/CommentPermalink'));
 const CommentGuide = lazy(() => import('./pages/CommentGuide'));
 const JournalAllComments = lazy(() => import('./pages/JournalAllComments'));
 const AllUsers = lazy(() => import('./pages/AllUsers'));
+const Feedback = lazy(() => import('./pages/Feedback'));
 const UserProfile = lazy(() => import('./pages/UserProfile'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
@@ -111,6 +112,7 @@ function AnimatedRoutes() {
             <Route path="/journal/view/:id/comments" element={<JournalAllComments />} />
             <Route path="/journal/view/:id/comment/:commentId" element={<CommentPermalink />} />
             <Route path="/user" element={<AllUsers />} />
+            <Route path="/feedback" element={<Feedback />} />
             <Route path="/user/:userId" element={<UserProfile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
