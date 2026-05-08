@@ -8,6 +8,7 @@ import CommentSection from '../components/CommentSection';
 
 interface Journal {
   _id: string;
+  slug?: string;
   title: string;
   summary: string;
   content: string;
@@ -121,9 +122,9 @@ export default function JournalView() {
   }, [id]);
 
   const embedCode = useMemo(() => {
-    const src = `${window.location.origin}/journal/embed/${id}`;
+    const src = `${window.location.origin}/journal/embed/${journal?.slug || journal?._id || id}`;
     return `<iframe src="${src}" width="100%" height="600" style="border:0;max-width:100%;" loading="lazy" title="${journal?.title || 'Journal'}"></iframe>`;
-  }, [id, journal?.title]);
+  }, [id, journal?._id, journal?.slug, journal?.title]);
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -162,6 +163,7 @@ export default function JournalView() {
   if (error || !journal) {
     return <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-20 text-red-400">{error || 'Not found'}</div>;
   }
+  const journalRouteKey = encodeURIComponent(journal.slug || journal._id || id);
 
   const images = (Array.isArray(journal.images) ? journal.images : [])
     .map((img) => sanitizeImageUrl(img))
@@ -169,7 +171,7 @@ export default function JournalView() {
 
   return (
     <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 space-y-8">
-      <SEO title={`${journal.title} | Journal`} description={journal.summary || 'Journal post'} route={`/journal/view/${id}`} />
+      <SEO title={`${journal.title} | Journal`} description={journal.summary || 'Journal post'} route={`/journal/view/${journalRouteKey}`} />
 
       {/* Go Back button */}
       <button
@@ -253,7 +255,7 @@ export default function JournalView() {
         <CommentSection journalId={journal._id} />
         <div className="mt-4 text-center">
           <Link
-            to={`/journal/view/${id}/comments`}
+            to={`/journal/view/${journalRouteKey}/comments`}
             className="inline-flex items-center gap-2 text-zinc-600 hover:text-amber-500 text-xs font-mono transition-colors"
           >
             View all comments as standalone page →
@@ -281,7 +283,7 @@ export default function JournalView() {
                 >
                   Copy Code
                 </button>
-                <a href={`${window.location.origin}/journal/embed/${id}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-sm font-bold inline-flex items-center gap-2">
+                <a href={`${window.location.origin}/journal/embed/${journal?.slug || journal?._id || id}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-sm font-bold inline-flex items-center gap-2">
                   <Link2 size={14} /> Open Embed URL
                 </a>
               </div>

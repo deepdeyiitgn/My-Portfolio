@@ -214,13 +214,14 @@ export default function JournalAllComments() {
   }
 
   const total = pagination?.total ?? 0;
+  const journalRouteKey = encodeURIComponent(journal.slug || journal._id);
 
   return (
     <div className="min-h-screen bg-zinc-950 pt-28 pb-20 px-4">
       <SEO
         title={`Comments on "${journal.title}" | Deep Dey Journal`}
         description={`${total} comment${total !== 1 ? 's' : ''} on "${journal.title}".${journal.summary ? ' ' + journal.summary.slice(0, 100) : ''}`}
-        route={`/journal/view/${journal._id}/comments`}
+        route={`/journal/view/${journalRouteKey}/comments`}
       />
       <div className="max-w-2xl mx-auto space-y-6">
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-zinc-500 hover:text-zinc-300 transition-colors text-sm">
@@ -236,7 +237,7 @@ export default function JournalAllComments() {
             {journal.categoryName && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">{journal.categoryName}</span>}
             <span className="text-zinc-600 text-xs font-mono">{journal.readMinutes} min read</span>
           </div>
-          <Link to={`/journal/view/${journal._id}`} className="inline-flex items-center gap-1.5 text-amber-500 text-sm font-bold hover:text-amber-400 transition-colors mt-1">
+          <Link to={`/journal/view/${journalRouteKey}`} className="inline-flex items-center gap-1.5 text-amber-500 text-sm font-bold hover:text-amber-400 transition-colors mt-1">
             <ExternalLink size={13} /> Read full post
           </Link>
         </motion.div>
@@ -275,7 +276,7 @@ export default function JournalAllComments() {
               <div className="text-center py-16 text-zinc-600">
                 <MessageSquare size={32} className="mx-auto mb-3 opacity-30" />
                 <p className="text-sm">No comments yet. Be the first!</p>
-                <Link to={`/journal/view/${journal._id}`} className="text-amber-500 text-sm hover:underline mt-2 inline-block">Go to post →</Link>
+                <Link to={`/journal/view/${journalRouteKey}`} className="text-amber-500 text-sm hover:underline mt-2 inline-block">Go to post →</Link>
               </div>
             ) : (
               <div className="space-y-3">
@@ -302,7 +303,7 @@ export default function JournalAllComments() {
         {/* CTA */}
         <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5 text-center space-y-3">
           <p className="text-zinc-400 text-sm">Join the conversation</p>
-          <Link to={`/journal/view/${journal._id}`} className="inline-flex items-center gap-2 px-6 py-2.5 bg-amber-500 text-black text-sm font-bold rounded-xl hover:bg-amber-400 transition-colors">
+          <Link to={`/journal/view/${journalRouteKey}`} className="inline-flex items-center gap-2 px-6 py-2.5 bg-amber-500 text-black text-sm font-bold rounded-xl hover:bg-amber-400 transition-colors">
             <MessageSquare size={14} /> Comment on this post
           </Link>
         </div>

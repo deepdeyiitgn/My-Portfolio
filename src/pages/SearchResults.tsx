@@ -43,6 +43,8 @@ const HEADER_SCROLL_OFFSET = 120;
 
 // ── Social triggers ───────────────────────────────────────────────────────────
 const SOCIAL_TRIGGERS = ['insta', 'instagram', 'github', 'twitter', 'x', 'social', 'contact', 'youtube', 'linkedin', 'links'];
+const USER_TRIGGERS = ['user', 'users', 'profile', 'profiles', 'contributor', 'contributors', 'community'];
+const COMMENT_TRIGGERS = ['comment', 'comments', 'reply', 'replies', 'discussion', 'conversation'];
 
 // ── Typewriter suggestions ────────────────────────────────────────────────────
 const SUGGESTIONS = [
@@ -285,6 +287,34 @@ export default function SearchResults() {
           url: '/links',
           category: 'Connect',
           snippets: ['All social media profiles, ecosystem links, and community portals for Deep Dey in one place.']
+        });
+      }
+
+      const hasUserMatch = keywords.some(kw =>
+        USER_TRIGGERS.some(trigger => trigger.includes(kw) || kw.includes(trigger))
+      );
+      if (hasUserMatch) {
+        combinedResults.unshift({
+          _id: 'community-users',
+          type: 'User',
+          title: 'Community Contributors',
+          url: '/user',
+          category: 'Community',
+          snippets: ['Browse all contributor profiles and open each user page with comments and activity.']
+        });
+      }
+
+      const hasCommentMatch = keywords.some(kw =>
+        COMMENT_TRIGGERS.some(trigger => trigger.includes(kw) || kw.includes(trigger))
+      );
+      if (hasCommentMatch) {
+        combinedResults.unshift({
+          _id: 'journal-comments',
+          type: 'Comment',
+          title: 'Journal Comment Pages',
+          url: '/journal/comment',
+          category: 'Community',
+          snippets: ['Open the comment guide and jump into standalone comment links and thread pages.']
         });
       }
 

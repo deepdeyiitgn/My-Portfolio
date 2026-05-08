@@ -63,6 +63,23 @@ function toTimestamp(dateInput) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function slugifyToken(value) {
+  return String(value || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+function getJournalRouteKey(journal) {
+  const directSlug = String(journal?.slug || '').trim();
+  if (directSlug) return directSlug;
+  const fallbackSlug = slugifyToken(journal?.title || '');
+  if (fallbackSlug) return fallbackSlug;
+  return String(journal?._id || '').trim();
+}
+
 const STATIC_ROUTE_SOURCES = {
   '': ['src/pages/Home.tsx', 'src/App.tsx'],
   '/projects': ['src/pages/Projects.tsx'],
@@ -121,41 +138,51 @@ async function fetchJson(url) {
   }
 }
 
-async function fetchAllPublishedJournals(baseUrl) {
-  const journals = [];
-  const maxPages = 100;
+async function fetchPaginatedCollection({ baseUrl, maxPages, itemsKey, buildUrl }) {
+  const items = [];
+  let ok = false;
+
   for (let page = 1; page <= maxPages; page++) {
-    const data = await fetchJson(`${baseUrl}/api/journal?published=true&page=${page}&limit=20`);
-    if (!data?.ok || !Array.isArray(data.journals)) break;
-    journals.push(...data.journals);
+    const data = await fetchJson(buildUrl(page, baseUrl));
+    if (!data?.ok || !Array.isArray(data[itemsKey])) break;
+    ok = true;
+    items.push(...data[itemsKey]);
     const totalPages = Number(data.pagination?.totalPages || 1);
     if (page >= totalPages) break;
   }
-  return journals;
+
+  return { items, ok };
+}
+
+async function fetchAllPublishedJournals(baseUrl) {
+  return fetchPaginatedCollection({
+    baseUrl,
+    maxPages: 100,
+    itemsKey: 'journals',
+    buildUrl: (page, origin) => `${origin}/api/journal?published=true&page=${page}&limit=20`,
+  });
 }
 
 async function fetchAllUsers(baseUrl) {
-  const users = [];
-  const maxPages = 200;
-  for (let page = 1; page <= maxPages; page++) {
-    const data = await fetchJson(`${baseUrl}/api/journal?action=all-users&page=${page}`);
-    if (!data?.ok || !Array.isArray(data.users)) break;
-    users.push(...data.users);
-    const totalPages = Number(data.pagination?.totalPages || 1);
-    if (page >= totalPages) break;
-  }
-  return users;
+  return fetchPaginatedCollection({
+    baseUrl,
+    maxPages: 200,
+    itemsKey: 'users',
+    buildUrl: (page, origin) => `${origin}/api/journal?action=all-users&page=${page}`,
+  });
 }
 
 async function fetchAllCommentsForJournal(baseUrl, journalId, parentId = null) {
   const comments = [];
   const seen = new Set();
   const maxPages = 500;
+  let ok = false;
 
   for (let page = 1; page <= maxPages; page++) {
     const parentParam = parentId ? `&parentId=${encodeURIComponent(parentId)}` : '';
     const data = await fetchJson(`${baseUrl}/api/journal?action=comments&journalId=${encodeURIComponent(journalId)}&page=${page}&sort=old${parentParam}`);
     if (!data?.ok) break;
+    ok = true;
 
     const merged = [
       ...(parentId ? [] : (Array.isArray(data.pinnedComments) ? data.pinnedComments : [])),
@@ -173,7 +200,7 @@ async function fetchAllCommentsForJournal(baseUrl, journalId, parentId = null) {
     if (page >= totalPages) break;
   }
 
-  return comments;
+  return { items: comments, ok };
 }
 
 async function buildSitemap(baseUrl) {
@@ -185,10 +212,17 @@ async function buildSitemap(baseUrl) {
       if (process.env.NODE_ENV !== 'production') {
         logger.debug('Skipping sitemap route', { loc, reason: !loc ? 'empty' : 'duplicate' });
       }
-      return;
+      return false;
     }
     seenLocs.add(loc);
     routes.push({ loc, lastmod, changefreq, priority });
+    return true;
+  };
+
+  let dynamicRouteCount = 0;
+  let dynamicFetchFailed = false;
+  const addDynamicRoute = (route) => {
+    if (addRoute(route)) dynamicRouteCount += 1;
   };
 
   // Static pages — file-change-based lastmod
@@ -201,73 +235,104 @@ async function buildSitemap(baseUrl) {
     });
   }
   addRoute({ loc: '/user/owner', lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES['/user/owner']), changefreq: 'weekly', priority: '0.6' });
+  addRoute({ loc: '/user/owner?tab=comments', lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES['/user/owner']), changefreq: 'weekly', priority: '0.5' });
 
   // Dynamic routes from DB
-  try {
-    const [journals, users] = await Promise.all([
-      fetchAllPublishedJournals(baseUrl),
-      fetchAllUsers(baseUrl),
-    ]);
+  const [journalsResult, usersResult] = await Promise.all([
+    fetchAllPublishedJournals(baseUrl),
+    fetchAllUsers(baseUrl),
+  ]);
 
-    // User profiles — include all paginated users
-    for (const u of users) {
-      if (!u?.userId) continue;
-      const lastmod = formatDate(
-        u.profileUpdatedAt ||
-        u.verifiedUpdatedAt ||
-        u.lastCommentAt ||
-        u.firstCommentAt ||
-        u.createdAt,
-      );
-      addRoute({ loc: `/user/${encodeURIComponent(u.userId)}`, lastmod, changefreq: 'weekly', priority: '0.6' });
+  const journals = journalsResult.items;
+  const users = usersResult.items;
+  if (!journalsResult.ok) {
+    dynamicFetchFailed = true;
+    logger.error('Sitemap journals fetch failed', { baseUrl });
+  }
+  if (!usersResult.ok) {
+    dynamicFetchFailed = true;
+    logger.error('Sitemap users fetch failed', { baseUrl });
+  }
+
+  // User profiles — include all paginated users
+  for (const u of users) {
+    if (!u?.userId) continue;
+    const lastmod = formatDate(
+      u.profileUpdatedAt ||
+      u.verifiedUpdatedAt ||
+      u.lastCommentAt ||
+      u.firstCommentAt ||
+      u.createdAt,
+    );
+    addDynamicRoute({ loc: `/user/${encodeURIComponent(u.userId)}`, lastmod, changefreq: 'weekly', priority: '0.6' });
+    addDynamicRoute({ loc: `/user/${encodeURIComponent(u.userId)}?tab=comments`, lastmod, changefreq: 'weekly', priority: '0.5' });
+  }
+
+  // Journal pages + comments/replies permalinks (slug-first)
+  for (const j of journals) {
+    const id = String(j?._id || '');
+    if (!id) continue;
+    const journalRouteKey = encodeURIComponent(getJournalRouteKey(j));
+    const journalLastmod = formatDate(j.updatedAt || j.publishedAt || j.createdAt);
+    addDynamicRoute({ loc: `/journal/view/${journalRouteKey}`, lastmod: journalLastmod, changefreq: 'weekly', priority: '0.7' });
+
+    let commentsPageLastmodTs = toTimestamp(j.updatedAt || j.publishedAt || j.createdAt);
+    const topLevelCommentsResult = await fetchAllCommentsForJournal(baseUrl, id);
+    if (!topLevelCommentsResult.ok) {
+      dynamicFetchFailed = true;
+      logger.error('Sitemap top-level comments fetch failed', { baseUrl, journalId: id });
     }
 
-    // Journal pages + comments/replies permalinks (slug-first)
-    for (const j of journals) {
-      const id = String(j?._id || '');
-      if (!id) continue;
-      const journalRouteKey = encodeURIComponent(String(j?.slug || id));
-      const journalLastmod = formatDate(j.updatedAt || j.publishedAt || j.createdAt);
-      addRoute({ loc: `/journal/view/${journalRouteKey}`, lastmod: journalLastmod, changefreq: 'weekly', priority: '0.7' });
+    for (const c of topLevelCommentsResult.items) {
+      const commentId = String(c?._id || '');
+      if (!commentId) continue;
+      const commentLastmodTs = toTimestamp(c.editedAt || c.createdAt || j.updatedAt || j.publishedAt || j.createdAt);
+      if (commentLastmodTs > commentsPageLastmodTs) commentsPageLastmodTs = commentLastmodTs;
+      const commentLastmod = formatDate(c.editedAt || c.createdAt || j.updatedAt || j.publishedAt || j.createdAt);
+      addDynamicRoute({ loc: `/journal/view/${journalRouteKey}/comment/${commentId}`, lastmod: commentLastmod, changefreq: 'weekly', priority: '0.5' });
+      addDynamicRoute({ loc: `/journal/comment/${commentId}`, lastmod: commentLastmod, changefreq: 'weekly', priority: '0.5' });
 
-      let commentsPageLastmodTs = toTimestamp(j.updatedAt || j.publishedAt || j.createdAt);
-      const topLevelComments = await fetchAllCommentsForJournal(baseUrl, id);
-      for (const c of topLevelComments) {
-        const commentId = String(c?._id || '');
-        if (!commentId) continue;
-        const commentLastmodTs = toTimestamp(c.editedAt || c.createdAt || j.updatedAt || j.publishedAt || j.createdAt);
-        if (commentLastmodTs > commentsPageLastmodTs) commentsPageLastmodTs = commentLastmodTs;
-        const commentLastmod = formatDate(c.editedAt || c.createdAt || j.updatedAt || j.publishedAt || j.createdAt);
-        addRoute({ loc: `/journal/view/${journalRouteKey}/comment/${commentId}`, lastmod: commentLastmod, changefreq: 'weekly', priority: '0.5' });
-        addRoute({ loc: `/journal/comment/${commentId}`, lastmod: commentLastmod, changefreq: 'weekly', priority: '0.5' });
-
-        const replies = await fetchAllCommentsForJournal(baseUrl, id, commentId);
-        for (const r of replies) {
-          const replyId = String(r?._id || '');
-          if (!replyId) continue;
-          const replyLastmodTs = toTimestamp(r.editedAt || r.createdAt || c.editedAt || c.createdAt || j.updatedAt || j.publishedAt || j.createdAt);
-          if (replyLastmodTs > commentsPageLastmodTs) commentsPageLastmodTs = replyLastmodTs;
-          const replyLastmod = formatDate(r.editedAt || r.createdAt || c.editedAt || c.createdAt || j.updatedAt || j.publishedAt || j.createdAt);
-          addRoute({ loc: `/journal/view/${journalRouteKey}/comment/${replyId}`, lastmod: replyLastmod, changefreq: 'weekly', priority: '0.5' });
-          addRoute({ loc: `/journal/comment/${replyId}`, lastmod: replyLastmod, changefreq: 'weekly', priority: '0.5' });
-        }
+      const repliesResult = await fetchAllCommentsForJournal(baseUrl, id, commentId);
+      if (!repliesResult.ok) {
+        dynamicFetchFailed = true;
+        logger.error('Sitemap reply comments fetch failed', { baseUrl, journalId: id, parentId: commentId });
       }
-      addRoute({
-        loc: `/journal/view/${journalRouteKey}/comments`,
-        lastmod: formatDate(commentsPageLastmodTs ? new Date(commentsPageLastmodTs) : (j.updatedAt || j.publishedAt || j.createdAt)),
-        changefreq: 'weekly',
-        priority: '0.6',
-      });
+
+      for (const r of repliesResult.items) {
+        const replyId = String(r?._id || '');
+        if (!replyId) continue;
+        const replyLastmodTs = toTimestamp(r.editedAt || r.createdAt || c.editedAt || c.createdAt || j.updatedAt || j.publishedAt || j.createdAt);
+        if (replyLastmodTs > commentsPageLastmodTs) commentsPageLastmodTs = replyLastmodTs;
+        const replyLastmod = formatDate(r.editedAt || r.createdAt || c.editedAt || c.createdAt || j.updatedAt || j.publishedAt || j.createdAt);
+        addDynamicRoute({ loc: `/journal/view/${journalRouteKey}/comment/${replyId}`, lastmod: replyLastmod, changefreq: 'weekly', priority: '0.5' });
+        addDynamicRoute({ loc: `/journal/comment/${replyId}`, lastmod: replyLastmod, changefreq: 'weekly', priority: '0.5' });
+      }
     }
 
-    // Project detail pages (static list, kept for completeness)
-    const projectIds = ['transparent-clock', 'quicklink', 'studybot', 'personal-portfolio', 'qlynk-node-server'];
-    for (const id of projectIds) {
-      addRoute({ loc: `/projects/${id}`, lastmod: latestMtimeDate(PROJECT_DETAIL_SOURCES), changefreq: 'monthly', priority: '0.7' });
-    }
-  } catch { /* ignore dynamic failures */ }
+    addDynamicRoute({
+      loc: `/journal/view/${journalRouteKey}/comments`,
+      lastmod: formatDate(commentsPageLastmodTs ? new Date(commentsPageLastmodTs) : (j.updatedAt || j.publishedAt || j.createdAt)),
+      changefreq: 'weekly',
+      priority: '0.6',
+    });
+  }
 
-  return buildXml(routes);
+  // Project detail pages (static list, kept for completeness)
+  const projectIds = ['transparent-clock', 'quicklink', 'studybot', 'personal-portfolio', 'qlynk-node-server'];
+  for (const id of projectIds) {
+    addRoute({ loc: `/projects/${id}`, lastmod: latestMtimeDate(PROJECT_DETAIL_SOURCES), changefreq: 'monthly', priority: '0.7' });
+  }
+
+  return { xml: buildXml(routes), dynamicRouteCount, dynamicFetchFailed };
+}
+
+function sendSitemapResponse(res, { xml, cacheHeader, dynamicRouteCount, fetchFailed }) {
+  res.setHeader('Content-Type', 'text/xml; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, s-maxage=21600, stale-while-revalidate=3600');
+  res.setHeader('X-Sitemap-Cache', cacheHeader);
+  res.setHeader('X-Sitemap-Dynamic-Routes', String(dynamicRouteCount));
+  if (fetchFailed) res.setHeader('X-Sitemap-Dynamic-Fetch-Failed', 'true');
+  return res.status(200).send(xml);
 }
 
 export default async function handler(req, res) {
@@ -279,20 +344,34 @@ export default async function handler(req, res) {
 
     // Serve from cache if still fresh
     if (sitemapCache.xml && now - sitemapCache.refreshedAt < SITEMAP_TTL_MS) {
-      res.setHeader('Content-Type', 'text/xml; charset=utf-8');
-      res.setHeader('Cache-Control', 'public, s-maxage=21600, stale-while-revalidate=3600');
-      res.setHeader('X-Sitemap-Cache', 'HIT');
-      return res.status(200).send(sitemapCache.xml);
+      return sendSitemapResponse(res, {
+        xml: sitemapCache.xml,
+        cacheHeader: 'HIT',
+        dynamicRouteCount: 'cached',
+        fetchFailed: false,
+      });
     }
 
     // Build fresh sitemap
-    const xml = await buildSitemap(baseUrl);
-    sitemapCache = { xml, refreshedAt: now };
+    const built = await buildSitemap(baseUrl);
 
-    res.setHeader('Content-Type', 'text/xml; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, s-maxage=21600, stale-while-revalidate=3600');
-    res.setHeader('X-Sitemap-Cache', 'MISS');
-    res.status(200).send(xml);
+    if (sitemapCache.xml && built.dynamicFetchFailed && built.dynamicRouteCount === 0) {
+      logger.error('Keeping previous sitemap cache because dynamic sitemap fetch failed', { baseUrl });
+      return sendSitemapResponse(res, {
+        xml: sitemapCache.xml,
+        cacheHeader: 'STALE-FALLBACK',
+        dynamicRouteCount: 0,
+        fetchFailed: true,
+      });
+    }
+
+    sitemapCache = { xml: built.xml, refreshedAt: now };
+    return sendSitemapResponse(res, {
+      xml: built.xml,
+      cacheHeader: 'MISS',
+      dynamicRouteCount: built.dynamicRouteCount,
+      fetchFailed: built.dynamicFetchFailed,
+    });
   } catch (error) {
     logger.error('Sitemap generation failed:', error);
     res.status(500).send('Error generating sitemap');
