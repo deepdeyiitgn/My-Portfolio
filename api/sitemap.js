@@ -5,6 +5,8 @@ import logger from './logger.js';
 // In-memory sitemap cache — refreshed every 6 hours
 let sitemapCache = { xml: '', refreshedAt: 0 };
 const SITEMAP_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const SITEMAP_SNAPSHOT_FILE = '/tmp/my-portfolio-sitemap.xml';
+let sitemapRefreshPromise = null;
 
 const DOMAIN = 'https://deepdey.vercel.app';
 const PROJECT_ROOT = process.cwd();
@@ -73,9 +75,7 @@ function slugifyToken(value) {
 }
 
 function getJournalRouteKey(journal) {
-  const directSlug = String(journal?.slug || '').trim();
-  if (directSlug) return directSlug;
-  // Title fallback removed, directly using journal id
+  // Sitemap journal slug is always id-based
   return String(journal?._id || '').trim();
 }
 
@@ -101,6 +101,7 @@ const STATIC_ROUTE_SOURCES = {
   '/status': ['src/pages/Status.tsx'],
   '/user': ['src/pages/AllUsers.tsx'],
   '/journal/comment': ['src/pages/CommentGuide.tsx'],
+  '/404': ['src/pages/NotFound.tsx'],
   '/user/owner': ['src/pages/UserProfile.tsx'],
 };
 
@@ -125,6 +126,31 @@ function buildXml(routes) {
     urls += `\n  <url>\n    <loc>${DOMAIN}${loc}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
   }
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}\n</urlset>`;
+}
+
+function loadSitemapSnapshot() {
+  try {
+    if (!fs.existsSync(SITEMAP_SNAPSHOT_FILE)) return;
+    const snapshot = fs.readFileSync(SITEMAP_SNAPSHOT_FILE, 'utf8');
+    if (!snapshot || !snapshot.includes('<urlset')) return;
+    const stat = fs.statSync(SITEMAP_SNAPSHOT_FILE);
+    sitemapCache = {
+      xml: snapshot,
+      refreshedAt: stat.mtimeMs || 0,
+    };
+  } catch {
+    // ignore snapshot load failure
+  }
+}
+
+function persistSitemapSnapshot(xml) {
+  try {
+    const dir = path.dirname(SITEMAP_SNAPSHOT_FILE);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(SITEMAP_SNAPSHOT_FILE, xml, 'utf8');
+  } catch {
+    // ignore snapshot write failure
+  }
 }
 
 async function fetchJson(url) {
@@ -230,10 +256,11 @@ async function buildSitemap(baseUrl) {
       loc: page,
       lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES[page]),
       changefreq: page === '' ? 'daily' : 'weekly',
-      priority: page === '' ? '1.0' : '0.8',
+      priority: '1.0',
     });
   }
-  addRoute({ loc: '/user/owner', lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES['/user/owner']), changefreq: 'weekly', priority: '0.6' });
+  addRoute({ loc: '/404', lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES['/404']), changefreq: 'monthly', priority: '0.2' });
+  addRoute({ loc: '/user/owner', lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES['/user/owner']), changefreq: 'weekly', priority: '0.5' });
   addRoute({ loc: '/user/owner?tab=comments', lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES['/user/owner']), changefreq: 'weekly', priority: '0.5' });
 
   // Dynamic routes from DB
@@ -263,7 +290,7 @@ async function buildSitemap(baseUrl) {
       u.firstCommentAt ||
       u.createdAt,
     );
-    addDynamicRoute({ loc: `/user/${encodeURIComponent(u.userId)}`, lastmod, changefreq: 'weekly', priority: '0.6' });
+    addDynamicRoute({ loc: `/user/${encodeURIComponent(u.userId)}`, lastmod, changefreq: 'weekly', priority: '0.5' });
     addDynamicRoute({ loc: `/user/${encodeURIComponent(u.userId)}?tab=comments`, lastmod, changefreq: 'weekly', priority: '0.5' });
   }
 
@@ -325,6 +352,33 @@ async function buildSitemap(baseUrl) {
   return { xml: buildXml(routes), dynamicRouteCount, dynamicFetchFailed };
 }
 
+async function refreshSitemapCache(baseUrl) {
+  if (sitemapRefreshPromise) return sitemapRefreshPromise;
+
+  sitemapRefreshPromise = (async () => {
+    const built = await buildSitemap(baseUrl);
+    if (sitemapCache.xml && built.dynamicFetchFailed && built.dynamicRouteCount === 0) {
+      logger.error('Keeping previous sitemap cache because dynamic sitemap fetch failed', { baseUrl });
+      return { ...built, usedStaleFallback: true };
+    }
+
+    sitemapCache = { xml: built.xml, refreshedAt: Date.now() };
+    persistSitemapSnapshot(built.xml);
+    return { ...built, usedStaleFallback: false };
+  })();
+
+  try {
+    return await sitemapRefreshPromise;
+  } finally {
+    sitemapRefreshPromise = null;
+  }
+}
+
+loadSitemapSnapshot();
+void refreshSitemapCache(DOMAIN).catch((error) => {
+  logger.error('Initial sitemap warmup failed', error);
+});
+
 function sendSitemapResponse(res, { xml, cacheHeader, dynamicRouteCount, fetchFailed }) {
   res.setHeader('Content-Type', 'text/xml; charset=utf-8');
   res.setHeader('Cache-Control', 'public, s-maxage=21600, stale-while-revalidate=3600');
@@ -351,22 +405,32 @@ export default async function handler(req, res) {
       });
     }
 
-    // Build fresh sitemap
-    const built = await buildSitemap(baseUrl);
+    // If stale cache exists, serve it immediately and refresh in background
+    if (sitemapCache.xml) {
+      void refreshSitemapCache(baseUrl).catch((error) => {
+        logger.error('Background sitemap refresh failed', error);
+      });
+      return sendSitemapResponse(res, {
+        xml: sitemapCache.xml,
+        cacheHeader: 'STALE-HIT',
+        dynamicRouteCount: 'cached',
+        fetchFailed: false,
+      });
+    }
 
-    if (sitemapCache.xml && built.dynamicFetchFailed && built.dynamicRouteCount === 0) {
-      logger.error('Keeping previous sitemap cache because dynamic sitemap fetch failed', { baseUrl });
+    // No cache available: build once and cache it
+    const built = await refreshSitemapCache(baseUrl);
+    if (sitemapCache.xml && built.usedStaleFallback) {
       return sendSitemapResponse(res, {
         xml: sitemapCache.xml,
         cacheHeader: 'STALE-FALLBACK',
-        dynamicRouteCount: 0,
+        dynamicRouteCount: 'cached',
         fetchFailed: true,
       });
     }
 
-    sitemapCache = { xml: built.xml, refreshedAt: now };
     return sendSitemapResponse(res, {
-      xml: built.xml,
+      xml: sitemapCache.xml,
       cacheHeader: 'MISS',
       dynamicRouteCount: built.dynamicRouteCount,
       fetchFailed: built.dynamicFetchFailed,
