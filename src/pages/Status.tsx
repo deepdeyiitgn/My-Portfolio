@@ -204,6 +204,8 @@ export default function Status() {
   const fetchHealth = useCallback(async () => {
     setHealthLoading(true);
     try {
+      // Warm-up call for cold starts, then actual response fetch
+      await fetch('/api/journal?action=health', { cache: 'no-store' }).catch(() => {});
       const r = await fetch('/api/journal?action=health', { cache: 'no-store' });
       const d = await r.json();
       if (d.ok) setHealth(d as ServerHealth);
@@ -213,8 +215,10 @@ export default function Status() {
 
   // ── Measure client-side ping ───────────────────────────────────────────────
   const measureClientPing = useCallback(async () => {
-    const t0 = performance.now();
     try {
+      // Warm-up call for cold starts, then measured ping call
+      await fetch('/api/journal?action=health', { method: 'GET', cache: 'no-store' }).catch(() => {});
+      const t0 = performance.now();
       await fetch('/api/journal?action=health', { method: 'GET', cache: 'no-store' });
       setClientPing(Math.round(performance.now() - t0));
     } catch { setClientPing(null); }
