@@ -33,6 +33,9 @@ const { MongoClient, ObjectId } = require('mongodb');
 let cachedClient = null;
 // Public/admin user lists should only include real commenter accounts; exclude owner and malformed empty IDs.
 const PUBLIC_USER_FILTER = { userId: { $exists: true, $nin: ['', 'owner'] } };
+const MIN_COMMUNITY_TEXT_LENGTH = 100;
+const COMMUNITY_COOLDOWN_MS = 2 * 60 * 1000;
+const communityCooldownByIp = new Map();
 
 async function getDb() {
   if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI not set');
@@ -141,6 +144,25 @@ function normalizeImages(images) {
     if (value) unique.add(value);
   }
   return Array.from(unique);
+}
+
+function getCooldownKey(ip, scope) {
+  return `${scope}:${String(ip || 'unknown')}`;
+}
+
+function checkCommunityCooldown(ip, scope) {
+  const now = Date.now();
+  const key = getCooldownKey(ip, scope);
+  const until = Number(communityCooldownByIp.get(key) || 0);
+  if (until > now) {
+    return { limited: true, retryAfterSec: Math.max(1, Math.ceil((until - now) / 1000)) };
+  }
+  return { limited: false, retryAfterSec: 0 };
+}
+
+function startCommunityCooldown(ip, scope) {
+  const key = getCooldownKey(ip, scope);
+  communityCooldownByIp.set(key, Date.now() + COMMUNITY_COOLDOWN_MS);
 }
 
 function verifyOwnerPassword(password) {
@@ -667,6 +689,21 @@ module.exports = async (req, res) => {
         // every keyword must appear in at least one of the indexed fields.
         const keywords = normalizedQuery.split(/\s+/).filter(Boolean);
         const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const buildCharTokens = (terms) => {
+          const tokenSet = new Set();
+          terms.forEach((term) => {
+            const clean = String(term || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (clean.length < 3) return;
+            for (let size = 3; size <= Math.min(6, clean.length); size += 1) {
+              for (let i = 0; i <= clean.length - size; i += 1) {
+                tokenSet.add(clean.slice(i, i + size));
+              }
+            }
+          });
+          return Array.from(tokenSet).sort((a, b) => b.length - a.length).slice(0, 40);
+        };
+        const charTokens = buildCharTokens(keywords);
+        const snippetTokens = Array.from(new Set([...keywords, ...charTokens])).slice(0, 40);
 
         const keywordConditions = keywords.map(kw => {
           const kwRegex = new RegExp(escapeRegex(kw), 'i');
@@ -681,10 +718,30 @@ module.exports = async (req, res) => {
         });
 
         const journalsCol = db.collection('journals');
-        const matchedJournals = await journalsCol.find({
-          published: true,
-          $and: keywordConditions
-        }).sort({ createdAt: -1 }).toArray();
+        let matchedJournals = [];
+        if (keywordConditions.length > 0) {
+          matchedJournals = await journalsCol.find({
+            published: true,
+            $and: keywordConditions,
+          }).sort({ createdAt: -1 }).toArray();
+        }
+        if (matchedJournals.length === 0 && charTokens.length > 0) {
+          const charRegexConditions = charTokens.map((token) => {
+            const tokenRegex = new RegExp(escapeRegex(token), 'i');
+            return {
+              $or: [
+                { title: tokenRegex },
+                { summary: tokenRegex },
+                { content: tokenRegex },
+                { categoryName: tokenRegex },
+              ],
+            };
+          });
+          matchedJournals = await journalsCol.find({
+            published: true,
+            $or: charRegexConditions,
+          }).sort({ createdAt: -1 }).limit(40).toArray();
+        }
 
         // --- Multi-Keyword Snippet Generator ---
         // Strips HTML, locates each keyword, and highlights ALL keywords in every snippet.
@@ -731,7 +788,7 @@ module.exports = async (req, res) => {
           category: j.categoryName,
           snippets: getSnippets(
             [j.title, j.summary, j.content].filter(Boolean).join(' | '),
-            keywords
+            snippetTokens
           ),
           createdAtIST: j.createdAtIST
         }));
@@ -739,10 +796,25 @@ module.exports = async (req, res) => {
         // Community users
         const usersCol = db.collection('users');
         const publicUserFilter = await applyVisibleProfileUserFilter(db, PUBLIC_USER_FILTER);
-        const userQuery = keywords.length
+        const strictUserQuery = keywords.length
           ? { $and: [publicUserFilter, ...keywords.map((kw) => ({ $or: [{ userName: new RegExp(escapeRegex(kw), 'i') }, { userId: new RegExp(escapeRegex(kw), 'i') }, { profileTitle: new RegExp(escapeRegex(kw), 'i') }, { bio: new RegExp(escapeRegex(kw), 'i') }, { description: new RegExp(escapeRegex(kw), 'i') }] }))] }
           : publicUserFilter;
-        const matchedUsers = await usersCol.find(userQuery).sort({ lastCommentAt: -1, firstCommentAt: -1 }).limit(8).toArray();
+        let matchedUsers = await usersCol.find(strictUserQuery).sort({ lastCommentAt: -1, firstCommentAt: -1 }).limit(8).toArray();
+        if (matchedUsers.length === 0 && charTokens.length > 0) {
+          const charUserOr = charTokens.map((token) => {
+            const tokenRegex = new RegExp(escapeRegex(token), 'i');
+            return {
+              $or: [
+                { userName: tokenRegex },
+                { userId: tokenRegex },
+                { profileTitle: tokenRegex },
+                { bio: tokenRegex },
+                { description: tokenRegex },
+              ],
+            };
+          });
+          matchedUsers = await usersCol.find({ $and: [publicUserFilter, { $or: charUserOr }] }).sort({ lastCommentAt: -1, firstCommentAt: -1 }).limit(8).toArray();
+        }
         const userResults = matchedUsers
           .filter((u) => String(u?.userId || '').trim())
           .map((u) => ({
@@ -755,21 +827,30 @@ module.exports = async (req, res) => {
               [u.userName, u.userId, u.profileTitle, u.description, u.bio]
                 .filter(Boolean)
                 .join(' | ') || 'Community user profile',
-              keywords
+              snippetTokens
             ),
             createdAtIST: u.lastCommentAtIST || u.firstCommentAtIST || undefined,
           }));
 
         // Comment permalinks
         const commentsCol = db.collection('comments');
-        const commentQueryBase = keywords.length
+        const strictCommentQuery = keywords.length
           ? {
               isDeleted: { $ne: true },
               $and: keywords.map((kw) => ({ text: new RegExp(escapeRegex(kw), 'i') })),
             }
           : { isDeleted: { $ne: true } };
-        const commentQuery = await applyVisibleCommentUserFilter(db, commentQueryBase);
-        const matchedComments = await commentsCol.find(commentQuery).sort({ createdAt: -1 }).limit(12).toArray();
+        let commentQuery = await applyVisibleCommentUserFilter(db, strictCommentQuery);
+        let matchedComments = await commentsCol.find(commentQuery).sort({ createdAt: -1 }).limit(12).toArray();
+        if (matchedComments.length === 0 && charTokens.length > 0) {
+          const charCommentRegex = charTokens.map((token) => new RegExp(escapeRegex(token), 'i'));
+          const fallbackCommentQuery = await applyVisibleCommentUserFilter(db, {
+            isDeleted: { $ne: true },
+            $or: charCommentRegex.map((rgx) => ({ text: rgx })),
+          });
+          commentQuery = fallbackCommentQuery;
+          matchedComments = await commentsCol.find(commentQuery).sort({ createdAt: -1 }).limit(12).toArray();
+        }
         const relatedJournalIds = [...new Set(matchedComments.map((c) => String(c?.journalId || '')).filter((v) => ObjectId.isValid(v)))].map((v) => new ObjectId(v));
         const relatedJournals = relatedJournalIds.length
           ? await journalsCol.find({ _id: { $in: relatedJournalIds }, published: true }, { projection: { _id: 1, slug: 1, title: 1 } }).toArray()
@@ -786,7 +867,7 @@ module.exports = async (req, res) => {
               title: `Comment by ${c.userName || 'User'} on ${j.title || 'Journal'}`,
               url: `/journal/view/${j.slug || j._id}/comment/${c._id}`,
               category: 'Community',
-              snippets: getSnippets(String(c.text || ''), keywords),
+              snippets: getSnippets(String(c.text || ''), snippetTokens),
               createdAtIST: c.createdAtIST || undefined,
             };
           });
@@ -1559,6 +1640,7 @@ module.exports = async (req, res) => {
         const body = await readBody(req);
         const credential = String(body.credential || '').trim();
         const ownerPosting = isAuthenticated(req);
+        const clientIp = getClientIp(req);
 
         let userInfo = null;
         if (ownerPosting) {
@@ -1587,7 +1669,12 @@ module.exports = async (req, res) => {
         if (!subSubjectSlug) return json(res, 400, { ok: false, message: 'Sub-subject required' });
         if (!title) return json(res, 400, { ok: false, message: 'Subject line required' });
         if (!text) return json(res, 400, { ok: false, message: 'Feedback text required' });
+        if (text.length < MIN_COMMUNITY_TEXT_LENGTH) return json(res, 400, { ok: false, message: `Feedback must be at least ${MIN_COMMUNITY_TEXT_LENGTH} characters.` });
         if (!rating) return json(res, 400, { ok: false, message: 'Rating required' });
+        const feedbackCooldown = checkCommunityCooldown(clientIp, 'feedback');
+        if (feedbackCooldown.limited) {
+          return json(res, 429, { ok: false, message: `Feedback cooldown active. Please wait ${feedbackCooldown.retryAfterSec} second(s).`, retryAfterSec: feedbackCooldown.retryAfterSec, scope: 'feedback' });
+        }
 
         const feedbackCategories = await getFeedbackCategoriesMap(db);
         const subjectInfo = feedbackCategories.get(subjectSlug);
@@ -1624,6 +1711,7 @@ module.exports = async (req, res) => {
         };
 
         const result = await feedbackCol.insertOne(doc);
+        startCommunityCooldown(clientIp, 'feedback');
 
         if (!ownerPosting) {
           try {
@@ -1678,6 +1766,7 @@ module.exports = async (req, res) => {
         const body = await readBody(req);
         const credential = String(body.credential || '').trim();
         const ownerPosting = isAuthenticated(req);
+        const clientIp = getClientIp(req);
 
         let userInfo;
         let isVerifiedUser = false;
@@ -1702,10 +1791,16 @@ module.exports = async (req, res) => {
 
         const text = String(body.text || '').trim();
         if (!text) return json(res, 400, { ok: false, message: 'Comment text is required' });
+        if (text.length < MIN_COMMUNITY_TEXT_LENGTH) return json(res, 400, { ok: false, message: `Comment must be at least ${MIN_COMMUNITY_TEXT_LENGTH} characters.` });
         if (text.length > 2000) return json(res, 400, { ok: false, message: 'Comment too long (max 2000 chars)' });
 
         const parentIdParam = body.parentId ? String(body.parentId) : null;
         const parentId = parentIdParam && ObjectId.isValid(parentIdParam) ? new ObjectId(parentIdParam) : null;
+        const cooldownScope = parentId ? 'reply' : 'comment';
+        const commentCooldown = checkCommunityCooldown(clientIp, cooldownScope);
+        if (commentCooldown.limited) {
+          return json(res, 429, { ok: false, message: `${cooldownScope === 'reply' ? 'Reply' : 'Comment'} cooldown active. Please wait ${commentCooldown.retryAfterSec} second(s).`, retryAfterSec: commentCooldown.retryAfterSec, scope: cooldownScope });
+        }
 
         const journalExists = await col.findOne({ _id: resolvedJournalId, published: true });
         if (!journalExists) return json(res, 404, { ok: false, message: 'Journal not found' });
@@ -1742,6 +1837,7 @@ module.exports = async (req, res) => {
         };
 
         const result = await db.collection('comments').insertOne(commentDoc);
+        startCommunityCooldown(clientIp, cooldownScope);
 
         // Upsert user profile record (so Users tab works without manual sync)
         if (!ownerPosting) {

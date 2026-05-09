@@ -1910,7 +1910,12 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
         // Clear any Google user session to avoid conflicts
         localStorage.removeItem('dd_comment_user');
       } else {
-        setLoginError(d.message || 'Incorrect password');
+        if (d.retryAfterSec) {
+          const mins = Math.ceil(Number(d.retryAfterSec || 0) / 60);
+          setLoginError(`${d.message || 'Too many attempts.'} Retry after ~${mins} minute(s).`);
+        } else {
+          setLoginError(d.message || 'Incorrect password');
+        }
       }
     } catch {
       setLoginError('Network error — please try again');

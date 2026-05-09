@@ -90,6 +90,12 @@ Dedicated public feedback page at `/feedback` with rating distribution bars, int
 ### 🛡️ Owner User Moderation & Destructive Controls
 Dashboard user management now supports password-confirmed temporary deactivation for full account visibility, comments, profile, or feedback separately. Full deactivation hides profile/comments/replies/feedback and blocks new community activity, while scoped modes can independently hide comments, profile visibility, or feedback submission/listing. The owner can also delete a user's comments+feedback while keeping the profile, or permanently erase the user's profile, comments, replies, feedback, and moderation records — all from the existing dashboard/backend flow without adding a new API route file.
 
+### 🔐 Security Hardening & Soft Rate Limiting
+- Owner dashboard login now has in-memory IP-based attempt throttling with escalation: 5 failures/minute, then lockouts of 2m, 5m, 10m, 15m... capped at 60m for subsequent cycles.
+- Community posting now enforces minimum 100 characters for comments, replies, and feedback.
+- Posting cooldowns are now in-memory and per-IP with independent 2-minute windows for comment, reply, and feedback scopes (no database writes for rate-limit state).
+- Search now includes substring/character-token fallback matching so embedded tokens (e.g. `hfxyzjw` containing `xyz`) can still surface relevant results.
+
 ### 👥 Community User Profiles
 Every reader who signs in gets a public profile at `/user/:userId`. Profiles show a customizable title, bio, social links (GitHub, Twitter, LinkedIn, Instagram, YouTube, Website, Custom with Google Favicon auto-detection), a 52-week contribution heatmap, and tabbed views for Overview, Comments, and Activity Log. The `/user` page lists all contributors with the owner card pinned at the top — styled with a **glowing gradient-border frame, `myphoto.png` avatar with an amber halo, and a 👑 Owner badge** for a visually distinct king-vibe presence. Verified tick and crown badges are now rendered as frontend vector icons (not public image files) for a cleaner professional UI. The owner's `/user/owner` profile page carries the same premium styling.
 

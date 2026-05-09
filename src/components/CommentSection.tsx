@@ -48,6 +48,7 @@ interface Pagination {
 
 // ── Storage key ───────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'dd_comment_user';
+const MIN_COMMENT_LENGTH = 100;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -268,6 +269,10 @@ function CommentItem({
 
   const handleReply = async () => {
     if (!replyText.trim()) return;
+    if (replyText.trim().length < MIN_COMMENT_LENGTH) {
+      alert(`Reply must be at least ${MIN_COMMENT_LENGTH} characters.`);
+      return;
+    }
     if (!currentUser && !isOwner) return;
     setReplyLoading(true);
     try {
@@ -490,7 +495,7 @@ function CommentItem({
               <div className="flex gap-2">
                 <button
                   onClick={handleReply}
-                  disabled={replyLoading || !replyText.trim()}
+                  disabled={replyLoading || replyText.trim().length < MIN_COMMENT_LENGTH}
                   className="px-3 py-1.5 rounded-lg bg-amber-500 text-black text-xs font-bold hover:bg-amber-400 disabled:opacity-50 transition-colors flex items-center gap-1"
                 >
                   {replyLoading ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Post Reply
@@ -502,6 +507,9 @@ function CommentItem({
                   Cancel
                 </button>
               </div>
+              <p className="text-[11px] text-zinc-600">
+                {replyText.trim().length}/{MIN_COMMENT_LENGTH} minimum characters required
+              </p>
             </div>
           )}
 
@@ -664,6 +672,10 @@ export default function CommentSection({ journalId }: { journalId: string }) {
 
   const handlePost = async () => {
     if (!commentText.trim()) return;
+    if (commentText.trim().length < MIN_COMMENT_LENGTH) {
+      alert(`Comment must be at least ${MIN_COMMENT_LENGTH} characters.`);
+      return;
+    }
     if (!currentUser && !isOwner) return;
     setPosting(true);
     try {
@@ -850,10 +862,12 @@ export default function CommentSection({ journalId }: { journalId: string }) {
               }}
             />
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-600">{commentText.length}/2000 · Ctrl+Enter to post</span>
+              <span className="text-xs text-zinc-600">
+                {commentText.length}/2000 · min {MIN_COMMENT_LENGTH} chars · Ctrl+Enter to post
+              </span>
               <button
                 onClick={handlePost}
-                disabled={posting || !commentText.trim()}
+                disabled={posting || commentText.trim().length < MIN_COMMENT_LENGTH}
                 className="px-4 py-2 rounded-xl bg-amber-500 text-black text-xs font-black uppercase tracking-wider hover:bg-amber-400 disabled:opacity-50 transition-colors flex items-center gap-2"
               >
                 {posting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}

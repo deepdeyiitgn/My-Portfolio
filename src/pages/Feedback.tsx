@@ -44,6 +44,7 @@ interface Pagination {
 
 const STORAGE_KEY = 'dd_comment_user';
 const MAX_TEXT = 3000;
+const MIN_FEEDBACK_TEXT = 100;
 
 function decodeJwt(token: string): Record<string, unknown> | null {
   try {
@@ -255,6 +256,10 @@ export default function Feedback() {
       setFormMessage({ text: 'Please complete subject, sub-subject, subject line, and feedback text.', type: 'err' });
       return;
     }
+    if (formText.trim().length < MIN_FEEDBACK_TEXT) {
+      setFormMessage({ text: `Feedback must be at least ${MIN_FEEDBACK_TEXT} characters.`, type: 'err' });
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -406,10 +411,10 @@ export default function Feedback() {
                 disabled={feedbackAccess.blocked}
               />
               <div className="flex items-center justify-between mt-1">
-                <p className="text-zinc-600 text-xs">{formText.length}/{MAX_TEXT}</p>
+                <p className="text-zinc-600 text-xs">{formText.length}/{MAX_TEXT} · min {MIN_FEEDBACK_TEXT} chars</p>
                 <button
                   type="submit"
-                  disabled={submitting || loadingCategories || feedbackAccess.blocked}
+                  disabled={submitting || loadingCategories || feedbackAccess.blocked || formText.trim().length < MIN_FEEDBACK_TEXT}
                   className="px-4 py-2 rounded-xl bg-amber-500 text-black font-bold text-xs hover:bg-amber-400 disabled:opacity-50 inline-flex items-center gap-1"
                 >
                   {submitting ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}

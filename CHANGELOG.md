@@ -73,6 +73,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **UserProfile Owner Page — Glowing King Style (`UserProfile.tsx`):** `/user/owner` profile card now features the same gradient-border glow frame, glowing photo halo, amber-gold name text, and 👑 Owner badge — visually distinct from regular community profiles.
 
 ### Changed
+- **Owner auth brute-force protection:** Added in-memory IP-based login throttling on `/api/auth` with 5-attempt/minute windows and escalating lock durations (2m first lock, then +5m steps capped at 60m).
+- **Community posting hardening:** Comments, replies, and feedback now require minimum 100 characters and enforce independent per-IP 2-minute soft cooldowns in RAM for each scope.
+- **Search fallback matching upgraded:** Added character-token/substring fallback so embedded terms inside longer query strings can still return relevant journals, users, and comments.
+- **FAQ expansion:** Appended 200 additional website-related FAQ entries at the end of `faqData` without modifying existing entries.
 - **Community guide upgraded:** `/journal/comment` now explains both commenting and feedback submission, and includes small preview demos showing how comment cards and feedback cards appear on the website.
 - **Owner user moderation controls:** Dashboard Users management now supports password-confirmed temporary deactivation for full account, comments only, profile only, or feedback only — with either manual reactivation or a scheduled end date/time.
 - **Password-confirmed destructive user actions:** Owner dashboard can now delete only a user's comments/replies/feedback while keeping the user profile, or permanently delete the user profile and all related comments, replies, feedback, and moderation records.
