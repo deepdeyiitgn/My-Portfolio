@@ -1194,11 +1194,14 @@ module.exports = async (req, res) => {
         const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
         const limit = 10;
         const usersCol = db.collection('users');
+        const commentsCol = db.collection('comments');
+        const feedbackCol = db.collection('feedbacks');
         const filter = PUBLIC_USER_FILTER;
         const total = await usersCol.countDocuments(filter);
         const users = await usersCol.find(filter).sort({ lastCommentAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
         const hydratedUsers = await Promise.all(users.map(async (u) => {
           let serviceKey = String(u?.serviceKey || '').trim();
+          let email = String(u?.email || '').trim();
           if (!SERVICE_KEY_REGEX.test(serviceKey)) {
             serviceKey = generateServiceKey();
             await usersCol.updateOne(
@@ -1206,9 +1209,31 @@ module.exports = async (req, res) => {
               { $set: { serviceKey, serviceKeyUpdatedAt: new Date() } },
             );
           }
+          if (!email) {
+            const [recentComment, recentFeedback] = await Promise.all([
+              commentsCol.findOne(
+                { userId: String(u?.userId || '').trim() },
+                { sort: { createdAt: -1 }, projection: { email: 1, userEmail: 1 } },
+              ),
+              feedbackCol.findOne(
+                { userId: String(u?.userId || '').trim() },
+                { sort: { createdAt: -1 }, projection: { email: 1, userEmail: 1 } },
+              ),
+            ]);
+            email = String(
+              recentComment?.email
+              || recentComment?.userEmail
+              || recentFeedback?.email
+              || recentFeedback?.userEmail
+              || '',
+            ).trim();
+            if (email) {
+              await usersCol.updateOne({ _id: u._id }, { $set: { email } });
+            }
+          }
           return {
             ...u,
-            email: String(u?.email || ''),
+            email,
             serviceKey,
             verified: Boolean(u.verified),
           };
@@ -1905,6 +1930,7 @@ module.exports = async (req, res) => {
 
       // --- Private user identity payload (email + service key) ---
       if (action === 'user-private') {
+        const body = await readBody(req);
         const ownerRequest = isAuthenticated(req);
         const requestedUserId = String(body.userId || '').trim();
         const credential = String(body.credential || '').trim();
