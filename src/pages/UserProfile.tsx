@@ -5,7 +5,7 @@ import {
   ArrowLeft, MessageSquare, Loader2, AlertCircle, User, Calendar,
   Heart, ChevronLeft, ChevronRight, ExternalLink, Edit3, Check, X,
   Plus, Trash2, Globe, Github, Twitter, Linkedin, Instagram, Youtube,
-  Link2, Activity,
+  Link2, Activity, Eye, EyeOff, Clipboard, RefreshCw,
 } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import SEO from '../components/SEO';
@@ -59,8 +59,14 @@ interface GoogleUser {
   userId: string;
   name: string;
   picture: string;
+  email?: string;
   credential: string;
   exp: number;
+}
+
+interface PrivateIdentity {
+  email: string;
+  serviceKey: string;
 }
 
 const STORAGE_KEY = 'dd_comment_user';
@@ -102,6 +108,11 @@ function getUrlHostname(url: string): string {
     const u = new URL(url.startsWith('http') ? url : `https://${url}`);
     return u.hostname.replace(/^www\./, '');
   } catch { return ''; }
+}
+
+function maskServiceKey(serviceKey?: string) {
+  if (!serviceKey) return '****************';
+  return '*'.repeat(serviceKey.length);
 }
 
 function getPlatformIcon(platform: string, url: string) {
@@ -301,6 +312,12 @@ export default function UserProfile() {
   const [editLinks, setEditLinks] = useState<SocialLink[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [privateIdentity, setPrivateIdentity] = useState<PrivateIdentity | null>(null);
+  const [privateLoading, setPrivateLoading] = useState(false);
+  const [privateError, setPrivateError] = useState('');
+  const [serviceKeyVisible, setServiceKeyVisible] = useState(false);
+  const [rotatingServiceKey, setRotatingServiceKey] = useState(false);
+  const [copyState, setCopyState] = useState('');
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -355,6 +372,97 @@ export default function UserProfile() {
 
   useEffect(() => { loadPage(1); }, [loadPage]);
   useEffect(() => { loadActivity(); }, [loadActivity]);
+
+  useEffect(() => {
+    if (!isOwnProfile || userId === 'owner') {
+      setPrivateIdentity(null);
+      setPrivateError('');
+      setServiceKeyVisible(false);
+      return;
+    }
+    if (!currentUser && !isOwner) {
+      setPrivateIdentity(null);
+      setPrivateError('');
+      setServiceKeyVisible(false);
+      return;
+    }
+    let cancelled = false;
+    const loadPrivateIdentity = async () => {
+      setPrivateLoading(true);
+      setPrivateError('');
+      try {
+        const body: Record<string, unknown> = { userId };
+        if (!isOwner && currentUser) body.credential = currentUser.credential;
+        const r = await fetch('/api/journal?action=user-private', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const d = await r.json();
+        if (cancelled) return;
+        if (!d.ok) {
+          setPrivateIdentity(null);
+          setPrivateError(d.message || 'Failed to load private identity');
+          return;
+        }
+        setPrivateIdentity({
+          email: String(d?.user?.email || currentUser?.email || ''),
+          serviceKey: String(d?.user?.serviceKey || ''),
+        });
+      } catch {
+        if (!cancelled) {
+          setPrivateIdentity(null);
+          setPrivateError('Failed to load private identity');
+        }
+      } finally {
+        if (!cancelled) setPrivateLoading(false);
+      }
+    };
+    loadPrivateIdentity();
+    return () => { cancelled = true; };
+  }, [currentUser, isOwnProfile, isOwner, userId]);
+
+  const copyServiceKey = async () => {
+    const serviceKey = privateIdentity?.serviceKey || '';
+    if (!serviceKey) return;
+    try {
+      await navigator.clipboard.writeText(serviceKey);
+      setCopyState('Copied');
+      setTimeout(() => setCopyState(''), 1500);
+    } catch {
+      setCopyState('Copy failed');
+      setTimeout(() => setCopyState(''), 1500);
+    }
+  };
+
+  const rotateServiceKey = async () => {
+    if (!isOwnProfile || userId === 'owner') return;
+    setRotatingServiceKey(true);
+    setPrivateError('');
+    try {
+      const body: Record<string, unknown> = { userId };
+      if (!isOwner && currentUser) body.credential = currentUser.credential;
+      const r = await fetch('/api/journal?action=user-service-key', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (!d.ok) {
+        setPrivateError(d.message || 'Failed to rotate service key');
+        return;
+      }
+      setPrivateIdentity(prev => ({
+        email: String(d?.user?.email || prev?.email || currentUser?.email || ''),
+        serviceKey: String(d?.user?.serviceKey || ''),
+      }));
+      setServiceKeyVisible(false);
+    } catch {
+      setPrivateError('Failed to rotate service key');
+    } finally {
+      setRotatingServiceKey(false);
+    }
+  };
 
   const startEdit = () => {
     setEditTitle(userInfo?.profileTitle || '');
@@ -502,6 +610,42 @@ export default function UserProfile() {
             </div>
           </div>
 
+          {isOwnProfile && userId !== 'owner' && (
+            <div className="pt-3 border-t border-zinc-800 space-y-2">
+              <p className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest">Private Identity</p>
+              {privateLoading ? (
+                <div className="flex items-center gap-2 text-zinc-500 text-xs"><Loader2 size={12} className="animate-spin" /> Loading...</div>
+              ) : (
+                <>
+                  <div className="rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2">
+                    <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest mb-1">Email</p>
+                    <p className="text-zinc-300 text-sm break-all">{privateIdentity?.email || currentUser?.email || '—'}</p>
+                  </div>
+                  <div className="rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2">
+                    <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest mb-1">16-digit Service Key</p>
+                    <p className="text-zinc-300 text-sm font-mono tracking-[0.22em] break-all">
+                      {serviceKeyVisible ? (privateIdentity?.serviceKey || '') : maskServiceKey(privateIdentity?.serviceKey)}
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <button onClick={copyServiceKey} disabled={!privateIdentity?.serviceKey} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-50 text-xs font-bold transition-colors">
+                        <Clipboard size={12} /> {copyState || 'Copy'}
+                      </button>
+                      <button onClick={() => setServiceKeyVisible(v => !v)} disabled={!privateIdentity?.serviceKey} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-50 text-xs font-bold transition-colors">
+                        {serviceKeyVisible ? <EyeOff size={12} /> : <Eye size={12} />}
+                        {serviceKeyVisible ? 'Hide' : 'Reveal'}
+                      </button>
+                      <button onClick={rotateServiceKey} disabled={rotatingServiceKey || !privateIdentity?.serviceKey} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-400 hover:bg-amber-500/25 disabled:opacity-50 text-xs font-bold transition-colors">
+                        {rotatingServiceKey ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                        Rotate
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+              {privateError && <p className="text-red-400 text-xs">{privateError}</p>}
+            </div>
+          )}
+
           {/* Social links display */}
           {!editing && userInfo.socialLinks && userInfo.socialLinks.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-1">
@@ -522,7 +666,7 @@ export default function UserProfile() {
                   if (!cr.credential) return;
                   const payload = decodeJwt(cr.credential);
                   if (!payload) return;
-                  const u: GoogleUser = { userId: String(payload.sub || ''), name: String(payload.name || payload.given_name || 'Anonymous'), picture: String(payload.picture || ''), credential: cr.credential, exp: Number(payload.exp || 0) };
+                  const u: GoogleUser = { userId: String(payload.sub || ''), name: String(payload.name || payload.given_name || 'Anonymous'), picture: String(payload.picture || ''), email: String(payload.email || ''), credential: cr.credential, exp: Number(payload.exp || 0) };
                   localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
                   setCurrentUser(u);
                 }}

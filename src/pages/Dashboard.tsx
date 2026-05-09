@@ -5,7 +5,7 @@ import {
   Lock, LogIn, Eye, EyeOff, Plus, Trash2, Edit3, Send, X,
   ChevronLeft, ChevronRight, LogOut, Tag, BookOpen, Settings,
   ToggleLeft, ToggleRight, Clock, Loader2, AlertCircle, CheckCircle2, Upload, ImagePlus, Clipboard, Layers, Activity, History, HardDrive,
-  Users, MessageSquare, ShieldBan, AlertOctagon, User
+  Users, MessageSquare, ShieldBan, AlertOctagon, User, RefreshCw
 } from 'lucide-react';
 import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
@@ -114,6 +114,8 @@ interface UserDoc {
   firstCommentAt: string;
   lastCommentAt: string;
   lastJournalId: string;
+  email?: string;
+  serviceKey?: string;
   registrationIp?: string;
   registrationCountry?: string;
   lastActivityIp?: string;
@@ -180,6 +182,11 @@ function formatModerationUntil(entry?: { until?: string | null }) {
   const until = new Date(entry.until);
   if (Number.isNaN(until.getTime())) return 'Until reactivated';
   return until.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function maskServiceKey(serviceKey?: string) {
+  if (!serviceKey) return '****************';
+  return '*'.repeat(serviceKey.length);
 }
 
 const MONGODB_FREE_TIER_LIMIT_BYTES = 512 * 1024 * 1024; // 512 MB
@@ -1376,6 +1383,8 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   const [userCommentsLoading, setUserCommentsLoading] = useState(false);
   const [userBlocks, setUserBlocks] = useState<BlockDoc[]>([]);
   const [userBlocksLoading, setUserBlocksLoading] = useState(false);
+  const [revealedServiceKeyUsers, setRevealedServiceKeyUsers] = useState<Set<string>>(new Set());
+  const [rotatingServiceKeyUserId, setRotatingServiceKeyUserId] = useState('');
   const [moderationScope, setModerationScope] = useState<'full' | 'comments' | 'profile' | 'feedback'>('full');
   const [moderationReason, setModerationReason] = useState('');
   const [moderationUntilMode, setModerationUntilMode] = useState<'manual' | 'date'>('manual');
@@ -1536,6 +1545,51 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       showToast(nextVerified ? 'User verified' : 'User unverified');
     } catch {
       showToast('Network error', 'error');
+    }
+  };
+
+  const handleCopyServiceKey = async (serviceKey?: string) => {
+    if (!serviceKey) return;
+    try {
+      await navigator.clipboard.writeText(serviceKey);
+      showToast('Service key copied');
+    } catch {
+      showToast('Failed to copy service key', 'error');
+    }
+  };
+
+  const handleRotateServiceKey = async (targetUserId: string) => {
+    if (!targetUserId) return;
+    setRotatingServiceKeyUserId(targetUserId);
+    try {
+      const r = await fetch('/api/journal?action=user-service-key', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: targetUserId }),
+      });
+      const d = await r.json();
+      if (!d.ok) {
+        showToast(d.message || 'Failed to rotate service key', 'error');
+        return;
+      }
+      const nextServiceKey = String(d?.user?.serviceKey || '');
+      const nextEmail = String(d?.user?.email || '');
+      setUsers(prev => prev.map(u => (
+        u.userId === targetUserId ? { ...u, serviceKey: nextServiceKey, email: nextEmail } : u
+      )));
+      setSelectedUser(prev => (
+        prev && prev.userId === targetUserId ? { ...prev, serviceKey: nextServiceKey, email: nextEmail } : prev
+      ));
+      setRevealedServiceKeyUsers(prev => {
+        const next = new Set(prev);
+        next.delete(targetUserId);
+        return next;
+      });
+      showToast('Service key rotated');
+    } catch {
+      showToast('Network error', 'error');
+    } finally {
+      setRotatingServiceKeyUserId('');
     }
   };
 
@@ -3501,7 +3555,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
             /* ── Selected user detail + comments ── */
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <button onClick={() => { setSelectedUser(null); setUserComments([]); setUserBlocks([]); }} className="p-2 rounded-xl hover:bg-zinc-800 text-zinc-400 transition-colors"><ChevronLeft size={18} /></button>
+                <button onClick={() => { setSelectedUser(null); setUserComments([]); setUserBlocks([]); setRevealedServiceKeyUsers(new Set()); }} className="p-2 rounded-xl hover:bg-zinc-800 text-zinc-400 transition-colors"><ChevronLeft size={18} /></button>
                 <h2 className="text-white font-bold text-lg">User: {selectedUser.userName}</h2>
               </div>
               {/* User info card */}
@@ -3519,6 +3573,32 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                   <p className="text-zinc-500 text-xs font-mono">{selectedUser._id}</p>
                   <div className="flex items-center gap-3 flex-wrap text-xs text-zinc-500">
                     <span className="flex items-center gap-1"><MessageSquare size={11} /> {selectedUser.totalComments} comments</span>
+                  </div>
+                  <div className="flex flex-col gap-1 mt-2">
+                    <span className="text-zinc-600 uppercase tracking-widest text-[9px] font-mono">Email (Private)</span>
+                    <span className="text-zinc-300 text-xs break-all">{selectedUser.email || '—'}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 mt-2 rounded-xl border border-zinc-800 bg-zinc-950/70 p-2.5">
+                    <span className="text-zinc-600 uppercase tracking-widest text-[9px] font-mono">16-digit Service Key</span>
+                    <span className="text-zinc-300 text-xs font-mono tracking-[0.2em] break-all">
+                      {revealedServiceKeyUsers.has(selectedUser.userId) ? (selectedUser.serviceKey || '') : maskServiceKey(selectedUser.serviceKey)}
+                    </span>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button onClick={() => handleCopyServiceKey(selectedUser.serviceKey)} disabled={!selectedUser.serviceKey} className={`${btnCls} bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 text-[11px] px-3 py-1.5 flex items-center gap-1 disabled:opacity-40`}><Clipboard size={11} /> Copy</button>
+                      <button onClick={() => setRevealedServiceKeyUsers(prev => {
+                        const next = new Set(prev);
+                        if (next.has(selectedUser.userId)) next.delete(selectedUser.userId);
+                        else next.add(selectedUser.userId);
+                        return next;
+                      })} disabled={!selectedUser.serviceKey} className={`${btnCls} bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 text-[11px] px-3 py-1.5 flex items-center gap-1 disabled:opacity-40`}>
+                        {revealedServiceKeyUsers.has(selectedUser.userId) ? <EyeOff size={11} /> : <Eye size={11} />}
+                        {revealedServiceKeyUsers.has(selectedUser.userId) ? 'Hide' : 'Reveal'}
+                      </button>
+                      <button onClick={() => handleRotateServiceKey(selectedUser.userId)} disabled={!selectedUser.userId || rotatingServiceKeyUserId === selectedUser.userId} className={`${btnCls} bg-amber-500/15 border border-amber-500/40 text-amber-400 hover:bg-amber-500/25 text-[11px] px-3 py-1.5 flex items-center gap-1 disabled:opacity-40`}>
+                        {rotatingServiceKeyUserId === selectedUser.userId ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                        Rotate
+                      </button>
+                    </div>
                   </div>
                   <div className="flex flex-col gap-1.5 mt-2 text-[10px] font-mono">
                     {/* Account created */}
@@ -3730,7 +3810,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition-all cursor-pointer"
-                        onClick={() => { setSelectedUser(u); fetchUserComments(u.userId, 1); fetchUserBlocks(u.userId); }}
+                        onClick={() => { setSelectedUser(u); setRevealedServiceKeyUsers(new Set()); fetchUserComments(u.userId, 1); fetchUserBlocks(u.userId); }}
                       >
                         <div className="flex items-center gap-4">
                           {u.userPic ? (
