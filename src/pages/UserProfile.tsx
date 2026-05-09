@@ -239,12 +239,12 @@ function ContributionGraph({ activity }: { activity: ActivityDay[] }) {
       </div>
       <div className="relative" onMouseLeave={() => setTooltip(null)}>
         {/* Month labels */}
-        <div className="flex gap-[3px] mb-1 pl-0">
+        <div className="flex gap-[3px] mb-2 h-4 items-start pl-0">
           {weeks.map((_, wi) => {
             const ml = monthLabels.find(m => m.weekIndex === wi);
             return (
-              <div key={wi} className="w-[10px] shrink-0 text-[8px] text-zinc-600 font-mono overflow-visible whitespace-nowrap" style={{ position: 'relative' }}>
-                {ml ? <span style={{ position: 'absolute', left: 0 }}>{ml.label}</span> : null}
+              <div key={wi} className="relative h-4 w-[10px] shrink-0 overflow-visible text-[8px] text-zinc-600 font-mono whitespace-nowrap leading-none">
+                {ml ? <span className="absolute left-0 top-0">{ml.label}</span> : null}
               </div>
             );
           })}
