@@ -198,10 +198,10 @@ export default function Header() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="fixed inset-0 bg-zinc-950/95 backdrop-blur-2xl lg:hidden z-[100] flex flex-col items-center justify-center overflow-y-auto"
+              className="fixed inset-0 bg-zinc-950/95 backdrop-blur-2xl lg:hidden z-[100] overflow-y-auto"
             >
               {/* Language switcher in mobile menu */}
-              <div className="absolute top-6 right-6">
+              <div className="sticky top-4 z-[101] flex justify-end px-4 pt-4">
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value as typeof language)}
@@ -222,63 +222,61 @@ export default function Header() {
                 </select>
               </div>
 
-              <div className="flex flex-col items-center gap-2.5 pt-8 pb-28 mt-10 w-full max-w-xs">
+              <div className="w-full max-w-sm mx-auto px-4 pb-12 pt-4">
                 {/* 🔍 Search Button (Mobile) — navigates to /search */}
                 <button
                   onClick={() => { navigate('/search'); setIsOpen(false); }}
-                  className="flex items-center gap-2 w-full justify-center mb-6 px-5 py-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 text-amber-500 rounded-xl transition-all duration-300 font-mono text-sm tracking-wider"
+                  className="flex items-center gap-2 w-full justify-center mb-4 px-4 py-3 min-h-[48px] bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 text-amber-500 rounded-xl transition-all duration-300 font-mono text-sm tracking-wider"
                 >
                   <Search size={16} />
                   Search Anything...
                 </button>
 
-                {NAV_LINKS.map((link, index) => (
-                  <motion.div
-                    key={link.path}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
-                  >
-                    <Link
-                      to={link.path}
-                      className="group flex flex-col items-center"
+                <div className="space-y-2">
+                  {NAV_LINKS.map((link, index) => (
+                    <motion.div
+                      key={link.path}
+                      className="w-full"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
                     >
-                      <span className={`text-xl font-black tracking-tight transition-all duration-300 flex items-center gap-2 ${
-                        location.pathname === link.path
-                          ? 'text-amber-500 scale-110'
-                          : 'text-zinc-700 hover:text-amber-500'
-                      } ${'isLive' in link && link.isLive ? '!text-red-500' : ''}`}>
-                        {'isLive' in link && link.isLive && (
-                          <Radio size={16} className="animate-pulse" />
-                        )}
-                        {'isStatus' in link && link.isStatus && (
-                          <Activity size={16} />
-                        )}
-                        {t(link.key)}
-                      </span>
-                      <motion.div
-                        className="h-0.5 bg-amber-500 rounded-full mt-1"
-                        initial={{ width: 0 }}
-                        animate={{ width: location.pathname === link.path ? '100%' : 0 }}
-                        transition={{ duration: 0.6 }}
-                      />
-                    </Link>
-                  </motion.div>
-                ))}
+                      <Link
+                        to={link.path}
+                        className="group w-full block"
+                      >
+                        <span className={`w-full px-4 py-3 min-h-[48px] rounded-xl border border-zinc-800/60 bg-zinc-900/30 text-base sm:text-lg font-black tracking-tight transition-all duration-300 flex items-center justify-center gap-2 ${
+                          location.pathname === link.path
+                            ? 'text-amber-500 scale-105'
+                            : 'text-zinc-700 hover:text-amber-500'
+                        } ${'isLive' in link && link.isLive ? '!text-red-500' : ''}`}>
+                          {'isLive' in link && link.isLive && (
+                            <Radio size={16} className="animate-pulse" />
+                          )}
+                          {'isStatus' in link && link.isStatus && (
+                            <Activity size={16} />
+                          )}
+                          {t(link.key)}
+                        </span>
+                      </Link>
+                    </motion.div>
+                  ))}
+                </div>
 
                 {/* Community Quick Links */}
-                <div className="w-full border-t border-zinc-800/50 pt-4 mt-2 flex flex-col items-center gap-2">
+                <div className="w-full border-t border-zinc-800/50 pt-4 mt-4 flex flex-col items-center gap-2">
                   <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-[0.4em] mb-1">Community</p>
                   <motion.div
+                    className="w-full"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.8, ease: [0.22, 1, 0.36, 1] }}
                   >
                     <Link
                       to="/user"
-                      className="group flex flex-col items-center"
+                      className="group w-full block"
                     >
-                      <span className={`text-xl font-black tracking-tight transition-all duration-300 flex items-center gap-2 ${
+                      <span className={`w-full px-4 py-3 min-h-[48px] rounded-xl border border-zinc-800/60 bg-zinc-900/30 text-base sm:text-lg font-black tracking-tight transition-all duration-300 flex items-center justify-center gap-2 ${
                         location.pathname === '/user' ? 'text-amber-500 scale-110' : 'text-zinc-700 hover:text-amber-500'
                       }`}>
                         <Users size={16} />
@@ -287,15 +285,16 @@ export default function Header() {
                     </Link>
                   </motion.div>
                   <motion.div
+                    className="w-full"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.83, ease: [0.22, 1, 0.36, 1] }}
                   >
                     <Link
                       to="/feedback"
-                      className="group flex flex-col items-center"
+                      className="group w-full block"
                     >
-                      <span className={`text-xl font-black tracking-tight transition-all duration-300 flex items-center gap-2 ${
+                      <span className={`w-full px-4 py-3 min-h-[48px] rounded-xl border border-zinc-800/60 bg-zinc-900/30 text-base sm:text-lg font-black tracking-tight transition-all duration-300 flex items-center justify-center gap-2 ${
                         location.pathname === '/feedback' ? 'text-amber-500 scale-110' : 'text-zinc-700 hover:text-amber-500'
                       }`}>
                         <MessageSquare size={16} />
@@ -304,15 +303,16 @@ export default function Header() {
                     </Link>
                   </motion.div>
                   <motion.div
+                    className="w-full"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.85, ease: [0.22, 1, 0.36, 1] }}
                   >
                     <Link
                       to="/journal/comment"
-                      className="group flex flex-col items-center"
+                      className="group w-full block"
                     >
-                      <span className={`text-xl font-black tracking-tight transition-all duration-300 flex items-center gap-2 ${
+                      <span className={`w-full px-4 py-3 min-h-[48px] rounded-xl border border-zinc-800/60 bg-zinc-900/30 text-base sm:text-lg font-black tracking-tight transition-all duration-300 flex items-center justify-center gap-2 ${
                         location.pathname === '/journal/comment' ? 'text-amber-500 scale-110' : 'text-zinc-700 hover:text-amber-500'
                       }`}>
                         <MessageSquare size={16} />
@@ -322,35 +322,33 @@ export default function Header() {
                   </motion.div>
                   {ownerAuthed && (
                     <motion.button
+                      className="w-full"
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.9, ease: [0.22, 1, 0.36, 1] }}
                       onClick={handleLogout}
-                      className="group flex flex-col items-center"
                     >
-                      <span className="text-xl font-black tracking-tight transition-all duration-300 flex items-center gap-2 text-zinc-700 hover:text-red-400">
+                      <span className="w-full px-4 py-3 min-h-[48px] rounded-xl border border-zinc-800/60 bg-zinc-900/30 text-base sm:text-lg font-black tracking-tight transition-all duration-300 flex items-center justify-center gap-2 text-zinc-700 hover:text-red-400">
                         <LogOut size={16} />
                         Logout
                       </span>
                     </motion.button>
                   )}
                 </div>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.7 }}
+                  className="text-center space-y-2 mt-6"
+                >
+                  <img
+                    src="/assets/images/myphoto.png"
+                    alt="Deep Dey"
+                    className="w-10 h-10 rounded-full object-cover border border-amber-500/40 mx-auto"
+                  />
+                  <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">IIT KGP 2027 Aspirant</p>
+                </motion.div>
               </div>
-
-              {/* Branding in Menu */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.7 }}
-                className="absolute bottom-8 text-center space-y-2"
-              >
-                <img
-                  src="/assets/images/myphoto.png"
-                  alt="Deep Dey"
-                  className="w-10 h-10 rounded-full object-cover border border-amber-500/40 mx-auto"
-                />
-                <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">IIT KGP 2027 Aspirant</p>
-              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>

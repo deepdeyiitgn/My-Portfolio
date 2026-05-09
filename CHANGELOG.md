@@ -73,6 +73,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **UserProfile Owner Page — Glowing King Style (`UserProfile.tsx`):** `/user/owner` profile card now features the same gradient-border glow frame, glowing photo halo, amber-gold name text, and 👑 Owner badge — visually distinct from regular community profiles.
 
 ### Changed
+- **Feedback blacklist linkage & conditional censoring:** Feedback creation and owner feedback edits now reuse the same `comment_blacklist` source as the journal comment system, and feedback text is censored only when a blacklist match is actually detected.
+- **Feedback abuse audit fields (`hasAbuse` + `originalText`):** Feedback documents now persist the original uncensored text only when blacklist abuse is detected, while clean feedback keeps `originalText: null`.
+- **Owner dashboard feedback moderation visibility:** Feedback moderation cards now show the original user-written text for censored feedback entries, and edit opens using the uncensored source text when available.
+- **Mobile menu usability refinements:** Mobile overlay navigation now uses tighter sizing, larger tap targets, and a scroll-safe layout so all items remain visible/watchable and easily clickable on small screens.
 - **Comments API Slug Support:** `GET /api/journal?action=comments` and `POST /api/journal?action=comment` now accept journal ID or journal slug, fixing invalid-id errors when pages are opened with slug/title-based journal URLs.
 - **Status Endpoint Layout Fix:** `/status` endpoint cards now wrap long endpoint paths safely (`break-all`, wrapped metrics, overflow protection) to prevent small-screen width/zoom-out issues.
 - Dashboard Settings tab now shows updated serverless function count text (`12 files`, including 11 route handlers + shared logger helper).

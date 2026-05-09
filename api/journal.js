@@ -1369,7 +1369,7 @@ module.exports = async (req, res) => {
           return json(res, 409, { ok: false, message: 'You can submit only one feedback for this subject and sub-subject.' });
         }
 
-        const { text: censoredText } = await censorTextWithFlag(db, text);
+        const { text: censoredText, hasAbuse } = await censorTextWithFlag(db, text);
         const now = new Date();
 
         const doc = {
@@ -1383,6 +1383,8 @@ module.exports = async (req, res) => {
           subSubjectSlug,
           title,
           text: censoredText,
+          originalText: hasAbuse ? text : null,
+          hasAbuse,
           rating,
           isPinned: false,
           createdAt: now,
@@ -1702,7 +1704,11 @@ module.exports = async (req, res) => {
         const nextSubjectSlug = slugify(body.subject || body.subjectSlug || existingFeedback.subjectSlug || '');
         const nextSubSubjectSlug = slugify(body.subSubject || body.subSubjectSlug || existingFeedback.subSubjectSlug || '');
         const nextTitle = body.title !== undefined ? String(body.title || '').trim().slice(0, 160) : existingFeedback.title;
-        const rawText = body.text !== undefined ? String(body.text || '').trim().slice(0, 3000) : existingFeedback.text;
+        const rawText = (body.text !== undefined
+          ? String(body.text || '')
+          : (existingFeedback.hasAbuse && existingFeedback.originalText
+              ? String(existingFeedback.originalText || '')
+              : String(existingFeedback.text || ''))).trim().slice(0, 3000);
         const nextRating = body.rating !== undefined ? normalizeFeedbackRating(body.rating) : Number(existingFeedback.rating || 0);
         const nextPinned = body.isPinned !== undefined ? Boolean(body.isPinned) : Boolean(existingFeedback.isPinned);
 
@@ -1718,7 +1724,7 @@ module.exports = async (req, res) => {
         const subName = subjectInfo.sub.get(nextSubSubjectSlug);
         if (!subName) return json(res, 400, { ok: false, message: 'Invalid sub-subject' });
 
-        const { text: censoredText } = await censorTextWithFlag(db, rawText);
+        const { text: censoredText, hasAbuse: nextHasAbuse } = await censorTextWithFlag(db, rawText);
 
         await feedbackCol.updateOne(
           { _id: new ObjectId(feedbackId) },
@@ -1730,6 +1736,8 @@ module.exports = async (req, res) => {
               subSubjectSlug: nextSubSubjectSlug,
               title: nextTitle,
               text: censoredText,
+              originalText: nextHasAbuse ? rawText : null,
+              hasAbuse: nextHasAbuse,
               rating: nextRating,
               isPinned: nextPinned,
               updatedAt: new Date(),

@@ -15,6 +15,8 @@ interface FeedbackItem {
   subSubject: string;
   title: string;
   text: string;
+  originalText?: string | null;
+  hasAbuse?: boolean;
   rating: number;
   isPinned: boolean;
   createdAt: string;
@@ -264,6 +266,12 @@ export default function FeedbackAdminPanel({ onChanged }: { onChanged?: () => vo
                     <p className="text-zinc-200 text-sm font-semibold truncate">{item.title}</p>
                     <p className="text-zinc-500 text-[11px]">{item.userName} · {item.subject} / {item.subSubject}</p>
                     <p className="text-zinc-400 text-xs mt-1 whitespace-pre-wrap break-words line-clamp-3">{item.text}</p>
+                    {item.hasAbuse && item.originalText && (
+                      <div className="mt-1.5 rounded-lg border border-red-900/40 bg-red-950/20 p-2">
+                        <p className="text-red-400 text-[10px] font-mono uppercase tracking-wider">Original (censored)</p>
+                        <p className="text-red-200/90 text-[11px] whitespace-pre-wrap break-words line-clamp-3">{item.originalText}</p>
+                      </div>
+                    )}
                     <div className="flex items-center gap-0.5 mt-1">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <Star key={star} size={11} className={star <= Number(item.rating || 0) ? 'text-amber-400 fill-amber-400' : 'text-zinc-700'} />
@@ -274,7 +282,7 @@ export default function FeedbackAdminPanel({ onChanged }: { onChanged?: () => vo
                     <button onClick={() => handleTogglePin(item._id, !item.isPinned)} className={`px-2 py-1 rounded-lg text-[11px] font-bold ${item.isPinned ? 'bg-blue-500/20 text-blue-300' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}>
                       {item.isPinned ? 'Unpin' : 'Pin'}
                     </button>
-                    <button onClick={() => setEditing(item)} className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-zinc-200"><Edit3 size={12} /></button>
+                    <button onClick={() => setEditing({ ...item, text: item.hasAbuse && item.originalText ? item.originalText : item.text })} className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-zinc-200"><Edit3 size={12} /></button>
                     <button onClick={() => handleDeleteFeedback(item._id)} className="p-1.5 rounded-lg hover:bg-red-900/30 text-zinc-600 hover:text-red-400"><Trash2 size={12} /></button>
                   </div>
                 </div>
