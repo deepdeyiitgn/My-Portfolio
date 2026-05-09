@@ -56,6 +56,13 @@ Follow the private reporting process documented in [SECURITY.md](./SECURITY.md):
 
 ---
 
+## 🆔 Identity Verification for Support
+
+For account-specific support, you may be asked to share your private 16-digit service key from your logged-in profile.  
+This helps verify ownership without exposing public profile data.
+
+---
+
 ## ⏱️ Response Times
 
 > **Academic Hiatus Active** — due to JEE Advanced 2027 preparation, non-critical responses may be slower than usual. Security reports are always prioritized.
@@ -75,5 +82,7 @@ Follow the private reporting process documented in [SECURITY.md](./SECURITY.md):
 - [Live Portfolio](https://deepdey.vercel.app)
 - [Contributing Guide](./CONTRIBUTING.md)
 - [Security Policy](./SECURITY.md)
+- [Privacy Policy Page](./src/pages/Privacy.tsx)
+- [README Customization Guide](./README.md#-make-this-your-own-portfolio-complete-customization-guide)
 - [Code of Conduct](./CODE_OF_CONDUCT.md)
 - [License](./LICENSE)

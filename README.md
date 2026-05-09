@@ -97,7 +97,8 @@ Dashboard user management now supports password-confirmed temporary deactivation
 - Search now includes substring/character-token fallback matching so embedded tokens (e.g. `hfxyzjw` containing `xyz`) can still surface relevant results.
 
 ### 👥 Community User Profiles
-Every reader who signs in gets a public profile at `/user/:userId`. Profiles show a customizable title, bio, social links (GitHub, Twitter, LinkedIn, Instagram, YouTube, Website, Custom with Google Favicon auto-detection), a 52-week contribution heatmap, and tabbed views for Overview, Comments, and Activity Log. The `/user` page lists all contributors with the owner card pinned at the top — styled with a **glowing gradient-border frame, `myphoto.png` avatar with an amber halo, and a 👑 Owner badge** for a visually distinct king-vibe presence. Verified tick and crown badges are now rendered as frontend vector icons (not public image files) for a cleaner professional UI. The owner's `/user/owner` profile page carries the same premium styling.
+Every reader who signs in gets a public profile at `/user/:userId`. Profiles show a customizable title, bio, social links (GitHub, Twitter, LinkedIn, Instagram, YouTube, Website, Custom with Google Favicon auto-detection), a 52-week contribution heatmap, and tabbed views for Overview, Comments, and Activity Log. The `/user` page lists all contributors with the owner card pinned at the top — styled with a **glowing gradient-border frame, `myphoto.png` avatar with an amber halo, and a 👑 Owner badge** for a visually distinct king-vibe presence. Verified tick and crown badges are now rendered as frontend vector icons (not public image files) for a cleaner professional UI. The owner's `/user/owner` profile page carries the same premium styling.  
+When a user is logged into their own profile, they also get a private identity panel (not public): Google email plus a private 16-digit service key shown masked by default with reveal/hide, copy, and rotate controls.
 
 ### 🗺️ Dynamic XML Sitemap with RAM Cache
 `/api/sitemap` auto-generates a valid XML sitemap scoped exclusively to `deepdey.vercel.app`. It covers all static routes (excluding `/dashboard` and `/journal/embed`) including `/feedback`, dynamically fetches published journals and emits **slug-based** journal URLs, comment-thread pages, comment permalink routes, and user profile URLs from MongoDB. Results are stored in-memory and refreshed every 6 hours (`Cache-Control: s-maxage=21600`). Subsequent requests within the TTL window are served instantly from RAM (`X-Sitemap-Cache: HIT`).
@@ -112,7 +113,7 @@ Feedback and moderation features are implemented by extending existing handlers 
   * Uses Google's PageSpeed API, Global Geo-Proxies, and rotating Human-Agent headers to completely bypass bot protection (Cloudflare, CAPTCHAs) and Vercel's strict serverless timeout limits.
 * **Smart UI Previews:** Auto-crops and formats dynamic Base64 images directly on the client side to maintain perfect aspect ratios without overloading the backend.
 * **Media Embeds:** Insert images, YouTube iframes, MP4 videos, and audio tracks directly into journal posts via toolbar prompt buttons.
-* **Owner User Monitoring:** The Dashboard Users tab lists all registered commenters. Clicking a user reveals a detail panel with their full metadata including **account creation datetime + IP + country**, **last activity datetime + IP + country**, comment history with abuse flags, quick-block controls, and a link to their public profile.
+* **Owner User Monitoring:** The Dashboard Users tab lists all registered commenters. Clicking a user reveals a detail panel with their full metadata including **account creation datetime + IP + country**, **last activity datetime + IP + country**, Google email (when available), a private 16-digit service key (masked by default with reveal/copy/rotate controls), comment history with abuse flags, quick-block controls, and a link to their public profile.
 
 ---
 
@@ -323,9 +324,87 @@ MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/portfolio
 
 # CDN upload password for the static.qlynk.me proxy
 SPACE_PASSWORD=your_space_password_here
+
+# Optional but recommended: enforce audience check on Google identity token verification
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
 ```
 
 > **Note:** The app runs in read-only mode without these variables. Journal CRUD and image upload require valid credentials.
+
+---
+
+## 🧩 Make This Your Own Portfolio (Complete Customization Guide)
+
+If you want to turn this project into your own portfolio site, follow this checklist.
+
+### 1) Personal Branding and Core Identity
+
+- Replace avatar/media assets in:
+  - `public/assets/images/`
+  - `public/assets/docs/` (portfolio PDF)
+- Update name/title/identity copy across route pages:
+  - `src/pages/Home.tsx`
+  - `src/pages/About.tsx`
+  - `src/pages/Me.tsx`
+  - `src/pages/Portfolio.tsx`
+- Update owner metadata and badges where owner identity is rendered:
+  - `src/pages/AllUsers.tsx`
+  - `src/pages/UserProfile.tsx`
+  - `src/components/CommentSection.tsx`
+
+### 2) Content and Data You Can Edit Quickly
+
+- Projects: `src/data/projectsData.ts`
+- Timeline/Journey: `src/data/timelineData.ts`
+- Links hub: `src/data/linksData.ts`
+- FAQ: `src/data/faqData.ts`
+- “Now” content: `src/data/nowData.ts`
+
+These files are the fastest path for non-backend customization.
+
+### 3) SEO, Domain, and Public Metadata
+
+- Global/per-page SEO component: `src/components/SEO.tsx`
+- App route registration: `src/App.tsx`
+- Static crawler files:
+  - `public/robots.txt`
+  - `public/sitemap.xml` (plus dynamic API sitemap via `/api/sitemap`)
+- Update canonical domain references if you deploy to a new domain.
+
+### 4) Dashboard and CMS Behavior
+
+- Owner dashboard UI: `src/pages/Dashboard.tsx`
+- Journal/feedback/user moderation APIs: `api/journal.js`
+- Categories and feedback taxonomy APIs: `api/categories.js`
+- Auth/session API: `api/auth.js`
+- Image upload proxy API: `api/upload-image.js`
+
+For changes in admin workflows, prefer extending existing API files instead of creating new route files.
+
+### 5) Identity, Privacy, and Community System
+
+- Public profile/community pages:
+  - `src/pages/AllUsers.tsx`
+  - `src/pages/UserProfile.tsx`
+- Privacy/legal pages:
+  - `src/pages/Privacy.tsx`
+  - `src/pages/Terms.tsx`
+  - `src/pages/DMCA.tsx`
+  - `src/pages/Copyright.tsx`
+
+Current identity behavior:
+- Google-authenticated users can have private identity fields in account records (email + private 16-digit service key).
+- Service key is masked by default, reveal/copy/rotate-capable, and intended for support-side identity verification.
+
+### 6) Verify Your Customized Build
+
+```bash
+npm ci
+npm run lint
+npm run build
+```
+
+If both checks pass, your customized portfolio is production-ready for Vercel deployment.
 
 ---
 

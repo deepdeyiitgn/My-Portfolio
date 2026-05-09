@@ -29,6 +29,7 @@
  */
 
 const { MongoClient, ObjectId } = require('mongodb');
+const crypto = require('crypto');
 
 let cachedClient = null;
 // Public/admin user lists should only include real commenter accounts; exclude owner and malformed empty IDs.
@@ -36,6 +37,7 @@ const PUBLIC_USER_FILTER = { userId: { $exists: true, $nin: ['', 'owner'] } };
 const MIN_COMMUNITY_TEXT_LENGTH = 100;
 const COMMUNITY_COOLDOWN_MS = 2 * 60 * 1000;
 const communityCooldownByIp = new Map();
+const SERVICE_KEY_REGEX = /^\d{16}$/;
 
 async function getDb() {
   if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI not set');
@@ -335,6 +337,14 @@ async function verifyGoogleToken(token) {
       picture: data.picture || '',
     };
   } catch { return null; }
+}
+
+function generateServiceKey() {
+  let serviceKey = '';
+  for (let i = 0; i < 16; i += 1) {
+    serviceKey += String(crypto.randomInt(0, 10));
+  }
+  return serviceKey;
 }
 
 async function censorText(db, text) {
@@ -1187,7 +1197,23 @@ module.exports = async (req, res) => {
         const filter = PUBLIC_USER_FILTER;
         const total = await usersCol.countDocuments(filter);
         const users = await usersCol.find(filter).sort({ lastCommentAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
-        return json(res, 200, { ok: true, users: users.map(u => ({ ...u, verified: Boolean(u.verified) })), pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+        const hydratedUsers = await Promise.all(users.map(async (u) => {
+          let serviceKey = String(u?.serviceKey || '').trim();
+          if (!SERVICE_KEY_REGEX.test(serviceKey)) {
+            serviceKey = generateServiceKey();
+            await usersCol.updateOne(
+              { _id: u._id },
+              { $set: { serviceKey, serviceKeyUpdatedAt: new Date() } },
+            );
+          }
+          return {
+            ...u,
+            email: String(u?.email || ''),
+            serviceKey,
+            verified: Boolean(u.verified),
+          };
+        }));
+        return json(res, 200, { ok: true, users: hydratedUsers, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
       }
 
       // --- Per-user active blocks (admin only) ---
@@ -1723,6 +1749,7 @@ module.exports = async (req, res) => {
                 $set: {
                   userName: userInfo.name,
                   userPic: userInfo.picture,
+                  email: userInfo.email || '',
                   lastCommentAt: now,
                   lastActivityIp: clientIp,
                   lastActivityCountry: clientCountry,
@@ -1732,6 +1759,7 @@ module.exports = async (req, res) => {
                   firstCommentAt: now,
                   createdAt: now,
                   verified: false,
+                  serviceKey: generateServiceKey(),
                   registrationIp: clientIp,
                   registrationCountry: clientCountry,
                 },
@@ -1850,6 +1878,7 @@ module.exports = async (req, res) => {
                 $set: {
                   userName: userInfo.name,
                   userPic: userInfo.picture,
+                  email: userInfo.email || '',
                   lastCommentAt: now,
                   lastJournalId: resolvedJournalId,
                   lastActivityIp: clientIp,
@@ -1860,6 +1889,7 @@ module.exports = async (req, res) => {
                   firstCommentAt: now,
                   createdAt: now,
                   verified: false,
+                  serviceKey: generateServiceKey(),
                   registrationIp: clientIp,
                   registrationCountry: clientCountry,
                 },
@@ -1871,6 +1901,82 @@ module.exports = async (req, res) => {
         }
 
         return json(res, 201, { ok: true, comment: { ...commentDoc, _id: result.insertedId, replyCount: 0 } });
+      }
+
+      // --- Private user identity payload (email + service key) ---
+      if (action === 'user-private') {
+        const ownerRequest = isAuthenticated(req);
+        const requestedUserId = String(body.userId || '').trim();
+        const credential = String(body.credential || '').trim();
+
+        let tokenUser = null;
+        let targetUserId = '';
+        if (ownerRequest) {
+          targetUserId = requestedUserId;
+        } else {
+          if (!credential) return json(res, 401, { ok: false, message: 'Authentication required' });
+          tokenUser = await verifyGoogleToken(credential);
+          if (!tokenUser) return json(res, 401, { ok: false, message: 'Invalid or expired Google token' });
+          targetUserId = tokenUser.userId;
+          if (requestedUserId && requestedUserId !== targetUserId) {
+            return json(res, 403, { ok: false, message: 'Not allowed to access this user' });
+          }
+        }
+
+        if (!targetUserId) return json(res, 400, { ok: false, message: 'userId required' });
+        if (targetUserId === 'owner') return json(res, 200, { ok: true, user: { userId: 'owner', email: '', serviceKey: '' } });
+
+        const usersCol = db.collection('users');
+        const now = new Date();
+        const clientIp = getClientIp(req);
+        const clientCountry = (req.headers['x-vercel-ip-country'] || req.headers['cf-ipcountry'] || '').toString().trim();
+
+        let userDoc = await usersCol.findOne({ userId: targetUserId });
+        if (!userDoc && tokenUser) {
+          const seededDoc = {
+            userId: targetUserId,
+            userName: tokenUser.name,
+            userPic: tokenUser.picture,
+            email: tokenUser.email || '',
+            firstCommentAt: now,
+            lastCommentAt: now,
+            totalComments: 0,
+            createdAt: now,
+            verified: false,
+            serviceKey: generateServiceKey(),
+            registrationIp: clientIp,
+            registrationCountry: clientCountry,
+            lastActivityIp: clientIp,
+            lastActivityCountry: clientCountry,
+          };
+          await usersCol.insertOne(seededDoc);
+          userDoc = seededDoc;
+        }
+
+        if (!userDoc) return json(res, 404, { ok: false, message: 'User not found' });
+
+        let serviceKey = String(userDoc.serviceKey || '').trim();
+        if (!SERVICE_KEY_REGEX.test(serviceKey)) {
+          serviceKey = generateServiceKey();
+          await usersCol.updateOne(
+            { userId: targetUserId },
+            { $set: { serviceKey, serviceKeyUpdatedAt: now } },
+          );
+        }
+
+        const nextEmail = tokenUser?.email || String(userDoc.email || '');
+        if (!ownerRequest && tokenUser?.email && tokenUser.email !== userDoc.email) {
+          await usersCol.updateOne({ userId: targetUserId }, { $set: { email: tokenUser.email } });
+        }
+
+        return json(res, 200, {
+          ok: true,
+          user: {
+            userId: targetUserId,
+            email: nextEmail,
+            serviceKey,
+          },
+        });
       }
 
       // --- Comment Like (session-based, same as journal like) ---
@@ -2212,6 +2318,70 @@ module.exports = async (req, res) => {
           { $set: { isVerified: verified } },
         );
         return json(res, 200, { ok: true, userId, verified });
+      }
+
+      if (action === 'user-service-key') {
+        const ownerUpdating = isAuthenticated(req);
+        const credential = String(body.credential || '').trim();
+        const requestedUserId = String(body.userId || '').trim();
+
+        let tokenUser = null;
+        let targetUserId = '';
+        if (ownerUpdating) {
+          targetUserId = requestedUserId;
+          if (!targetUserId || targetUserId === 'owner') return json(res, 400, { ok: false, message: 'Valid non-owner userId required' });
+        } else {
+          if (!credential) return json(res, 401, { ok: false, message: 'Authentication required' });
+          tokenUser = await verifyGoogleToken(credential);
+          if (!tokenUser) return json(res, 401, { ok: false, message: 'Invalid or expired Google token' });
+          targetUserId = tokenUser.userId;
+          if (requestedUserId && requestedUserId !== targetUserId) {
+            return json(res, 403, { ok: false, message: 'Not allowed to rotate this user key' });
+          }
+          if (targetUserId === 'owner') return json(res, 400, { ok: false, message: 'Owner service key is not available' });
+        }
+
+        const usersCol = db.collection('users');
+        const now = new Date();
+        const nextServiceKey = generateServiceKey();
+        const clientIp = getClientIp(req);
+        const clientCountry = (req.headers['x-vercel-ip-country'] || req.headers['cf-ipcountry'] || '').toString().trim();
+        const updateResult = await usersCol.updateOne(
+          { userId: targetUserId },
+          ownerUpdating
+            ? {
+                $set: {
+                  serviceKey: nextServiceKey,
+                  serviceKeyUpdatedAt: now,
+                },
+              }
+            : {
+                $set: {
+                  userName: tokenUser.name,
+                  userPic: tokenUser.picture,
+                  email: tokenUser.email || '',
+                  lastActivityIp: clientIp,
+                  lastActivityCountry: clientCountry,
+                  serviceKey: nextServiceKey,
+                  serviceKeyUpdatedAt: now,
+                },
+                $setOnInsert: {
+                  userId: targetUserId,
+                  firstCommentAt: now,
+                  lastCommentAt: now,
+                  totalComments: 0,
+                  createdAt: now,
+                  verified: false,
+                  registrationIp: clientIp,
+                  registrationCountry: clientCountry,
+                },
+              },
+          { upsert: !ownerUpdating },
+        );
+        if (ownerUpdating && !updateResult.matchedCount) return json(res, 404, { ok: false, message: 'User not found' });
+
+        const updatedUser = await usersCol.findOne({ userId: targetUserId }, { projection: { _id: 1, userId: 1, email: 1, serviceKey: 1 } });
+        return json(res, 200, { ok: true, user: updatedUser });
       }
 
       // --- Comment Edit (Google user or owner) ---
