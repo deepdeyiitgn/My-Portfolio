@@ -1,22 +1,24 @@
-# Portfolio Setup, Editing, Deployment, and Operations Manual
+# 🚀 Portfolio Setup, Editing, Deployment, and Operations Manual
 
 > This manual is intentionally long-form and comprehensive so anyone can fork this repository and run it end-to-end without guesswork.
 
-## Quick Navigation
+## 📚 Table of Contents (Quick Links)
 
-- Section 1: What this repository is
-- Section 2: Prerequisites
-- Section 3: Local setup
-- Section 4: Environment variables
-- Section 5: How to edit content
-- Section 6: How to edit UI
-- Section 7: How to edit APIs
-- Section 8: How to deploy
-- Section 9: Hosting provider runbooks
-- Section 10: Monitoring and maintenance
-- Section 11: Backup and restore
-- Section 12: Troubleshooting
-- Section 13: FAQ
+- [Section 1: What this repository is](#section-1--what-this-repository-is)
+- [Section 2: Prerequisites](#section-2--prerequisites)
+- [Section 3: Local setup](#section-3--local-setup)
+- [Section 4: Environment variables](#section-4--environment-variables)
+- [Section 5: How to edit content](#section-5--how-to-edit-content)
+- [Section 6: How to edit UI](#section-6--how-to-edit-ui)
+- [Section 7: How to edit APIs](#section-7--how-to-edit-apis)
+- [Section 8: Deployment strategy](#section-8--deployment-strategy)
+- [Section 9: Hosting provider runbooks](#section-9--hosting-provider-runbooks)
+- [Section 10: Monitoring and maintenance](#section-10--monitoring-and-maintenance)
+- [Section 11: Backup and restore](#section-11--backup-and-restore)
+- [Section 12: Troubleshooting matrix](#section-12--troubleshooting-matrix)
+- [Section 13: Extended FAQ](#section-13--extended-faq)
+- [Section 14: Live page specific notes](#section-14--live-page-specific-notes)
+- [Section 15: Final launch checklist](#section-15--final-launch-checklist)
 
 ---
 
@@ -55,7 +57,7 @@ Optional for live page enrichment:
 - `YOUTUBE_API_KEY` (or `GOOGLE_API_KEY`)
 - Without key: live page still loads via web+RSS fallback.
 
-### Section 4.1 — Where to Find Each API Key / ENV Value
+### Section 4.1 — 🔎 Where to Find Each API Key / ENV Value
 
 Use this table when you are setting up your own copy of the project.
 
@@ -66,7 +68,7 @@ Use this table when you are setting up your own copy of the project.
 | `GOOGLE_CLIENT_ID` | Optional (recommended for stricter token audience checks) | Google Cloud Console → **APIs & Services** → **Credentials** → OAuth 2.0 Client ID | `1234567890-abc123xyz.apps.googleusercontent.com` | Local: `.env.local` · Hosting: project environment variables |
 | `YOUTUBE_API_KEY` (or `GOOGLE_API_KEY`) | Optional | Google Cloud Console → **APIs & Services** → **Credentials** → API key | `AIza...` | Local: `.env.local` · Hosting: project environment variables |
 
-### Section 4.2 — How to Create YouTube API Key (Optional)
+### Section 4.2 — 🎥 How to Create YouTube API Key (Optional)
 
 1. Go to Google Cloud Console.
 2. Create a project (or select an existing one).
@@ -77,7 +79,7 @@ Use this table when you are setting up your own copy of the project.
 7. Copy the generated key and add it as `YOUTUBE_API_KEY` (or `GOOGLE_API_KEY`).
 8. (Recommended) Restrict the key by API and by allowed usage settings.
 
-### Section 4.3 — Copy/Paste `.env.local` Template
+### Section 4.3 — 🧪 Copy/Paste `.env.local` Template
 
 ```env
 # Required for dynamic CMS features
@@ -92,6 +94,22 @@ YOUTUBE_API_KEY=your_youtube_data_api_v3_key
 # OR
 # GOOGLE_API_KEY=your_youtube_data_api_v3_key
 ```
+
+### Section 4.4 — ✅ Exactly What to Write for YouTube API in `.env.local`
+
+Copy one of these exact lines and replace only the key value:
+
+```env
+YOUTUBE_API_KEY=AIzaSy-your-real-youtube-data-api-v3-key
+```
+
+or
+
+```env
+GOOGLE_API_KEY=AIzaSy-your-real-youtube-data-api-v3-key
+```
+
+> Tip: use only one of the two variable names, not both.
 
 ## Section 5 — How to Edit Content
 
