@@ -5,7 +5,7 @@ import SEO from '../components/SEO';
 
 const CHANNEL_ID = 'UCrh1Mx5CTTbbkgW5O6iS2Tw';
 const CHANNEL_URL = `https://www.youtube.com/channel/${CHANNEL_ID}`;
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 15;
 
 interface VideoItem {
   videoId: string;
@@ -136,9 +136,14 @@ export default function Live() {
   // Filter videos by tab
   const filteredVideos = useMemo(() => {
     if (!data) return [];
-    const sorted = [...data.videos].sort(
-      (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-    );
+    const sorted = [...data.videos].sort((a, b) => {
+      const bt = new Date(b.publishedAt || 0).getTime();
+      const at = new Date(a.publishedAt || 0).getTime();
+      if (Number.isNaN(bt) && Number.isNaN(at)) return 0;
+      if (Number.isNaN(bt)) return -1;
+      if (Number.isNaN(at)) return 1;
+      return bt - at;
+    });
     if (tab === 'all') return sorted;
     return sorted.filter((v) => detectVideoType(v) === tab);
   }, [data, tab]);
@@ -357,7 +362,7 @@ export default function Live() {
           {/* Sidebar — recent videos */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-400">Recent Uploads</h3>
+              <h3 className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-400">Recent Uploads (Top 15 per page)</h3>
               <button
                 onClick={fetchData}
                 className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 transition-colors"

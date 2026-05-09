@@ -17,6 +17,7 @@
   [![Code of Conduct](https://img.shields.io/badge/Code_of_Conduct-Enforced-8b5cf6?style=for-the-badge)](./CODE_OF_CONDUCT.md)
   [![Support](https://img.shields.io/badge/Support-Available-0ea5e9?style=for-the-badge)](./SUPPORT.md)
   [![Changelog](https://img.shields.io/badge/Changelog-📋-64748b?style=for-the-badge)](./CHANGELOG.md)
+  [![Setup Manual](https://img.shields.io/badge/Setup_Manual-Start_Here-0ea5e9?style=for-the-badge)](./PORTFOLIO_SETUP_DEPLOYMENT_MANUAL.md)
   [![CI](https://github.com/deepdeyiitgn/My-Portfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/deepdeyiitgn/My-Portfolio/actions/workflows/ci.yml)
 
   > *"100% effort + extra 1% = Dream Achieved."*
@@ -40,6 +41,15 @@ It is not just a portfolio site. It is a **system-architecture-themed personal b
 - Max-level **Technical SEO** with JSON-LD structured data
 
 All while the author simultaneously prepares for **JEE Advanced 2027** targeting **IIT KGP CSE**.
+
+---
+
+## 🧾 Summary
+
+- Fully responsive React + TypeScript portfolio with API-backed dynamic modules.
+- `/live` now supports category-aware content listing (Stream/Video/Shorts), enriched metadata, and paginated browsing.
+- `/api/live` supports no-key fallback mode plus richer YouTube stats/comments when API key is configured.
+- Full self-setup documentation is available in **[`PORTFOLIO_SETUP_DEPLOYMENT_MANUAL.md`](./PORTFOLIO_SETUP_DEPLOYMENT_MANUAL.md)**.
 
 ---
 
@@ -160,7 +170,7 @@ Feedback and moderation features are implemented by extending existing handlers 
  ┃ ┣ 📜 faqs.js                  # FAQ data endpoint
  ┃ ┣ 📜 journal.js               # Journal + feedback APIs · health · rate-limited refresh
  ┃ ┣ 📜 links.js                 # Links data endpoint
- ┃ ┣ 📜 live.js                  # YouTube RSS feed parser
+  ┃ ┣ 📜 live.js                  # YouTube live/videos/shorts aggregator with API-key + no-key fallback
  ┃ ┣ 📜 projects.js              # Projects CRUD endpoint
  ┃ ┣ 📜 sitemap.js               # Dynamic XML sitemap generator
  ┃ ┣ 📜 timeline.js              # Timeline milestones endpoint
@@ -281,6 +291,7 @@ Feedback and moderation features are implemented by extending existing handlers 
 ## 📋 Changelog
 
 See [`CHANGELOG.md`](./CHANGELOG.md) for a full version history and release notes.
+For full ownership transfer and deployment instructions, see [`PORTFOLIO_SETUP_DEPLOYMENT_MANUAL.md`](./PORTFOLIO_SETUP_DEPLOYMENT_MANUAL.md).
 
 ---
 
