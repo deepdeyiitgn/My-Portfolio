@@ -59,7 +59,13 @@ All while the author simultaneously prepares for **JEE Advanced 2027** targeting
 Full-stack search engine at `/search` with typewriter-animated suggestions, trending query tracking, localStorage history, and a TF-IDF ML fallback. Searches journals, projects, FAQs, social links, live status, plus community users and comment permalinks. Fully indexed in the sitemap.
 
 ### 📡 Real-Time System Status Monitor
-Live status page at `/status` probes all website-critical API routes every 60 s (heavy endpoints every 5 min) and displays latency, HTTP status, and connection quality. Monitored endpoints include auth, journal listing/search/top feeds, user profile/activity/community APIs, categories, projects, timeline, links, FAQs, YouTube live feed, contact (GET + POST), sitemap, and upload proxy route metadata. Includes a **Server Health** panel with a highlighted **System Specifications** card showing RAM, storage, CPU model/cores/speed, OS type and kernel, architecture, runtime version, server region, and hostname. A rate-limited **"Refresh Now"** button (global 20/min · per-IP 2/min) triggers a full health snapshot stored in MongoDB for historical tracking.
+Live status page at `/status` probes all website-critical API routes every 60 s (heavy endpoints every 5 min) and displays latency, HTTP status, and connection quality. Monitored endpoints include auth, journal listing/search/top feeds, user profile/activity/community APIs, categories, projects, timeline, links, FAQs, YouTube live feed, contact (GET + POST), sitemap, and upload proxy route metadata. To reduce serverless cold-start distortion, automatic probes/ping use a warm-up call followed by a measured second call. Includes a **Server Health** panel with a highlighted **System Specifications** card showing RAM, storage, CPU model/cores/speed, OS type and kernel, architecture, runtime version, server region, and hostname. A rate-limited **"Refresh Now"** button (global 20/min · per-IP 2/min) triggers a full health snapshot stored in MongoDB for historical tracking.
+
+### 🧪 Floating Live Status Widget
+A global status widget is mounted at the app shell level and remains available across routes. It provides quick visibility into live API health without leaving the current page.
+
+### 🖥️ Interactive Terminal 404 Experience
+The `*` fallback route powers a command-driven terminal UI with route-aware `cd` navigation, API-backed `status`/`links` commands, command history, hidden easter-egg commands, and matrix-style effects.
 
 ### 🎬 Cinematic Loading Engine
 A system-parsing intro screen with a live progress bar and 50-quote rotating archive. Masks lazy-loaded asset hydration with an AAA-grade first impression.
@@ -137,8 +143,8 @@ Feedback and moderation features are implemented by extending existing handlers 
 | **Styling** | Tailwind CSS | `4.x` | Utility-first Dark-Amber glassmorphism system |
 | **Animation** | Motion | `12.x` | Physics-based transitions, 3D flips, scroll reveals |
 | **Routing** | React Router DOM | `7.x` | Lazy-loaded SPA with wildcard 404 handling |
-| **PDF Renderer** | react-pdf | `9.x` | Client-side A4 portfolio document renderer |
-| **SEO** | react-helmet-async | `2.x` | Async head tag injection for rich snippets |
+| **PDF Renderer** | react-pdf | `10.x` | Client-side A4 portfolio document renderer |
+| **SEO** | react-helmet-async | `3.x` | Async head tag injection for rich snippets |
 | **Database** | MongoDB Atlas | — | Journal, category, status, health snapshot, and rate-limit persistence |
 | **CDN / Storage** | static.qlynk.me | — | Proxied secure image upload and hosting |
 | **Hosting** | Vercel | — | Global edge CDN, CI/CD, SPA rewrites |
@@ -149,14 +155,18 @@ Feedback and moderation features are implemented by extending existing handlers 
 
 ```text
 📦 My-Portfolio
+ ┣ 📜 .env.example                # Environment variable template
  ┣ 📜 README.md                  # You are here
  ┣ 📜 LICENSE                    # Custom Restricted (View-Only) license
  ┣ 📜 SECURITY.md                # Vulnerability reporting policy
  ┣ 📜 CONTRIBUTING.md            # Contribution guidelines
  ┣ 📜 CONTRIBUTOR.md             # Contributor acknowledgements
+ ┣ 📜 CHANGELOG.md               # Release notes and version history
+ ┣ 📜 PORTFOLIO_SETUP_DEPLOYMENT_MANUAL.md # Setup/deploy/ownership transfer guide
  ┣ 📜 CODE_OF_CONDUCT.md         # Community behavior standards
  ┣ 📜 SUPPORT.md                 # Support channels
  ┣ 📜 package.json               # Scripts and dependency manifest
+ ┣ 📜 package-lock.json          # Exact npm dependency lockfile
  ┣ 📜 tsconfig.json              # TypeScript compiler configuration
  ┣ 📜 tailwind.config.js         # Tailwind theme customization
  ┣ 📜 vite.config.ts             # Vite build and dev configuration
@@ -164,40 +174,54 @@ Feedback and moderation features are implemented by extending existing handlers 
  ┣ 📜 metadata.json              # Repository metadata
  ┣ 📜 index.html                 # Vite HTML entry point
  ┣ 📂 api                        # Vercel serverless API routes
+ ┃ ┣ 📜 package.json             # API runtime metadata for serverless context
  ┃ ┣ 📜 auth.js                  # Session authentication handler
  ┃ ┣ 📜 categories.js            # Journal + feedback category/sub-subject CRUD
  ┃ ┣ 📜 contact.js               # Contact form handler
  ┃ ┣ 📜 faqs.js                  # FAQ data endpoint
  ┃ ┣ 📜 journal.js               # Journal + feedback APIs · health · rate-limited refresh
  ┃ ┣ 📜 links.js                 # Links data endpoint
-  ┃ ┣ 📜 live.js                  # YouTube live/videos/shorts aggregator with API-key + no-key fallback
+ ┃ ┣ 📜 live.js                  # YouTube live/videos/shorts aggregator with API-key + no-key fallback
+ ┃ ┣ 📜 logger.js                # Lightweight server logger helper
  ┃ ┣ 📜 projects.js              # Projects CRUD endpoint
  ┃ ┣ 📜 sitemap.js               # Dynamic XML sitemap generator
  ┃ ┣ 📜 timeline.js              # Timeline milestones endpoint
  ┃ ┗ 📜 upload-image.js          # CDN image upload proxy
  ┣ 📂 public                     # Static assets (served as-is)
+ ┃ ┣ 📂 .well-known
+ ┃ ┃ ┗ 📜 discord                # Discord domain verification file
  ┃ ┣ 📂 assets/docs              # Portfolio PDF documents
  ┃ ┣ 📂 assets/images            # Static image files
+ ┃ ┣ 📜 verified.svg             # Verified badge icon source
+ ┃ ┣ 📜 crown.svg                # Crown badge icon source
  ┃ ┣ 📜 robots.txt               # Crawl directives
- ┃ ┗ 📜 sitemap.xml              # XML sitemap
+ ┃ ┗ 📜 sitemap.xml.txt          # Static sitemap snapshot
  ┣ 📂 src
  ┃ ┣ 📂 components               # Reusable UI components
+ ┃ ┃ ┣ 📜 CommentSection.tsx     # Journal comments + replies + moderation UI
+ ┃ ┃ ┣ 📜 ContactForm.tsx        # Contact form UI block
+ ┃ ┃ ┣ 📜 FAQ.tsx                # Shared FAQ component
+ ┃ ┃ ┣ 📜 FeedbackAdminPanel.tsx # Owner feedback moderation + category manager
  ┃ ┃ ┣ 📜 Footer.tsx             # Global footer with legal links
  ┃ ┃ ┣ 📜 Header.tsx             # Responsive navigation header
+ ┃ ┃ ┣ 📜 IdentityBadges.tsx     # Inline SVG verified/crown badge renderer
  ┃ ┃ ┣ 📜 JourneyMarquee.tsx     # GPU-accelerated timeline marquee
  ┃ ┃ ┣ 📜 Layout.tsx             # Page layout wrapper (skips for embeds)
  ┃ ┃ ┣ 📜 LoadingScreen.tsx      # Cinematic intro loading screen
+ ┃ ┃ ┣ 📜 ProjectPlaceholder.tsx # Project fallback card
  ┃ ┃ ┣ 📜 ScrollToTop.tsx        # Scroll-to-top floating button
  ┃ ┃ ┣ 📜 SEO.tsx                # JSON-LD + OpenGraph meta manager
- ┃ ┃ ┣ 📜 FeedbackAdminPanel.tsx # Owner feedback moderation + category manager
-┃ ┃ ┣ 📜 SocialProof.tsx        # Dynamic feedback metrics + pinned testimonial scroller
+ ┃ ┃ ┣ 📜 SocialProof.tsx        # Dynamic feedback metrics + pinned testimonial scroller
  ┃ ┃ ┣ 📜 StatusWidget.tsx       # Floating live-status popup widget
  ┃ ┃ ┗ 📜 TechGalaxy.tsx         # Animated tech stack visual
  ┃ ┣ 📂 context
  ┃ ┃ ┗ 📜 LanguageContext.tsx    # 12-language i18n context provider
  ┃ ┣ 📂 data                     # Static typed data models
+ ┃ ┃ ┣ 📜 contentData.ts         # Home/about copy blocks and UI content
  ┃ ┃ ┣ 📜 faqData.ts             # FAQ questions and answers
  ┃ ┃ ┣ 📜 linksData.ts           # Link hub node definitions
+ ┃ ┃ ┣ 📜 nowData.ts             # "Now" page structured updates
+ ┃ ┃ ┣ 📜 proofData.ts           # Proof page structured evidence blocks
  ┃ ┃ ┣ 📜 projectsData.ts        # Project cards and detail data
  ┃ ┃ ┗ 📜 timelineData.ts        # Life milestone timeline data
  ┃ ┣ 📂 pages                    # Route-level page components
@@ -210,7 +234,7 @@ Feedback and moderation features are implemented by extending existing handlers 
  ┃ ┃ ┣ 📜 Dashboard.tsx          # Owner-only CMS dashboard
  ┃ ┃ ┣ 📜 DMCA.tsx               # DMCA takedown policy
  ┃ ┃ ┣ 📜 FAQ.tsx                # Searchable FAQ with accordion
-┃ ┃ ┣ 📜 Feedback.tsx           # Public feedback submission + listing page
+ ┃ ┃ ┣ 📜 Feedback.tsx           # Public feedback submission + listing page
  ┃ ┃ ┣ 📜 Home.tsx               # Hero / landing page
  ┃ ┃ ┣ 📜 Journal.tsx            # Journal listing page
  ┃ ┃ ┣ 📜 JournalAllComments.tsx # Full comment thread for a post (/journal/view/:id/comments)
@@ -233,16 +257,23 @@ Feedback and moderation features are implemented by extending existing handlers 
  ┃ ┃ ┗ 📜 UserProfile.tsx        # Public user profile with heatmap & social links (/user/:userId)
  ┃ ┣ 📜 App.tsx                  # Root router + animated routes
  ┃ ┣ 📜 index.css                # Global CSS + Tailwind directives
- ┃ ┗ 📜 main.tsx                 # React application entry point
+ ┃ ┣ 📜 main.tsx                 # React application entry point
+ ┃ ┣ 📜 vite-env.d.ts            # Vite ambient type declarations
+ ┃ ┗ 📂 utils
+ ┃   ┗ 📜 iconMap.ts             # Dashboard icon registry and render helpers
  ┣ 📂 .github
  ┃ ┣ 📂 ISSUE_TEMPLATE           # Structured GitHub issue templates
+ ┃ ┃ ┣ 📜 api_backend.yml        # API/backend issue form
  ┃ ┃ ┣ 📜 bug_report.yml         # Bug report form
+ ┃ ┃ ┣ 📜 performance.yml        # Performance issue form
  ┃ ┃ ┣ 📜 feature_request.yml    # Feature request form
  ┃ ┃ ┣ 📜 documentation.yml      # Documentation improvement form
  ┃ ┃ ┣ 📜 question.yml           # Question / discussion form
+ ┃ ┃ ┣ 📜 user_profile.yml       # User profile/community issue form
  ┃ ┃ ┗ 📜 config.yml             # Issue template chooser + contact links
  ┃ ┣ 📂 workflows
- ┃ ┃ ┗ 📜 ci.yml                 # GitHub Actions CI (type-check + build)
+ ┃ ┃ ┣ 📜 ci.yml                 # GitHub Actions CI (type-check + build)
+ ┃ ┃ ┗ 📜 keep-alive.yml         # Scheduled keep-alive workflow
  ┃ ┣ 📜 CODEOWNERS               # Code ownership declarations
  ┃ ┣ 📜 FUNDING.yml              # Sponsorship links
  ┃ ┣ 📜 dependabot.yml           # Automated dependency updates
@@ -269,6 +300,7 @@ Feedback and moderation features are implemented by extending existing handlers 
 | `/journal` | Journal listing with metadata (likes, views, read time) |
 | `/journal/view/:id` | Full journal article with engagement actions |
 | `/journal/view/:id/comments` | Full paginated comment thread for a post |
+| `/journal/comment/:commentId` | Legacy/short permalink route for a specific comment |
 | `/journal/view/:id/comment/:commentId` | Standalone comment permalink |
 | `/journal/comment` | Step-by-step guide for commenting and community rules |
 | `/journal/embed/:id` | Embeddable iframe view (no header/footer) |
