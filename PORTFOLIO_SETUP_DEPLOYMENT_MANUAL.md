@@ -55,6 +55,44 @@ Optional for live page enrichment:
 - `YOUTUBE_API_KEY` (or `GOOGLE_API_KEY`)
 - Without key: live page still loads via web+RSS fallback.
 
+### Section 4.1 — Where to Find Each API Key / ENV Value
+
+Use this table when you are setting up your own copy of the project.
+
+| ENV variable | Required? | Where to find it | Example format | Where to set it |
+| :--- | :---: | :--- | :--- | :--- |
+| `MONGODB_URI` | Yes (for CMS/dynamic data) | MongoDB Atlas dashboard → **Database** → **Connect** → **Drivers** | `mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/portfolio` | Local: `.env.local` · Hosting: project environment variables |
+| `SPACE_PASSWORD` | Yes (for image upload proxy) | Your storage/CDN provider account secret used by `/api/upload-image` (in this project: static.qlynk upload secret) | `your_space_password_here` | Local: `.env.local` · Hosting: project environment variables |
+| `GOOGLE_CLIENT_ID` | Optional (recommended for stricter token audience checks) | Google Cloud Console → **APIs & Services** → **Credentials** → OAuth 2.0 Client ID | `1234567890-abc123xyz.apps.googleusercontent.com` | Local: `.env.local` · Hosting: project environment variables |
+| `YOUTUBE_API_KEY` (or `GOOGLE_API_KEY`) | Optional | Google Cloud Console → **APIs & Services** → **Credentials** → API key | `AIza...` | Local: `.env.local` · Hosting: project environment variables |
+
+### Section 4.2 — How to Create YouTube API Key (Optional)
+
+1. Go to Google Cloud Console.
+2. Create a project (or select an existing one).
+3. Open **APIs & Services** → **Library**.
+4. Search and enable **YouTube Data API v3**.
+5. Open **APIs & Services** → **Credentials**.
+6. Click **Create Credentials** → **API key**.
+7. Copy the generated key and add it as `YOUTUBE_API_KEY` (or `GOOGLE_API_KEY`).
+8. (Recommended) Restrict the key by API and by allowed usage settings.
+
+### Section 4.3 — Copy/Paste `.env.local` Template
+
+```env
+# Required for dynamic CMS features
+MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/portfolio
+SPACE_PASSWORD=your_space_password_here
+
+# Optional but recommended
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
+
+# Optional: richer YouTube stats/comments for /live
+YOUTUBE_API_KEY=your_youtube_data_api_v3_key
+# OR
+# GOOGLE_API_KEY=your_youtube_data_api_v3_key
+```
+
 ## Section 5 — How to Edit Content
 
 Edit static content files:

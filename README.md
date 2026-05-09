@@ -340,6 +340,13 @@ SPACE_PASSWORD=your_space_password_here
 GOOGLE_CLIENT_ID=your_google_oauth_client_id
 ```
 
+Where to find each value:
+- `MONGODB_URI`: MongoDB Atlas → **Database** → **Connect** → **Drivers** connection string URI.
+- `SPACE_PASSWORD`: from your `static.qlynk.me`/storage provider account credentials (the upload API secret you configure for `/api/upload-image`).
+- `GOOGLE_CLIENT_ID`: Google Cloud Console → **APIs & Services** → **Credentials** → OAuth 2.0 Client IDs.
+- `YOUTUBE_API_KEY` / `GOOGLE_API_KEY` (optional): Google Cloud Console → **APIs & Services** → **Credentials** → API key.  
+  Also enable **YouTube Data API v3** in the same project under **Library**.
+
 > **Note:** The app runs in read-only mode without these variables. Journal CRUD and image upload require valid credentials.
 
 ---
