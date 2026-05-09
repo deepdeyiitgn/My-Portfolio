@@ -16,11 +16,25 @@ interface VideoItem {
   embedUrl: string;
   watchUrl: string;
   viewCount: number | null;
+  likeCount: number | null;
+  commentCount: number | null;
+  type?: 'video' | 'stream' | 'short';
 }
 
 interface LiveData {
   liveEmbedUrl: string;
   videos: VideoItem[];
+  defaultVideoId?: string | null;
+  latestStream?: VideoItem | null;
+  hasMore?: boolean;
+}
+
+interface VideoComment {
+  id: string;
+  author: string;
+  text: string;
+  likeCount: number | null;
+  publishedAt: string;
 }
 
 type VideoTab = 'all' | 'video' | 'stream' | 'short';
@@ -39,6 +53,9 @@ function formatDate(iso: string) {
 }
 
 function detectVideoType(video: VideoItem): 'short' | 'stream' | 'video' {
+  if (video.type === 'short' || video.type === 'stream' || video.type === 'video') {
+    return video.type;
+  }
   const text = `${video.title} ${video.description}`.toLowerCase();
   if (/#shorts?\b|#ytshorts/i.test(text)) return 'short';
   if (/#live\b|#stream\b|#livestream\b|live stream|going live/i.test(text)) return 'stream';
@@ -53,6 +70,9 @@ export default function Live() {
   const [liveMode, setLiveMode] = useState(true);
   const [tab, setTab] = useState<VideoTab>('all');
   const [page, setPage] = useState(1);
+  const [comments, setComments] = useState<VideoComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsError, setCommentsError] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
@@ -63,9 +83,12 @@ export default function Live() {
       const d = await r.json();
       if (d.ok) {
         setData(d);
-        if (d.videos.length > 0 && !selectedVideo) {
-          setSelectedVideo(d.videos[0]);
-        }
+        const defaultVideo =
+          (d.defaultVideoId && d.videos.find((v: VideoItem) => v.videoId === d.defaultVideoId))
+          || d.latestStream
+          || d.videos[0]
+          || null;
+        setSelectedVideo(defaultVideo);
       } else {
         throw new Error(d.message || 'API error');
       }
@@ -79,6 +102,36 @@ export default function Live() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!selectedVideo?.videoId) {
+      setComments([]);
+      setCommentsError('');
+      return;
+    }
+    let cancelled = false;
+    const loadComments = async () => {
+      setCommentsLoading(true);
+      setCommentsError('');
+      try {
+        const r = await fetch(`/api/live?commentsFor=${encodeURIComponent(selectedVideo.videoId)}`);
+        if (!r.ok) throw new Error('Failed to fetch comments');
+        const payload = await r.json();
+        if (!cancelled) {
+          setComments(Array.isArray(payload.comments) ? payload.comments : []);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setComments([]);
+          setCommentsError(err instanceof Error ? err.message : 'Failed to load comments');
+        }
+      } finally {
+        if (!cancelled) setCommentsLoading(false);
+      }
+    };
+    loadComments();
+    return () => { cancelled = true; };
+  }, [selectedVideo?.videoId]);
 
   // Filter videos by tab
   const filteredVideos = useMemo(() => {
@@ -190,7 +243,7 @@ export default function Live() {
                 }`}
               >
                 <Play size={12} />
-                {selectedVideo ? 'Playing Video' : 'Latest Video'}
+                {selectedVideo ? 'Playing Video' : 'Latest Stream'}
               </button>
             </div>
 
@@ -241,16 +294,51 @@ export default function Live() {
                       <Eye size={11} /> {selectedVideo.viewCount.toLocaleString('en-IN')} views
                     </span>
                   )}
+                  {selectedVideo.likeCount !== null && (
+                    <span>👍 {selectedVideo.likeCount.toLocaleString('en-IN')} likes</span>
+                  )}
+                  {selectedVideo.commentCount !== null && (
+                    <span>💬 {selectedVideo.commentCount.toLocaleString('en-IN')} comments</span>
+                  )}
                   <a
                     href={selectedVideo.watchUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="ml-auto flex items-center gap-1 text-amber-500 hover:text-amber-400 transition-colors"
                   >
-                    Open on YouTube <ExternalLink size={11} />
+                    Watch Main Video <ExternalLink size={11} />
                   </a>
                 </div>
               </motion.div>
+            )}
+
+            {!liveMode && selectedVideo && (
+              <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-bold text-zinc-200">Top Comments</h3>
+                  {commentsLoading && <Loader2 size={14} className="animate-spin text-zinc-500" />}
+                </div>
+                {commentsError && (
+                  <p className="text-red-400 text-xs">{commentsError}</p>
+                )}
+                {!commentsLoading && !commentsError && comments.length === 0 && (
+                  <p className="text-zinc-500 text-xs">No public comments available for this video.</p>
+                )}
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {comments.map((comment) => (
+                    <div key={comment.id} className="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-zinc-200 text-xs font-semibold">{comment.author}</p>
+                        <p className="text-zinc-600 text-[10px]">{formatDate(comment.publishedAt)}</p>
+                      </div>
+                      <p className="text-zinc-400 text-xs mt-2 whitespace-pre-wrap">{comment.text}</p>
+                      {comment.likeCount !== null && (
+                        <p className="text-zinc-600 text-[10px] mt-2">👍 {comment.likeCount.toLocaleString('en-IN')}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {liveMode && (
@@ -329,11 +417,25 @@ export default function Live() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-zinc-200 text-xs font-medium line-clamp-2 leading-snug">{video.title}</p>
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                            detectVideoType(video) === 'stream'
+                              ? 'bg-red-600/20 text-red-300'
+                              : detectVideoType(video) === 'short'
+                                ? 'bg-fuchsia-600/20 text-fuchsia-300'
+                                : 'bg-zinc-700/30 text-zinc-300'
+                          }`}>
+                            {detectVideoType(video)}
+                          </span>
+                        </div>
                         <p className="text-zinc-600 text-[10px] mt-1 font-mono">{formatDate(video.publishedAt)}</p>
                         {video.viewCount !== null && (
                           <p className="text-zinc-600 text-[10px] font-mono flex items-center gap-1">
                             <Eye size={9} /> {video.viewCount.toLocaleString('en-IN')} views
                           </p>
+                        )}
+                        {video.commentCount !== null && (
+                          <p className="text-zinc-600 text-[10px] font-mono">💬 {video.commentCount.toLocaleString('en-IN')}</p>
                         )}
                       </div>
                     </div>
