@@ -131,7 +131,7 @@ export default function Footer() {
                 <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest group-hover:text-amber-200 transition-colors">Core Systems Operational</span>
               </div>
               <div className="h-4 w-px bg-zinc-900" />
-              <p className="text-[10px] font-mono text-zinc-700 uppercase tracking-widest italic">Ver 24.04.2026.💞.12.35.PM</p>
+              <p className="text-[10px] font-mono text-zinc-700 uppercase tracking-widest italic">Ver 09.05.2026.💞.01.55.PM</p>
             </div>
           </div>
 
