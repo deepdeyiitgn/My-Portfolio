@@ -118,6 +118,13 @@ interface UserDoc {
   registrationCountry?: string;
   lastActivityIp?: string;
   lastActivityCountry?: string;
+  moderation?: Partial<Record<'full' | 'comments' | 'profile' | 'feedback', {
+    active?: boolean;
+    until?: string | null;
+    reason?: string;
+    updatedAt?: string;
+    updatedAtIST?: string;
+  }>>;
 }
 
 interface BlockDoc {
@@ -159,6 +166,20 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function isDashboardModerationActive(entry?: { active?: boolean; until?: string | null }) {
+  if (!entry?.active) return false;
+  if (!entry.until) return true;
+  const until = new Date(entry.until);
+  return !Number.isNaN(until.getTime()) && until > new Date();
+}
+
+function formatModerationUntil(entry?: { until?: string | null }) {
+  if (!entry?.until) return 'Until reactivated';
+  const until = new Date(entry.until);
+  if (Number.isNaN(until.getTime())) return 'Until reactivated';
+  return until.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 const MONGODB_FREE_TIER_LIMIT_BYTES = 512 * 1024 * 1024; // 512 MB
@@ -1355,6 +1376,20 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   const [userCommentsLoading, setUserCommentsLoading] = useState(false);
   const [userBlocks, setUserBlocks] = useState<BlockDoc[]>([]);
   const [userBlocksLoading, setUserBlocksLoading] = useState(false);
+  const [moderationScope, setModerationScope] = useState<'full' | 'comments' | 'profile' | 'feedback'>('full');
+  const [moderationReason, setModerationReason] = useState('');
+  const [moderationUntilMode, setModerationUntilMode] = useState<'manual' | 'date'>('manual');
+  const [moderationUntil, setModerationUntil] = useState('');
+  const [userActionModal, setUserActionModal] = useState<null | {
+    operation: 'deactivate' | 'reactivate' | 'delete-content' | 'delete-user';
+    userId: string;
+    userName: string;
+    scope?: 'full' | 'comments' | 'profile' | 'feedback';
+    title: string;
+    description: string;
+  }>(null);
+  const [confirmOwnerPassword, setConfirmOwnerPassword] = useState('');
+  const [userActionSaving, setUserActionSaving] = useState(false);
 
   // ── Blacklist state ──────────────────────────────────────────────────────
   const [blacklist, setBlacklist] = useState<Array<{ _id: string; word: string }>>([]);
@@ -1501,6 +1536,95 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       showToast(nextVerified ? 'User verified' : 'User unverified');
     } catch {
       showToast('Network error', 'error');
+    }
+  };
+
+  const openUserActionModal = (
+    operation: 'deactivate' | 'reactivate' | 'delete-content' | 'delete-user',
+    scope?: 'full' | 'comments' | 'profile' | 'feedback',
+  ) => {
+    if (!selectedUser) return;
+    const scopeLabel = scope === 'full'
+      ? 'full account'
+      : scope === 'comments'
+        ? 'comments'
+        : scope === 'profile'
+          ? 'profile'
+          : 'feedback';
+    const titleMap = {
+      deactivate: `Deactivate ${scopeLabel}`,
+      reactivate: `Reactivate ${scopeLabel}`,
+      'delete-content': 'Delete comments + feedback',
+      'delete-user': 'Permanently delete user',
+    } as const;
+    const descriptionMap = {
+      deactivate: `This will apply a temporary ${scopeLabel} restriction to ${selectedUser.userName}.`,
+      reactivate: `This will remove the current ${scopeLabel} restriction from ${selectedUser.userName}.`,
+      'delete-content': `This will permanently delete all comments, replies, and feedback for ${selectedUser.userName}, while keeping the user profile.`,
+      'delete-user': `This will permanently delete ${selectedUser.userName}'s profile, comments, replies, feedback, and related moderation records.`,
+    } as const;
+    setConfirmOwnerPassword('');
+    setUserActionModal({
+      operation,
+      userId: selectedUser.userId,
+      userName: selectedUser.userName,
+      scope,
+      title: titleMap[operation],
+      description: descriptionMap[operation],
+    });
+  };
+
+  const handleConfirmUserAction = async () => {
+    if (!userActionModal) return;
+    setUserActionSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        userId: userActionModal.userId,
+        operation: userActionModal.operation,
+        confirmPassword: confirmOwnerPassword,
+      };
+      if (userActionModal.scope) payload.scope = userActionModal.scope;
+      if (userActionModal.operation === 'deactivate') {
+        payload.reason = moderationReason.trim();
+        payload.until = moderationUntilMode === 'date' && moderationUntil
+          ? new Date(moderationUntil).toISOString()
+          : null;
+      }
+
+      const r = await fetch('/api/journal?action=user-moderation', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json();
+      if (!d.ok) {
+        showToast(d.message || 'Failed to update user action', 'error');
+        return;
+      }
+
+      if (userActionModal.operation === 'delete-user') {
+        showToast('User permanently deleted');
+        setSelectedUser(null);
+        setUserComments([]);
+        setUserBlocks([]);
+        fetchUsers(1);
+      } else {
+        if (d.user) {
+          setSelectedUser(d.user);
+          setUsers(prev => prev.map(u => (u.userId === d.user.userId ? { ...u, ...d.user } : u)));
+        }
+        if (userActionModal.operation === 'delete-content' && selectedUser) {
+          fetchUserComments(selectedUser.userId, 1);
+        }
+        showToast(d.message || 'User updated');
+      }
+
+      setUserActionModal(null);
+      setConfirmOwnerPassword('');
+    } catch {
+      showToast('Network error', 'error');
+    } finally {
+      setUserActionSaving(false);
     }
   };
 
@@ -3317,6 +3441,54 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {userActionModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[560] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget && !userActionSaving) setUserActionModal(null); }}
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              className="bg-zinc-900 border border-red-900/50 rounded-3xl p-6 w-full max-w-lg space-y-5"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center shrink-0">
+                  <Lock size={18} className="text-red-300" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-white font-black text-lg">{userActionModal.title}</h3>
+                  <p className="text-zinc-400 text-sm">{userActionModal.description}</p>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 space-y-2">
+                <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Owner Password Confirmation</label>
+                <input
+                  type="password"
+                  value={confirmOwnerPassword}
+                  onChange={(e) => setConfirmOwnerPassword(e.target.value)}
+                  className={inputCls}
+                  placeholder="Enter owner password again"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setUserActionModal(null)} disabled={userActionSaving} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 flex-1`}>
+                  Cancel
+                </button>
+                <button onClick={handleConfirmUserAction} disabled={userActionSaving || !confirmOwnerPassword.trim()} className={`${btnCls} bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-500/20 flex-1 inline-flex items-center justify-center gap-2 disabled:opacity-50`}>
+                  {userActionSaving ? <Loader2 size={14} className="animate-spin" /> : <AlertOctagon size={14} />}
+                  Confirm Action
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Users Tab ────────────────────────────────────────────────────── */}
       {tab === 'users' && (
         <div className="space-y-6">
@@ -3412,6 +3584,79 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                     ))}
                   </div>
                 )}
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <AlertOctagon size={14} className="text-red-400" />
+                  <h3 className="text-zinc-200 text-sm font-bold">Moderation & Destructive Controls</h3>
+                </div>
+                <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                  {([
+                    { key: 'full', label: 'Full account', help: 'Hide profile, comments, replies, feedback, and block new activity.' },
+                    { key: 'comments', label: 'Comments only', help: 'Hide comments + replies and prevent new comments.' },
+                    { key: 'profile', label: 'Profile only', help: 'Hide only the public profile area and user card.' },
+                    { key: 'feedback', label: 'Feedback only', help: 'Hide feedback and prevent new feedback submissions.' },
+                  ] as const).map((item) => {
+                    const entry = selectedUser.moderation?.[item.key];
+                    const active = isDashboardModerationActive(entry);
+                    return (
+                      <div key={item.key} className={`rounded-2xl border p-4 ${active ? 'border-red-800/70 bg-red-950/20' : 'border-zinc-800 bg-zinc-900/35'}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-white text-sm font-bold">{item.label}</p>
+                          <span className={`text-[10px] font-mono uppercase tracking-wider ${active ? 'text-red-300' : 'text-emerald-400'}`}>{active ? 'Active' : 'Live'}</span>
+                        </div>
+                        <p className="text-zinc-500 text-xs mt-1">{item.help}</p>
+                        <p className="text-zinc-600 text-[10px] mt-2">{active ? formatModerationUntil(entry) : 'No active restriction'}</p>
+                        {active && entry?.reason && <p className="text-red-200/80 text-[10px] mt-1">Reason: {entry.reason}</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/35 p-4 space-y-4">
+                  <div className="grid lg:grid-cols-[1.1fr,1fr,1fr] gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Restriction Scope</label>
+                      <select value={moderationScope} onChange={(e) => setModerationScope(e.target.value as 'full' | 'comments' | 'profile' | 'feedback')} className={inputCls}>
+                        <option value="full">Full account</option>
+                        <option value="comments">Comments only</option>
+                        <option value="profile">Profile only</option>
+                        <option value="feedback">Feedback only</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Deactivate Until</label>
+                      <select value={moderationUntilMode} onChange={(e) => setModerationUntilMode(e.target.value as 'manual' | 'date')} className={inputCls}>
+                        <option value="manual">Until I reactivate</option>
+                        <option value="date">Choose end date/time</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">End Date / Time</label>
+                      <input type="datetime-local" value={moderationUntil} onChange={(e) => setModerationUntil(e.target.value)} disabled={moderationUntilMode !== 'date'} className={inputCls} />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Reason (optional)</label>
+                    <input value={moderationReason} onChange={(e) => setModerationReason(e.target.value)} className={inputCls} placeholder="Support message / moderation reason" />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => openUserActionModal('deactivate', moderationScope)} className={`${btnCls} bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-500/20 text-xs`}>
+                      Deactivate Scope
+                    </button>
+                    <button onClick={() => openUserActionModal('reactivate', moderationScope)} className={`${btnCls} bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20 text-xs`}>
+                      Reactivate Scope
+                    </button>
+                    <button onClick={() => openUserActionModal('delete-content')} className={`${btnCls} bg-orange-500/10 border border-orange-500/40 text-orange-300 hover:bg-orange-500/20 text-xs`}>
+                      Delete Comments + Feedback
+                    </button>
+                    <button onClick={() => openUserActionModal('delete-user')} className={`${btnCls} bg-red-950/40 border border-red-500/50 text-red-300 hover:bg-red-900/40 text-xs`}>
+                      Permanent Delete User
+                    </button>
+                  </div>
+                  <p className="text-zinc-600 text-[11px]">
+                    Every moderation or destructive action asks for the owner password again for extra verification.
+                  </p>
+                </div>
               </div>
               {/* User comments */}
               <div className="space-y-3">

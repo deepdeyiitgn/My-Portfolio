@@ -73,6 +73,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **UserProfile Owner Page — Glowing King Style (`UserProfile.tsx`):** `/user/owner` profile card now features the same gradient-border glow frame, glowing photo halo, amber-gold name text, and 👑 Owner badge — visually distinct from regular community profiles.
 
 ### Changed
+- **Community guide upgraded:** `/journal/comment` now explains both commenting and feedback submission, and includes small preview demos showing how comment cards and feedback cards appear on the website.
+- **Owner user moderation controls:** Dashboard Users management now supports password-confirmed temporary deactivation for full account, comments only, profile only, or feedback only — with either manual reactivation or a scheduled end date/time.
+- **Password-confirmed destructive user actions:** Owner dashboard can now delete only a user's comments/replies/feedback while keeping the user profile, or permanently delete the user profile and all related comments, replies, feedback, and moderation records.
+- **Public visibility respects moderation:** Public comments, feedback, contributor list, search results, user profiles, comment counts, and comment permalinks now hide content/profile visibility based on active user moderation scopes.
 - **Feedback blacklist linkage & conditional censoring:** Feedback creation and owner feedback edits now reuse the same `comment_blacklist` source as the journal comment system, and feedback text is censored only when a blacklist match is actually detected.
 - **Feedback abuse audit fields (`hasAbuse` + `originalText`):** Feedback documents now persist the original uncensored text only when blacklist abuse is detected, while clean feedback keeps `originalText: null`.
 - **Owner dashboard feedback moderation visibility:** Feedback moderation cards now show the original user-written text for censored feedback entries, and edit opens using the uncensored source text when available.

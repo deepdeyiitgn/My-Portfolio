@@ -80,6 +80,7 @@ export default function Feedback() {
   const [formText, setFormText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formMessage, setFormMessage] = useState<{ text: string; type: 'ok' | 'err' } | null>(null);
+  const [feedbackAccess, setFeedbackAccess] = useState<{ blocked: boolean; message: string | null }>({ blocked: false, message: null });
 
   const [subjectFilter, setSubjectFilter] = useState('');
   const [subSubjectFilter, setSubSubjectFilter] = useState('');
@@ -203,6 +204,20 @@ export default function Feedback() {
     }
   }, [selectedFilterCategory, subSubjectFilter]);
 
+  useEffect(() => {
+    if (ownerAuthed || !currentUser?.userId) {
+      setFeedbackAccess({ blocked: false, message: null });
+      return;
+    }
+    fetch(`/api/journal?action=user-access&userId=${encodeURIComponent(currentUser.userId)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const blocked = Boolean(d?.access?.feedbackBlocked);
+        setFeedbackAccess({ blocked, message: blocked ? d?.access?.messages?.feedback || 'Your feedback access is disabled.' : null });
+      })
+      .catch(() => setFeedbackAccess({ blocked: false, message: null }));
+  }, [currentUser?.userId, ownerAuthed]);
+
   const handleGoogleSuccess = (credentialResponse: { credential?: string }) => {
     if (!credentialResponse.credential) return;
     const payload = decodeJwt(credentialResponse.credential);
@@ -229,6 +244,10 @@ export default function Feedback() {
 
     if (!ownerAuthed && !currentUser) {
       setFormMessage({ text: 'Please login with Google before submitting feedback.', type: 'err' });
+      return;
+    }
+    if (feedbackAccess.blocked) {
+      setFormMessage({ text: feedbackAccess.message || 'Your feedback access is currently disabled.', type: 'err' });
       return;
     }
 
@@ -322,13 +341,20 @@ export default function Feedback() {
             )}
           </div>
 
+          {feedbackAccess.blocked && (
+            <div className="rounded-2xl border border-red-900/40 bg-red-950/20 px-4 py-3">
+              <p className="text-red-300 text-sm font-bold">Feedback access disabled</p>
+              <p className="text-red-200/80 text-xs mt-1">{feedbackAccess.message}</p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-4">
             <select
               value={formSubject}
               onChange={(e) => { setFormSubject(e.target.value); setFormSubSubject(''); }}
               className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 text-sm"
               required
-              disabled={loadingCategories}
+              disabled={loadingCategories || feedbackAccess.blocked}
             >
               <option value="">Select Subject</option>
               {categories.map((cat) => <option key={cat._id} value={cat.subjectSlug}>{cat.subject}</option>)}
@@ -339,7 +365,7 @@ export default function Feedback() {
               onChange={(e) => setFormSubSubject(e.target.value)}
               className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 text-sm"
               required
-              disabled={!formSubject || loadingCategories}
+              disabled={!formSubject || loadingCategories || feedbackAccess.blocked}
             >
               <option value="">Select Sub-subject</option>
               {(selectedFormCategory?.subSubjects || []).map((sub) => <option key={sub.slug} value={sub.slug}>{sub.name}</option>)}
@@ -352,6 +378,7 @@ export default function Feedback() {
                 placeholder="Short subject line"
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 text-sm"
                 required
+                disabled={feedbackAccess.blocked}
               />
             </div>
 
@@ -364,6 +391,7 @@ export default function Feedback() {
                     onClick={() => setFormRating(star)}
                     className="p-1"
                     aria-label={`Set ${star} star rating`}
+                    disabled={feedbackAccess.blocked}
                   >
                     <Star size={18} className={star <= formRating ? 'text-amber-400 fill-amber-400' : 'text-zinc-600'} />
                   </button>
@@ -375,12 +403,13 @@ export default function Feedback() {
                 placeholder="Write detailed feedback..."
                 className="w-full min-h-[130px] bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 text-sm"
                 required
+                disabled={feedbackAccess.blocked}
               />
               <div className="flex items-center justify-between mt-1">
                 <p className="text-zinc-600 text-xs">{formText.length}/{MAX_TEXT}</p>
                 <button
                   type="submit"
-                  disabled={submitting || loadingCategories}
+                  disabled={submitting || loadingCategories || feedbackAccess.blocked}
                   className="px-4 py-2 rounded-xl bg-amber-500 text-black font-bold text-xs hover:bg-amber-400 disabled:opacity-50 inline-flex items-center gap-1"
                 >
                   {submitting ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
