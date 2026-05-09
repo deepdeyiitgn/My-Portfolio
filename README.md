@@ -324,9 +324,87 @@ MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/portfolio
 
 # CDN upload password for the static.qlynk.me proxy
 SPACE_PASSWORD=your_space_password_here
+
+# Optional but recommended: enforce audience check on Google identity token verification
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
 ```
 
 > **Note:** The app runs in read-only mode without these variables. Journal CRUD and image upload require valid credentials.
+
+---
+
+## 🧩 Make This Your Own Portfolio (Complete Customization Guide)
+
+If you want to turn this project into your own portfolio site, follow this checklist.
+
+### 1) Personal Branding and Core Identity
+
+- Replace avatar/media assets in:
+  - `public/assets/images/`
+  - `public/assets/docs/` (portfolio PDF)
+- Update name/title/identity copy across route pages:
+  - `src/pages/Home.tsx`
+  - `src/pages/About.tsx`
+  - `src/pages/Me.tsx`
+  - `src/pages/Portfolio.tsx`
+- Update owner metadata and badges where owner identity is rendered:
+  - `src/pages/AllUsers.tsx`
+  - `src/pages/UserProfile.tsx`
+  - `src/components/CommentSection.tsx`
+
+### 2) Content and Data You Can Edit Quickly
+
+- Projects: `src/data/projectsData.ts`
+- Timeline/Journey: `src/data/timelineData.ts`
+- Links hub: `src/data/linksData.ts`
+- FAQ: `src/data/faqData.ts`
+- “Now” content: `src/data/nowData.ts`
+
+These files are the fastest path for non-backend customization.
+
+### 3) SEO, Domain, and Public Metadata
+
+- Global/per-page SEO component: `src/components/SEO.tsx`
+- App route registration: `src/App.tsx`
+- Static crawler files:
+  - `public/robots.txt`
+  - `public/sitemap.xml` (plus dynamic API sitemap via `/api/sitemap`)
+- Update canonical domain references if you deploy to a new domain.
+
+### 4) Dashboard and CMS Behavior
+
+- Owner dashboard UI: `src/pages/Dashboard.tsx`
+- Journal/feedback/user moderation APIs: `api/journal.js`
+- Categories and feedback taxonomy APIs: `api/categories.js`
+- Auth/session API: `api/auth.js`
+- Image upload proxy API: `api/upload-image.js`
+
+For changes in admin workflows, prefer extending existing API files instead of creating new route files.
+
+### 5) Identity, Privacy, and Community System
+
+- Public profile/community pages:
+  - `src/pages/AllUsers.tsx`
+  - `src/pages/UserProfile.tsx`
+- Privacy/legal pages:
+  - `src/pages/Privacy.tsx`
+  - `src/pages/Terms.tsx`
+  - `src/pages/DMCA.tsx`
+  - `src/pages/Copyright.tsx`
+
+Current identity behavior:
+- Google-authenticated users can have private identity fields in account records (email + private 16-digit service key).
+- Service key is masked by default, reveal/copy/rotate-capable, and intended for support-side identity verification.
+
+### 6) Verify Your Customized Build
+
+```bash
+npm ci
+npm run lint
+npm run build
+```
+
+If both checks pass, your customized portfolio is production-ready for Vercel deployment.
 
 ---
 

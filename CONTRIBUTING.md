@@ -125,6 +125,8 @@ Both `npm run lint` and `npm run build` **must pass** before opening a pull requ
 
 > The same checks run automatically via **GitHub Actions CI** ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)) on every push and pull request. A green CI badge is required for merge.
 
+> For project-fork customization work (making this your own portfolio), follow the README section: **[Make This Your Own Portfolio](./README.md#-make-this-your-own-portfolio-complete-customization-guide)**.
+
 ### Routes to Validate Manually
 
 If your change touches any of these areas, manually verify them:
