@@ -9,6 +9,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Professional Feedback Management System (`/feedback`):** Added a dedicated feedback page with interactive 5-star submissions, rating-distribution summary bars, subject/sub-subject taxonomy, strict one-feedback-per-subject-sub-subject enforcement, blacklist-filtered text persistence, sorting/filtering, 20-per-page pagination, and long-text see-more modal flow.
+- **Feedback APIs without new serverless files:** Extended existing handlers only:
+  - `GET /api/journal?action=feedback-list|feedback-stats|feedback-pinned|feedback-admin-list`
+  - `POST /api/journal?action=feedback|feedback-pin`
+  - `PUT /api/journal?action=feedback-admin`
+  - `DELETE /api/journal?action=feedback-admin&id=<id>`
+  - `GET/POST/PUT/DELETE /api/categories?type=feedback` for subject and sub-subject CRUD.
+- **Owner Dashboard Feedback Tab:** Added owner-facing feedback moderation panel with unlimited pinning, admin edit/delete of any feedback, and feedback subject/sub-subject management.
+- **Homepage Dynamic Feedback Integration:** Replaced static social-proof content with real-time global metrics (Total Users, Total Feedbacks, Average Rating with safe zero-feedback handling) and a horizontal infinite pinned-feedback scroller that shuffles on reload, pauses on hover, supports see-more modal, closes on overlay/X, and resumes smoothly.
+- **Global Navigation Enhancements:** Header now includes direct links to **All Users** and **Feedback**, plus globally accessible owner logout action.
+- **All Users Self-Priority Behavior:** Logged-in community users now see their own profile card auto-prioritized at the top of `/user` with highlight styling.
+- **Sitemap coverage update:** Added static `/feedback` route to `api/sitemap.js` for indexing.
+
 - **Sitemap Slug-First Dynamic URLs:** `/api/sitemap` now emits journal routes using journal slugs (fallback to ID), including slug-based `/journal/view/:slug`, `/journal/view/:slug/comments`, and `/journal/view/:slug/comment/:commentId` entries while preserving `/journal/comment/:commentId` permalinks and 6-hour in-memory cache behavior.
 - **Community Search Expansion:** Global search API (`GET /api/journal?action=search`) now indexes community users and comment permalinks in addition to journal posts, enabling `/search` to return user profile and comment results.
 - **Frontend-rendered Identity Badges:** Replaced public image-based verification/crown badge rendering (`/verified.svg`, `/crown.svg`) with reusable React vector icons (`IdentityBadges.tsx`). Applied across comment UI, user pages, and dashboard user moderation views.
@@ -60,6 +73,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **UserProfile Owner Page — Glowing King Style (`UserProfile.tsx`):** `/user/owner` profile card now features the same gradient-border glow frame, glowing photo halo, amber-gold name text, and 👑 Owner badge — visually distinct from regular community profiles.
 
 ### Changed
+- **Owner auth brute-force protection:** Added in-memory IP-based login throttling on `/api/auth` with 5-attempt/minute windows and escalating lock durations (2m first lock, then +5m steps capped at 60m).
+- **Community posting hardening:** Comments, replies, and feedback now require minimum 100 characters and enforce independent per-IP 2-minute soft cooldowns in RAM for each scope.
+- **Search fallback matching upgraded:** Added character-token/substring fallback so embedded terms inside longer query strings can still return relevant journals, users, and comments.
+- **FAQ expansion:** Appended 200 additional website-related FAQ entries at the end of `faqData` without modifying existing entries.
+- **Community guide upgraded:** `/journal/comment` now explains both commenting and feedback submission, and includes small preview demos showing how comment cards and feedback cards appear on the website.
+- **Owner user moderation controls:** Dashboard Users management now supports password-confirmed temporary deactivation for full account, comments only, profile only, or feedback only — with either manual reactivation or a scheduled end date/time.
+- **Password-confirmed destructive user actions:** Owner dashboard can now delete only a user's comments/replies/feedback while keeping the user profile, or permanently delete the user profile and all related comments, replies, feedback, and moderation records.
+- **Public visibility respects moderation:** Public comments, feedback, contributor list, search results, user profiles, comment counts, and comment permalinks now hide content/profile visibility based on active user moderation scopes.
+- **Feedback blacklist linkage & conditional censoring:** Feedback creation and owner feedback edits now reuse the same `comment_blacklist` source as the journal comment system, and feedback text is censored only when a blacklist match is actually detected.
+- **Feedback abuse audit fields (`hasAbuse` + `originalText`):** Feedback documents now persist the original uncensored text only when blacklist abuse is detected, while clean feedback keeps `originalText: null`.
+- **Owner dashboard feedback moderation visibility:** Feedback moderation cards now show the original user-written text for censored feedback entries, and edit opens using the uncensored source text when available.
+- **Mobile menu usability refinements:** Mobile overlay navigation now uses tighter sizing, larger tap targets, and a scroll-safe layout so all items remain visible/watchable and easily clickable on small screens.
 - **Comments API Slug Support:** `GET /api/journal?action=comments` and `POST /api/journal?action=comment` now accept journal ID or journal slug, fixing invalid-id errors when pages are opened with slug/title-based journal URLs.
 - **Status Endpoint Layout Fix:** `/status` endpoint cards now wrap long endpoint paths safely (`break-all`, wrapped metrics, overflow protection) to prevent small-screen width/zoom-out issues.
 - Dashboard Settings tab now shows updated serverless function count text (`12 files`, including 11 route handlers + shared logger helper).

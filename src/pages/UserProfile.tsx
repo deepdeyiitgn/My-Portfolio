@@ -29,6 +29,9 @@ interface UserInfo {
   bio?: string;
   description?: string;
   socialLinks?: SocialLink[];
+  profileDeactivated?: boolean;
+  deactivationKind?: 'full' | 'profile';
+  deactivationMessage?: string;
 }
 
 interface Comment {
@@ -396,6 +399,36 @@ export default function UserProfile() {
           <AlertCircle size={32} className="text-red-400 mx-auto" />
           <p className="text-white font-bold text-lg">{error || 'User not found'}</p>
           <button onClick={() => navigate(-1)} className="text-amber-500 text-sm hover:underline">← Go back</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (userInfo.profileDeactivated) {
+    return (
+      <div className="min-h-screen bg-zinc-950 pt-28 pb-20 px-4">
+        <SEO
+          title={`${userInfo.userName}'s Profile | Deep Dey Journal`}
+          description={userInfo.deactivationMessage || 'This profile is currently deactivated.'}
+          route={`/user/${userId}`}
+        />
+        <div className="max-w-2xl mx-auto space-y-6">
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-zinc-500 hover:text-zinc-300 transition-colors text-sm">
+            <ArrowLeft size={16} /> Back
+          </button>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-red-900/40 bg-red-950/20 p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle size={22} className="text-red-400 shrink-0" />
+              <div>
+                <h1 className="text-white font-black text-2xl tracking-tight">Profile temporarily unavailable</h1>
+                <p className="text-red-200/80 text-sm mt-1">{userInfo.deactivationMessage || 'This profile has been temporarily deactivated by the owner.'}</p>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+              <p className="text-white font-bold">{userInfo.userName}</p>
+              {userInfo.profileTitle && <p className="text-zinc-500 text-sm mt-1">{userInfo.profileTitle}</p>}
+            </div>
+          </motion.div>
         </div>
       </div>
     );

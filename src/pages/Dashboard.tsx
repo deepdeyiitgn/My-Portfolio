@@ -11,6 +11,7 @@ import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
 import { ICON_NAMES, renderIcon } from '../utils/iconMap';
 import { VerifiedTickIcon } from '../components/IdentityBadges';
+import FeedbackAdminPanel from '../components/FeedbackAdminPanel';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 
@@ -42,7 +43,7 @@ interface Journal {
   images?: string[];
 }
 
-type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'status' | 'storage' | 'users';
+type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'status' | 'storage' | 'users' | 'feedback';
 
 // ── Projects types ────────────────────────────────────────────────────────────
 export interface ProjectDB {
@@ -117,6 +118,13 @@ interface UserDoc {
   registrationCountry?: string;
   lastActivityIp?: string;
   lastActivityCountry?: string;
+  moderation?: Partial<Record<'full' | 'comments' | 'profile' | 'feedback', {
+    active?: boolean;
+    until?: string | null;
+    reason?: string;
+    updatedAt?: string;
+    updatedAtIST?: string;
+  }>>;
 }
 
 interface BlockDoc {
@@ -158,6 +166,20 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function isDashboardModerationActive(entry?: { active?: boolean; until?: string | null }) {
+  if (!entry?.active) return false;
+  if (!entry.until) return true;
+  const until = new Date(entry.until);
+  return !Number.isNaN(until.getTime()) && until > new Date();
+}
+
+function formatModerationUntil(entry?: { until?: string | null }) {
+  if (!entry?.until) return 'Until reactivated';
+  const until = new Date(entry.until);
+  if (Number.isNaN(until.getTime())) return 'Until reactivated';
+  return until.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 const MONGODB_FREE_TIER_LIMIT_BYTES = 512 * 1024 * 1024; // 512 MB
@@ -1311,6 +1333,11 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   const [storageProjectPage, setStorageProjectPage] = useState(1);
   const [storageJourneyPage, setStorageJourneyPage] = useState(1);
   const STORAGE_PAGE_SIZE = 5;
+  const [feedbackStorageMeta, setFeedbackStorageMeta] = useState<{ totalFeedbacks: number; pinnedCount: number; categoriesCount: number }>({
+    totalFeedbacks: 0,
+    pinnedCount: 0,
+    categoriesCount: 0,
+  });
 
   // ── Comments storage sub-tab state ────────────────────────────────────────
   const [commentPosts, setCommentPosts] = useState<JournalCommentStat[]>([]);
@@ -1349,6 +1376,20 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   const [userCommentsLoading, setUserCommentsLoading] = useState(false);
   const [userBlocks, setUserBlocks] = useState<BlockDoc[]>([]);
   const [userBlocksLoading, setUserBlocksLoading] = useState(false);
+  const [moderationScope, setModerationScope] = useState<'full' | 'comments' | 'profile' | 'feedback'>('full');
+  const [moderationReason, setModerationReason] = useState('');
+  const [moderationUntilMode, setModerationUntilMode] = useState<'manual' | 'date'>('manual');
+  const [moderationUntil, setModerationUntil] = useState('');
+  const [userActionModal, setUserActionModal] = useState<null | {
+    operation: 'deactivate' | 'reactivate' | 'delete-content' | 'delete-user';
+    userId: string;
+    userName: string;
+    scope?: 'full' | 'comments' | 'profile' | 'feedback';
+    title: string;
+    description: string;
+  }>(null);
+  const [confirmOwnerPassword, setConfirmOwnerPassword] = useState('');
+  const [userActionSaving, setUserActionSaving] = useState(false);
 
   // ── Blacklist state ──────────────────────────────────────────────────────
   const [blacklist, setBlacklist] = useState<Array<{ _id: string; word: string }>>([]);
@@ -1376,14 +1417,23 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   const fetchStorageStats = useCallback(async () => {
     setStorageLoading(true);
     try {
-      const [statsRes, journalsRes] = await Promise.all([
+      const [statsRes, journalsRes, feedbackStatsRes, feedbackCatsRes] = await Promise.all([
         fetch('/api/journal?action=dbstats'),
         fetch('/api/journal?page=1&limit=100'),
+        fetch('/api/journal?action=feedback-stats'),
+        fetch('/api/categories?type=feedback'),
       ]);
       const statsData = await statsRes.json();
       if (statsData.ok) setStorageStats(statsData);
       const journalsData = await journalsRes.json();
       if (journalsData.ok) setStorageJournals(journalsData.journals);
+      const feedbackStatsData = await feedbackStatsRes.json();
+      const feedbackCatsData = await feedbackCatsRes.json();
+      setFeedbackStorageMeta({
+        totalFeedbacks: Number(feedbackStatsData?.stats?.totalFeedbacks || 0),
+        pinnedCount: Number(feedbackStatsData?.stats?.pinnedCount || 0),
+        categoriesCount: Array.isArray(feedbackCatsData?.categories) ? feedbackCatsData.categories.length : 0,
+      });
     } catch { /* ignore */ }
     finally { setStorageLoading(false); }
   }, []);
@@ -1486,6 +1536,95 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       showToast(nextVerified ? 'User verified' : 'User unverified');
     } catch {
       showToast('Network error', 'error');
+    }
+  };
+
+  const openUserActionModal = (
+    operation: 'deactivate' | 'reactivate' | 'delete-content' | 'delete-user',
+    scope?: 'full' | 'comments' | 'profile' | 'feedback',
+  ) => {
+    if (!selectedUser) return;
+    const scopeLabel = scope === 'full'
+      ? 'full account'
+      : scope === 'comments'
+        ? 'comments'
+        : scope === 'profile'
+          ? 'profile'
+          : 'feedback';
+    const titleMap = {
+      deactivate: `Deactivate ${scopeLabel}`,
+      reactivate: `Reactivate ${scopeLabel}`,
+      'delete-content': 'Delete comments + feedback',
+      'delete-user': 'Permanently delete user',
+    } as const;
+    const descriptionMap = {
+      deactivate: `This will apply a temporary ${scopeLabel} restriction to ${selectedUser.userName}.`,
+      reactivate: `This will remove the current ${scopeLabel} restriction from ${selectedUser.userName}.`,
+      'delete-content': `This will permanently delete all comments, replies, and feedback for ${selectedUser.userName}, while keeping the user profile.`,
+      'delete-user': `This will permanently delete ${selectedUser.userName}'s profile, comments, replies, feedback, and related moderation records.`,
+    } as const;
+    setConfirmOwnerPassword('');
+    setUserActionModal({
+      operation,
+      userId: selectedUser.userId,
+      userName: selectedUser.userName,
+      scope,
+      title: titleMap[operation],
+      description: descriptionMap[operation],
+    });
+  };
+
+  const handleConfirmUserAction = async () => {
+    if (!userActionModal) return;
+    setUserActionSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        userId: userActionModal.userId,
+        operation: userActionModal.operation,
+        confirmPassword: confirmOwnerPassword,
+      };
+      if (userActionModal.scope) payload.scope = userActionModal.scope;
+      if (userActionModal.operation === 'deactivate') {
+        payload.reason = moderationReason.trim();
+        payload.until = moderationUntilMode === 'date' && moderationUntil
+          ? new Date(moderationUntil).toISOString()
+          : null;
+      }
+
+      const r = await fetch('/api/journal?action=user-moderation', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json();
+      if (!d.ok) {
+        showToast(d.message || 'Failed to update user action', 'error');
+        return;
+      }
+
+      if (userActionModal.operation === 'delete-user') {
+        showToast('User permanently deleted');
+        setSelectedUser(null);
+        setUserComments([]);
+        setUserBlocks([]);
+        fetchUsers(1);
+      } else {
+        if (d.user) {
+          setSelectedUser(d.user);
+          setUsers(prev => prev.map(u => (u.userId === d.user.userId ? { ...u, ...d.user } : u)));
+        }
+        if (userActionModal.operation === 'delete-content' && selectedUser) {
+          fetchUserComments(selectedUser.userId, 1);
+        }
+        showToast(d.message || 'User updated');
+      }
+
+      setUserActionModal(null);
+      setConfirmOwnerPassword('');
+    } catch {
+      showToast('Network error', 'error');
+    } finally {
+      setUserActionSaving(false);
     }
   };
 
@@ -1771,7 +1910,12 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
         // Clear any Google user session to avoid conflicts
         localStorage.removeItem('dd_comment_user');
       } else {
-        setLoginError(d.message || 'Incorrect password');
+        if (d.retryAfterSec) {
+          const mins = Math.ceil(Number(d.retryAfterSec || 0) / 60);
+          setLoginError(`${d.message || 'Too many attempts.'} Retry after ~${mins} minute(s).`);
+        } else {
+          setLoginError(d.message || 'Incorrect password');
+        }
       }
     } catch {
       setLoginError('Network error — please try again');
@@ -2043,7 +2187,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black text-white">Content Dashboard</h1>
-          <p className="text-zinc-500 text-sm mt-0.5">Manage journals, categories, journey timeline, and settings</p>
+          <p className="text-zinc-500 text-sm mt-0.5">Manage journals, categories, feedback, journey timeline, and settings</p>
         </div>
         <button
           onClick={handleLogout}
@@ -2062,6 +2206,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
           { label: 'Ecosystem', value: projectMode === 'custom' ? projects.length : 'Default' }, // <-- YE NAYA HAI
           { label: 'Drafts', value: journals.filter((j) => !j.published).length },
           { label: 'Categories', value: categories.length },
+          { label: 'Feedbacks', value: feedbackStorageMeta.totalFeedbacks },
         ].map((stat) => (
           <div key={stat.label} className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4">
             <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">{stat.label}</p>
@@ -2100,6 +2245,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
           { id: 'journals', label: 'Journals', icon: <BookOpen size={14} /> },
           { id: 'projects', label: 'Projects', icon: <Layers size={14} /> },    // <-- YE NAYA TAB HAI
           { id: 'status', label: 'Live Status', icon: <Activity size={14} /> },     // <-- YE NAYA TAB HAI v2
+          { id: 'feedback', label: 'Feedback', icon: <MessageSquare size={14} /> },
           { id: 'categories', label: 'Categories', icon: <Tag size={14} /> },
           { id: 'journey', label: 'Journey', icon: <Clock size={14} /> },
           { id: 'storage', label: 'Storage', icon: <HardDrive size={14} /> },
@@ -2266,6 +2412,11 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
             </div>
           )}
         </div>
+      )}
+
+      {/* ── Feedback Tab ─────────────────────────────────────────────────── */}
+      {tab === 'feedback' && (
+        <FeedbackAdminPanel onChanged={fetchStorageStats} />
       )}
 
       {/* ── Projects Tab ─────────────────────────────────────────────────── */}
@@ -3256,9 +3407,24 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                     <div className="space-y-1">
                       <label className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">Minutes</label>
                       <input type="number" min="0" max="59" value={blockMinutes} onChange={e => setBlockMinutes(e.target.value)} className={inputCls} placeholder="0" />
-                    </div>
-                  </div>
-                )}
+                </div>
+              </div>
+            )}
+
+            <div className="grid sm:grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/35 p-4">
+                <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Total Feedbacks</p>
+                <p className="text-amber-500 text-2xl font-black mt-1">{feedbackStorageMeta.totalFeedbacks}</p>
+              </div>
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/35 p-4">
+                <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Feedback Categories</p>
+                <p className="text-amber-500 text-2xl font-black mt-1">{feedbackStorageMeta.categoriesCount}</p>
+              </div>
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/35 p-4">
+                <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Pinned Feedbacks</p>
+                <p className="text-amber-500 text-2xl font-black mt-1">{feedbackStorageMeta.pinnedCount}</p>
+              </div>
+            </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Reason (optional)</label>
                   <input value={blockReason} onChange={e => setBlockReason(e.target.value)} className={inputCls} placeholder="e.g., Spam, abuse..." />
@@ -3273,6 +3439,54 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                 >
                   {blockSaving ? <Loader2 size={14} className="animate-spin" /> : <ShieldBan size={14} />}
                   Block User
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {userActionModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[560] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget && !userActionSaving) setUserActionModal(null); }}
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              className="bg-zinc-900 border border-red-900/50 rounded-3xl p-6 w-full max-w-lg space-y-5"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center shrink-0">
+                  <Lock size={18} className="text-red-300" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-white font-black text-lg">{userActionModal.title}</h3>
+                  <p className="text-zinc-400 text-sm">{userActionModal.description}</p>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 space-y-2">
+                <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Owner Password Confirmation</label>
+                <input
+                  type="password"
+                  value={confirmOwnerPassword}
+                  onChange={(e) => setConfirmOwnerPassword(e.target.value)}
+                  className={inputCls}
+                  placeholder="Enter owner password again"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setUserActionModal(null)} disabled={userActionSaving} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 flex-1`}>
+                  Cancel
+                </button>
+                <button onClick={handleConfirmUserAction} disabled={userActionSaving || !confirmOwnerPassword.trim()} className={`${btnCls} bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-500/20 flex-1 inline-flex items-center justify-center gap-2 disabled:opacity-50`}>
+                  {userActionSaving ? <Loader2 size={14} className="animate-spin" /> : <AlertOctagon size={14} />}
+                  Confirm Action
                 </button>
               </div>
             </motion.div>
@@ -3375,6 +3589,79 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                     ))}
                   </div>
                 )}
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <AlertOctagon size={14} className="text-red-400" />
+                  <h3 className="text-zinc-200 text-sm font-bold">Moderation & Destructive Controls</h3>
+                </div>
+                <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                  {([
+                    { key: 'full', label: 'Full account', help: 'Hide profile, comments, replies, feedback, and block new activity.' },
+                    { key: 'comments', label: 'Comments only', help: 'Hide comments + replies and prevent new comments.' },
+                    { key: 'profile', label: 'Profile only', help: 'Hide only the public profile area and user card.' },
+                    { key: 'feedback', label: 'Feedback only', help: 'Hide feedback and prevent new feedback submissions.' },
+                  ] as const).map((item) => {
+                    const entry = selectedUser.moderation?.[item.key];
+                    const active = isDashboardModerationActive(entry);
+                    return (
+                      <div key={item.key} className={`rounded-2xl border p-4 ${active ? 'border-red-800/70 bg-red-950/20' : 'border-zinc-800 bg-zinc-900/35'}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-white text-sm font-bold">{item.label}</p>
+                          <span className={`text-[10px] font-mono uppercase tracking-wider ${active ? 'text-red-300' : 'text-emerald-400'}`}>{active ? 'Active' : 'Live'}</span>
+                        </div>
+                        <p className="text-zinc-500 text-xs mt-1">{item.help}</p>
+                        <p className="text-zinc-600 text-[10px] mt-2">{active ? formatModerationUntil(entry) : 'No active restriction'}</p>
+                        {active && entry?.reason && <p className="text-red-200/80 text-[10px] mt-1">Reason: {entry.reason}</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/35 p-4 space-y-4">
+                  <div className="grid lg:grid-cols-[1.1fr,1fr,1fr] gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Restriction Scope</label>
+                      <select value={moderationScope} onChange={(e) => setModerationScope(e.target.value as 'full' | 'comments' | 'profile' | 'feedback')} className={inputCls}>
+                        <option value="full">Full account</option>
+                        <option value="comments">Comments only</option>
+                        <option value="profile">Profile only</option>
+                        <option value="feedback">Feedback only</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Deactivate Until</label>
+                      <select value={moderationUntilMode} onChange={(e) => setModerationUntilMode(e.target.value as 'manual' | 'date')} className={inputCls}>
+                        <option value="manual">Until I reactivate</option>
+                        <option value="date">Choose end date/time</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">End Date / Time</label>
+                      <input type="datetime-local" value={moderationUntil} onChange={(e) => setModerationUntil(e.target.value)} disabled={moderationUntilMode !== 'date'} className={inputCls} />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Reason (optional)</label>
+                    <input value={moderationReason} onChange={(e) => setModerationReason(e.target.value)} className={inputCls} placeholder="Support message / moderation reason" />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => openUserActionModal('deactivate', moderationScope)} className={`${btnCls} bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-500/20 text-xs`}>
+                      Deactivate Scope
+                    </button>
+                    <button onClick={() => openUserActionModal('reactivate', moderationScope)} className={`${btnCls} bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20 text-xs`}>
+                      Reactivate Scope
+                    </button>
+                    <button onClick={() => openUserActionModal('delete-content')} className={`${btnCls} bg-orange-500/10 border border-orange-500/40 text-orange-300 hover:bg-orange-500/20 text-xs`}>
+                      Delete Comments + Feedback
+                    </button>
+                    <button onClick={() => openUserActionModal('delete-user')} className={`${btnCls} bg-red-950/40 border border-red-500/50 text-red-300 hover:bg-red-900/40 text-xs`}>
+                      Permanent Delete User
+                    </button>
+                  </div>
+                  <p className="text-zinc-600 text-[11px]">
+                    Every moderation or destructive action asks for the owner password again for extra verification.
+                  </p>
+                </div>
               </div>
               {/* User comments */}
               <div className="space-y-3">

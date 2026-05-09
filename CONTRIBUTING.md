@@ -44,6 +44,7 @@ All contributors must follow our [Code of Conduct](./CODE_OF_CONDUCT.md). Respec
 
 - Complete redesigns or theme changes (the Dark-Amber aesthetic is intentional)
 - New page routes without prior discussion via a GitHub Issue
+- New serverless API route files for feedback features (extend existing handlers to stay within Vercel function limits)
 - Changes that increase the production bundle size significantly without justification
 - Hardcoded credentials, API keys, or private data of any kind
 - Automated code generators or AI-generated code dumps without review
@@ -135,6 +136,7 @@ If your change touches any of these areas, manually verify them:
 | Navigation | All pages (header/footer present, mobile menu works) |
 | Live page | `/live` (tabs, pagination, embed) |
 | Dashboard | `/dashboard` (image upload, journal CRUD) |
+| Feedback system | `/feedback`, `/dashboard` (Feedback tab), `/` (feedback stats + pinned scroller) |
 | Home page | `/` (photo badge, timeline, marquee) |
 | Status page | `/status` (endpoint probes, health panel, system specs card, refresh rate limit) |
 | Search | `/search` (results, trending, easter egg) |

@@ -7,17 +7,24 @@
  * GET  ?action=comment-count&journalIds=X,Y             → comment counts for multiple journals
  * GET  ?action=top-journals&limit=6                     → top N most-liked published journals
  * GET  ?action=blacklist                                → get blacklist words (auth required)
+ * GET  ?action=feedback-list&page=1&limit=20             → feedback list (public)
+ * GET  ?action=feedback-stats                             → feedback stats summary (public)
+ * GET  ?action=feedback-pinned                            → pinned feedback for homepage (public)
  * POST ?action=like&id=<id>&session=<sessionId>         → like a journal once/session
  * POST ?action=status                                   → CREATE LIVE STATUS (auth required)
  * POST ?action=comment                                  → add comment (Google token or owner cookie)
  * POST ?action=comment-like&id=<id>&session=<s>         → like a comment once/session
  * POST ?action=comment-pin                              → pin/unpin comment (auth required)
  * POST ?action=blacklist                                → add blacklist word (auth required)
+ * POST ?action=feedback                                 → add feedback (Google token or owner cookie)
+ * POST ?action=feedback-pin                             → pin/unpin feedback (auth required)
  * POST                                                  → create journal (auth required)
  * PUT  ?action=comment                                  → edit own comment (Google token or owner cookie)
+ * PUT  ?action=feedback-admin                           → owner edit any feedback
  * PUT                                                   → update journal (auth required); body must include _id
  * DELETE ?action=comment&id=<id>                        → delete comment (Google token or owner cookie)
  * DELETE ?action=blacklist&id=<id>                      → delete blacklist word (auth required)
+ * DELETE ?action=feedback-admin&id=<id>                 → owner delete any feedback
  * DELETE ?id=<id>                                       → delete journal (auth required)
  */
 
@@ -26,6 +33,9 @@ const { MongoClient, ObjectId } = require('mongodb');
 let cachedClient = null;
 // Public/admin user lists should only include real commenter accounts; exclude owner and malformed empty IDs.
 const PUBLIC_USER_FILTER = { userId: { $exists: true, $nin: ['', 'owner'] } };
+const MIN_COMMUNITY_TEXT_LENGTH = 100;
+const COMMUNITY_COOLDOWN_MS = 2 * 60 * 1000;
+const communityCooldownByIp = new Map();
 
 async function getDb() {
   if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI not set');
@@ -134,6 +144,178 @@ function normalizeImages(images) {
     if (value) unique.add(value);
   }
   return Array.from(unique);
+}
+
+function getCooldownKey(ip, scope) {
+  return `${scope}:${String(ip || 'unknown')}`;
+}
+
+function checkCommunityCooldown(ip, scope) {
+  const now = Date.now();
+  const key = getCooldownKey(ip, scope);
+  const until = Number(communityCooldownByIp.get(key) || 0);
+  if (until > now) {
+    return { limited: true, retryAfterSec: Math.max(1, Math.ceil((until - now) / 1000)) };
+  }
+  return { limited: false, retryAfterSec: 0 };
+}
+
+function startCommunityCooldown(ip, scope) {
+  const key = getCooldownKey(ip, scope);
+  communityCooldownByIp.set(key, Date.now() + COMMUNITY_COOLDOWN_MS);
+}
+
+function verifyOwnerPassword(password) {
+  const expectedPassword = process.env.SPACE_PASSWORD;
+  return Boolean(password && expectedPassword && password === expectedPassword);
+}
+
+function formatUntilIST(until) {
+  if (!until) return '';
+  const date = until instanceof Date ? until : new Date(until);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+function isModerationEntryActive(entry, now = new Date()) {
+  if (!entry || entry.active !== true) return false;
+  if (!entry.until) return true;
+  const untilDate = new Date(entry.until);
+  return !Number.isNaN(untilDate.getTime()) && untilDate > now;
+}
+
+function buildActiveModerationClause(scope, now = new Date()) {
+  return {
+    [`moderation.${scope}.active`]: true,
+    $or: [
+      { [`moderation.${scope}.until`]: null },
+      { [`moderation.${scope}.until`]: { $exists: false } },
+      { [`moderation.${scope}.until`]: { $gt: now } },
+    ],
+  };
+}
+
+function getUserModerationStateFromDoc(userDoc, now = new Date()) {
+  const moderation = userDoc && typeof userDoc === 'object' ? (userDoc.moderation || {}) : {};
+  const fullEntry = moderation.full || null;
+  const commentsEntry = moderation.comments || null;
+  const profileEntry = moderation.profile || null;
+  const feedbackEntry = moderation.feedback || null;
+
+  const full = isModerationEntryActive(fullEntry, now);
+  const commentsOnly = isModerationEntryActive(commentsEntry, now);
+  const profileOnly = isModerationEntryActive(profileEntry, now);
+  const feedbackOnly = isModerationEntryActive(feedbackEntry, now);
+
+  return {
+    full,
+    comments: full || commentsOnly,
+    profile: full || profileOnly,
+    feedback: full || feedbackOnly,
+    entries: {
+      full: full ? fullEntry : null,
+      comments: !full && commentsOnly ? commentsEntry : null,
+      profile: !full && profileOnly ? profileEntry : null,
+      feedback: !full && feedbackOnly ? feedbackEntry : null,
+    },
+    moderation,
+  };
+}
+
+function buildModerationMessage(scope, state) {
+  if (!state) return null;
+  const normalizedScope = scope === 'full' ? 'full' : (state.full ? 'full' : scope);
+  const entry = normalizedScope === 'full' ? state.entries.full : state.entries[normalizedScope];
+  const untilText = entry?.until ? ` until ${formatUntilIST(entry.until)} IST` : ' until the owner reactivates it';
+  const reasonText = entry?.reason ? ` Reason: ${entry.reason}` : '';
+  if (normalizedScope === 'full') {
+    return `Your account is temporarily deactivated${untilText}. Contact support to reactivate.${reasonText}`;
+  }
+  if (normalizedScope === 'comments') {
+    return `Your comment access is temporarily disabled${untilText}. Contact support to reactivate.${reasonText}`;
+  }
+  if (normalizedScope === 'feedback') {
+    return `Your feedback access is temporarily disabled${untilText}. Contact support to reactivate.${reasonText}`;
+  }
+  return `This user profile is temporarily deactivated${untilText}.${reasonText}`;
+}
+
+async function getUserModerationState(db, userId) {
+  if (!userId || userId === 'owner') return { userDoc: null, state: getUserModerationStateFromDoc(null) };
+  const userDoc = await db.collection('users').findOne({ userId });
+  return { userDoc, state: getUserModerationStateFromDoc(userDoc) };
+}
+
+async function getHiddenUserIdsByScope(db, scope) {
+  if (!['comments', 'feedback', 'profile'].includes(scope)) return [];
+  const now = new Date();
+  const clauses = [buildActiveModerationClause('full', now)];
+  if (scope !== 'full') clauses.push(buildActiveModerationClause(scope, now));
+  const docs = await db.collection('users')
+    .find(
+      {
+        userId: { $exists: true, $nin: ['', 'owner'] },
+        $or: clauses,
+      },
+      { projection: { userId: 1 } },
+    )
+    .toArray();
+  return docs.map((doc) => String(doc.userId || '').trim()).filter(Boolean);
+}
+
+async function applyVisibleCommentUserFilter(db, filter = {}) {
+  const hiddenUserIds = await getHiddenUserIdsByScope(db, 'comments');
+  if (!hiddenUserIds.length) return filter;
+  return { ...filter, userId: { $nin: hiddenUserIds } };
+}
+
+async function applyVisibleFeedbackUserFilter(db, filter = {}) {
+  const hiddenUserIds = await getHiddenUserIdsByScope(db, 'feedback');
+  if (!hiddenUserIds.length) return filter;
+  return { ...filter, userId: { $nin: hiddenUserIds } };
+}
+
+async function applyVisibleProfileUserFilter(db, filter = PUBLIC_USER_FILTER) {
+  const hiddenUserIds = await getHiddenUserIdsByScope(db, 'profile');
+  if (!hiddenUserIds.length) return filter;
+  const baseUserFilter = filter.userId && typeof filter.userId === 'object'
+    ? {
+        ...filter.userId,
+        $nin: [...new Set([...(Array.isArray(filter.userId.$nin) ? filter.userId.$nin : []), ...hiddenUserIds])],
+      }
+    : { $exists: true, $nin: hiddenUserIds };
+  return { ...filter, userId: baseUserFilter };
+}
+
+async function recalculateUserCommentStats(db, userId) {
+  if (!userId || userId === 'owner') return null;
+  const usersCol = db.collection('users');
+  const commentsCol = db.collection('comments');
+  const existingUser = await usersCol.findOne({ userId });
+  if (!existingUser) return null;
+  const [totalComments, firstComment, lastComment] = await Promise.all([
+    commentsCol.countDocuments({ userId, isDeleted: { $ne: true } }),
+    commentsCol.find({ userId, isDeleted: { $ne: true } }).sort({ createdAt: 1 }).limit(1).next(),
+    commentsCol.find({ userId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(1).next(),
+  ]);
+  const fallbackDate = existingUser.createdAt || new Date();
+  const update = {
+    totalComments,
+    firstCommentAt: firstComment?.createdAt || existingUser.firstCommentAt || fallbackDate,
+    lastCommentAt: lastComment?.createdAt || existingUser.lastCommentAt || fallbackDate,
+    lastJournalId: lastComment?.journalId || null,
+    contentResetAt: totalComments === 0 ? new Date() : existingUser.contentResetAt,
+  };
+  await usersCol.updateOne({ userId }, { $set: update });
+  return await usersCol.findOne({ userId });
 }
 
 // ── Comment helpers ──────────────────────────────────────────────────────────
@@ -304,6 +486,62 @@ async function resolveJournalObjectId(col, journalIdOrSlug, onlyPublished = true
   return doc?._id || null;
 }
 
+
+const FEEDBACK_DEFAULT_LIMIT = 20;
+
+function normalizeFeedbackSort(sortToken) {
+  const token = String(sortToken || 'newest').trim().toLowerCase();
+  if (['newest', 'oldest', 'highest', 'lowest', 'relevant'].includes(token)) return token;
+  return 'newest';
+}
+
+function getFeedbackSort(sortToken) {
+  const sort = normalizeFeedbackSort(sortToken);
+  if (sort === 'oldest') return { createdAt: 1 };
+  if (sort === 'highest') return { rating: -1, createdAt: -1 };
+  if (sort === 'lowest') return { rating: 1, createdAt: -1 };
+  if (sort === 'relevant') return { isPinned: -1, rating: -1, createdAt: -1 };
+  return { createdAt: -1 };
+}
+
+function normalizeFeedbackRating(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(1, Math.min(5, Math.round(n)));
+}
+
+async function getFeedbackCategoriesMap(db) {
+  const categories = await db.collection('feedback_categories').find({ type: 'feedback' }).toArray();
+  const map = new Map();
+  for (const cat of categories) {
+    const subjectSlug = String(cat?.subjectSlug || '').trim();
+    if (!subjectSlug) continue;
+    const sub = new Map();
+    const subSubjects = Array.isArray(cat?.subSubjects) ? cat.subSubjects : [];
+    for (const item of subSubjects) {
+      const slug = String(item?.slug || '').trim();
+      const name = String(item?.name || '').trim();
+      if (!slug || !name) continue;
+      sub.set(slug, name);
+    }
+    map.set(subjectSlug, {
+      subject: String(cat?.subject || '').trim(),
+      subjectSlug,
+      sub,
+    });
+  }
+  return map;
+}
+
+async function buildFeedbackRatingSummary(db, filter = {}) {
+  const rows = await db.collection('feedbacks').aggregate([
+    { $match: filter },
+    { $group: { _id: '$rating', count: { $sum: 1 } } },
+  ]).toArray();
+  const map = new Map(rows.map((r) => [Number(r._id), Number(r.count || 0)]));
+  return [5, 4, 3, 2, 1].map((star) => ({ star, count: map.get(star) || 0 }));
+}
+
 module.exports = async (req, res) => {
   try {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -343,7 +581,7 @@ module.exports = async (req, res) => {
           clusterTotalSize = listResult.totalSize || 0;
         } catch { /* Atlas M0 may not allow this — fall back to current DB size */ }
 
-        const collectionNames = ['journals', 'projects', 'timeline', 'categories', 'live_status', 'settings', 'config', 'search_analytics', 'comments', 'blocked_users', 'users'];
+        const collectionNames = ['journals', 'projects', 'timeline', 'categories', 'feedback_categories', 'feedbacks', 'live_status', 'settings', 'config', 'search_analytics', 'comments', 'blocked_users', 'users'];
         const collections = {};
         for (const name of collectionNames) {
           try {
@@ -451,6 +689,21 @@ module.exports = async (req, res) => {
         // every keyword must appear in at least one of the indexed fields.
         const keywords = normalizedQuery.split(/\s+/).filter(Boolean);
         const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const buildCharTokens = (terms) => {
+          const tokenSet = new Set();
+          terms.forEach((term) => {
+            const clean = String(term || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (clean.length < 3) return;
+            for (let size = 3; size <= Math.min(6, clean.length); size += 1) {
+              for (let i = 0; i <= clean.length - size; i += 1) {
+                tokenSet.add(clean.slice(i, i + size));
+              }
+            }
+          });
+          return Array.from(tokenSet).sort((a, b) => b.length - a.length).slice(0, 40);
+        };
+        const charTokens = buildCharTokens(keywords);
+        const snippetTokens = Array.from(new Set([...keywords, ...charTokens])).slice(0, 40);
 
         const keywordConditions = keywords.map(kw => {
           const kwRegex = new RegExp(escapeRegex(kw), 'i');
@@ -465,10 +718,30 @@ module.exports = async (req, res) => {
         });
 
         const journalsCol = db.collection('journals');
-        const matchedJournals = await journalsCol.find({
-          published: true,
-          $and: keywordConditions
-        }).sort({ createdAt: -1 }).toArray();
+        let matchedJournals = [];
+        if (keywordConditions.length > 0) {
+          matchedJournals = await journalsCol.find({
+            published: true,
+            $and: keywordConditions,
+          }).sort({ createdAt: -1 }).toArray();
+        }
+        if (matchedJournals.length === 0 && charTokens.length > 0) {
+          const charRegexConditions = charTokens.map((token) => {
+            const tokenRegex = new RegExp(escapeRegex(token), 'i');
+            return {
+              $or: [
+                { title: tokenRegex },
+                { summary: tokenRegex },
+                { content: tokenRegex },
+                { categoryName: tokenRegex },
+              ],
+            };
+          });
+          matchedJournals = await journalsCol.find({
+            published: true,
+            $or: charRegexConditions,
+          }).sort({ createdAt: -1 }).limit(40).toArray();
+        }
 
         // --- Multi-Keyword Snippet Generator ---
         // Strips HTML, locates each keyword, and highlights ALL keywords in every snippet.
@@ -515,17 +788,33 @@ module.exports = async (req, res) => {
           category: j.categoryName,
           snippets: getSnippets(
             [j.title, j.summary, j.content].filter(Boolean).join(' | '),
-            keywords
+            snippetTokens
           ),
           createdAtIST: j.createdAtIST
         }));
 
         // Community users
         const usersCol = db.collection('users');
-        const userQuery = keywords.length
-          ? { $and: [PUBLIC_USER_FILTER, ...keywords.map((kw) => ({ $or: [{ userName: new RegExp(escapeRegex(kw), 'i') }, { userId: new RegExp(escapeRegex(kw), 'i') }, { profileTitle: new RegExp(escapeRegex(kw), 'i') }, { bio: new RegExp(escapeRegex(kw), 'i') }, { description: new RegExp(escapeRegex(kw), 'i') }] }))] }
-          : PUBLIC_USER_FILTER;
-        const matchedUsers = await usersCol.find(userQuery).sort({ lastCommentAt: -1, firstCommentAt: -1 }).limit(8).toArray();
+        const publicUserFilter = await applyVisibleProfileUserFilter(db, PUBLIC_USER_FILTER);
+        const strictUserQuery = keywords.length
+          ? { $and: [publicUserFilter, ...keywords.map((kw) => ({ $or: [{ userName: new RegExp(escapeRegex(kw), 'i') }, { userId: new RegExp(escapeRegex(kw), 'i') }, { profileTitle: new RegExp(escapeRegex(kw), 'i') }, { bio: new RegExp(escapeRegex(kw), 'i') }, { description: new RegExp(escapeRegex(kw), 'i') }] }))] }
+          : publicUserFilter;
+        let matchedUsers = await usersCol.find(strictUserQuery).sort({ lastCommentAt: -1, firstCommentAt: -1 }).limit(8).toArray();
+        if (matchedUsers.length === 0 && charTokens.length > 0) {
+          const charUserOr = charTokens.map((token) => {
+            const tokenRegex = new RegExp(escapeRegex(token), 'i');
+            return {
+              $or: [
+                { userName: tokenRegex },
+                { userId: tokenRegex },
+                { profileTitle: tokenRegex },
+                { bio: tokenRegex },
+                { description: tokenRegex },
+              ],
+            };
+          });
+          matchedUsers = await usersCol.find({ $and: [publicUserFilter, { $or: charUserOr }] }).sort({ lastCommentAt: -1, firstCommentAt: -1 }).limit(8).toArray();
+        }
         const userResults = matchedUsers
           .filter((u) => String(u?.userId || '').trim())
           .map((u) => ({
@@ -538,20 +827,30 @@ module.exports = async (req, res) => {
               [u.userName, u.userId, u.profileTitle, u.description, u.bio]
                 .filter(Boolean)
                 .join(' | ') || 'Community user profile',
-              keywords
+              snippetTokens
             ),
             createdAtIST: u.lastCommentAtIST || u.firstCommentAtIST || undefined,
           }));
 
         // Comment permalinks
         const commentsCol = db.collection('comments');
-        const commentQuery = keywords.length
+        const strictCommentQuery = keywords.length
           ? {
               isDeleted: { $ne: true },
               $and: keywords.map((kw) => ({ text: new RegExp(escapeRegex(kw), 'i') })),
             }
           : { isDeleted: { $ne: true } };
-        const matchedComments = await commentsCol.find(commentQuery).sort({ createdAt: -1 }).limit(12).toArray();
+        let commentQuery = await applyVisibleCommentUserFilter(db, strictCommentQuery);
+        let matchedComments = await commentsCol.find(commentQuery).sort({ createdAt: -1 }).limit(12).toArray();
+        if (matchedComments.length === 0 && charTokens.length > 0) {
+          const charCommentRegex = charTokens.map((token) => new RegExp(escapeRegex(token), 'i'));
+          const fallbackCommentQuery = await applyVisibleCommentUserFilter(db, {
+            isDeleted: { $ne: true },
+            $or: charCommentRegex.map((rgx) => ({ text: rgx })),
+          });
+          commentQuery = fallbackCommentQuery;
+          matchedComments = await commentsCol.find(commentQuery).sort({ createdAt: -1 }).limit(12).toArray();
+        }
         const relatedJournalIds = [...new Set(matchedComments.map((c) => String(c?.journalId || '')).filter((v) => ObjectId.isValid(v)))].map((v) => new ObjectId(v));
         const relatedJournals = relatedJournalIds.length
           ? await journalsCol.find({ _id: { $in: relatedJournalIds }, published: true }, { projection: { _id: 1, slug: 1, title: 1 } }).toArray()
@@ -568,7 +867,7 @@ module.exports = async (req, res) => {
               title: `Comment by ${c.userName || 'User'} on ${j.title || 'Journal'}`,
               url: `/journal/view/${j.slug || j._id}/comment/${c._id}`,
               category: 'Community',
-              snippets: getSnippets(String(c.text || ''), keywords),
+              snippets: getSnippets(String(c.text || ''), snippetTokens),
               createdAtIST: c.createdAtIST || undefined,
             };
           });
@@ -593,6 +892,120 @@ module.exports = async (req, res) => {
         return json(res, 200, { ok: true, results, easterEgg, trending });
       }
 
+      // --- Feedback stats (public) ---
+      if (action === 'feedback-stats') {
+        const feedbackCol = db.collection('feedbacks');
+        const visibleFeedbackFilter = await applyVisibleFeedbackUserFilter(db, {});
+        const visibleUsersFilter = await applyVisibleProfileUserFilter(db, PUBLIC_USER_FILTER);
+        const [totalFeedbacks, pinnedCount, usersCount, avgAgg, distribution] = await Promise.all([
+          feedbackCol.countDocuments(visibleFeedbackFilter),
+          feedbackCol.countDocuments({ ...visibleFeedbackFilter, isPinned: true }),
+          db.collection('users').countDocuments(visibleUsersFilter),
+          feedbackCol.aggregate([{ $match: visibleFeedbackFilter }, { $group: { _id: null, avg: { $avg: '$rating' } } }]).toArray(),
+          buildFeedbackRatingSummary(db, visibleFeedbackFilter),
+        ]);
+
+        const averageRating = totalFeedbacks > 0 ? Number((avgAgg?.[0]?.avg || 0).toFixed(2)) : 0;
+        return json(res, 200, {
+          ok: true,
+          stats: {
+            totalUsers: Math.max(1, usersCount + 1),
+            totalFeedbacks,
+            pinnedCount,
+            averageRating,
+            ratingSummary: distribution,
+          },
+        });
+      }
+
+      // --- Feedback list (public) ---
+      if (action === 'feedback-list') {
+        const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
+        const limit = Math.min(FEEDBACK_DEFAULT_LIMIT, Math.max(1, parseInt(getParam(req, 'limit') || String(FEEDBACK_DEFAULT_LIMIT), 10)));
+        const subject = String(getParam(req, 'subject') || '').trim().toLowerCase();
+        const subSubject = String(getParam(req, 'subSubject') || '').trim().toLowerCase();
+        const sort = normalizeFeedbackSort(getParam(req, 'sort'));
+        const filter = {};
+        if (subject) filter.subjectSlug = subject;
+        if (subSubject) filter.subSubjectSlug = subSubject;
+        const visibleFilter = await applyVisibleFeedbackUserFilter(db, filter);
+
+        const feedbackCol = db.collection('feedbacks');
+        const [total, feedbacks, ratingSummary] = await Promise.all([
+          feedbackCol.countDocuments(visibleFilter),
+          feedbackCol.find(visibleFilter, {
+            projection: {
+              userName: 1,
+              userPic: 1,
+              subject: 1,
+              subjectSlug: 1,
+              subSubject: 1,
+              subSubjectSlug: 1,
+              title: 1,
+              text: 1,
+              rating: 1,
+              isPinned: 1,
+              createdAt: 1,
+              updatedAt: 1,
+              isOwner: 1,
+            },
+          }).sort(getFeedbackSort(sort)).skip((page - 1) * limit).limit(limit).toArray(),
+          buildFeedbackRatingSummary(db, visibleFilter),
+        ]);
+
+        return json(res, 200, {
+          ok: true,
+          feedbacks,
+          ratingSummary,
+          pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+        });
+      }
+
+      // --- Pinned feedback for homepage (public) ---
+      if (action === 'feedback-pinned') {
+        const limit = Math.min(200, Math.max(1, parseInt(getParam(req, 'limit') || '80', 10)));
+        const visiblePinnedFilter = await applyVisibleFeedbackUserFilter(db, { isPinned: true });
+        const feedbacks = await db.collection('feedbacks').find(
+          visiblePinnedFilter,
+          {
+            projection: {
+              userName: 1,
+              userPic: 1,
+              subject: 1,
+              subSubject: 1,
+              title: 1,
+              text: 1,
+              rating: 1,
+              createdAt: 1,
+              isOwner: 1,
+            },
+          },
+        ).sort({ createdAt: -1 }).limit(limit).toArray();
+        return json(res, 200, { ok: true, feedbacks });
+      }
+
+      // --- Feedback list for owner dashboard (auth) ---
+      if (action === 'feedback-admin-list') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
+        const limit = Math.min(20, Math.max(1, parseInt(getParam(req, 'limit') || '20', 10)));
+        const sort = normalizeFeedbackSort(getParam(req, 'sort'));
+        const subject = String(getParam(req, 'subject') || '').trim().toLowerCase();
+        const subSubject = String(getParam(req, 'subSubject') || '').trim().toLowerCase();
+
+        const filter = {};
+        if (subject) filter.subjectSlug = subject;
+        if (subSubject) filter.subSubjectSlug = subSubject;
+
+        const feedbackCol = db.collection('feedbacks');
+        const [total, feedbacks] = await Promise.all([
+          feedbackCol.countDocuments(filter),
+          feedbackCol.find(filter).sort(getFeedbackSort(sort)).skip((page - 1) * limit).limit(limit).toArray(),
+        ]);
+
+        return json(res, 200, { ok: true, feedbacks, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+      }
+
       // --- Comments: Get paginated comments ---
       if (action === 'comments') {
         const journalRef = getParam(req, 'journalId');
@@ -611,35 +1024,37 @@ module.exports = async (req, res) => {
         // Pinned comments (top-level only, always returned regardless of page)
         let pinnedComments = [];
         if (!isReply) {
-          pinnedComments = await commentsCol.find({
+          const pinnedFilter = await applyVisibleCommentUserFilter(db, {
             journalId: resolvedJournalId,
             parentId: null,
             isPinned: true,
             isDeleted: { $ne: true },
-          }).sort({ pinnedOrder: 1 }).toArray();
+          });
+          pinnedComments = await commentsCol.find(pinnedFilter).sort({ pinnedOrder: 1 }).toArray();
         }
 
         // Build filter for regular (non-pinned) comments
         const pinnedIds = pinnedComments.map(p => p._id);
-        const filter = {
+        const baseFilter = {
           journalId: resolvedJournalId,
           parentId: isReply ? new ObjectId(parentIdParam) : null,
           isDeleted: { $ne: true },
         };
         if (!isReply && pinnedIds.length > 0) {
-          filter._id = { $nin: pinnedIds };
+          baseFilter._id = { $nin: pinnedIds };
         }
+        const filter = await applyVisibleCommentUserFilter(db, baseFilter);
 
         let sortObj;
         if (sort === 'new') sortObj = { createdAt: -1 };
         else if (sort === 'old') sortObj = { createdAt: 1 };
         else sortObj = { likes: -1, createdAt: -1 }; // top (default)
 
-        const total = await commentsCol.countDocuments({
+        const total = await commentsCol.countDocuments(await applyVisibleCommentUserFilter(db, {
           journalId: resolvedJournalId,
           parentId: isReply ? new ObjectId(parentIdParam) : null,
           isDeleted: { $ne: true },
-        });
+        }));
 
         const comments = await commentsCol
           .find(filter)
@@ -653,7 +1068,7 @@ module.exports = async (req, res) => {
         let replyCountMap = {};
         if (allCommentIds.length > 0) {
           const replyAgg = await commentsCol.aggregate([
-            { $match: { parentId: { $in: allCommentIds }, isDeleted: { $ne: true } } },
+            { $match: await applyVisibleCommentUserFilter(db, { parentId: { $in: allCommentIds }, isDeleted: { $ne: true } }) },
             { $group: { _id: '$parentId', count: { $sum: 1 } } },
           ]).toArray();
           replyAgg.forEach(r => { replyCountMap[r._id.toString()] = r.count; });
@@ -689,8 +1104,9 @@ module.exports = async (req, res) => {
         const ids = [...idsFromObjectIds, ...idsFromSlugs];
         if (!ids.length) return json(res, 200, { ok: true, counts: {} });
         const commentsCol = db.collection('comments');
+        const visibleCountFilter = await applyVisibleCommentUserFilter(db, { journalId: { $in: ids }, isDeleted: { $ne: true } });
         const agg = await commentsCol.aggregate([
-          { $match: { journalId: { $in: ids }, isDeleted: { $ne: true } } },
+          { $match: visibleCountFilter },
           { $group: { _id: '$journalId', count: { $sum: 1 } } },
         ]).toArray();
         const counts = {};
@@ -737,16 +1153,21 @@ module.exports = async (req, res) => {
         const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
         const limit = 12;
         const usersCol = db.collection('users');
-        const filter = PUBLIC_USER_FILTER;
+        const filter = await applyVisibleProfileUserFilter(db, PUBLIC_USER_FILTER);
         const total = await usersCol.countDocuments(filter);
         const users = await usersCol.find(filter).sort({ lastCommentAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
-        return json(res, 200, { ok: true, users: users.map(u => ({ ...u, verified: Boolean(u.verified) })), pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+        const hiddenCommentUsers = new Set(await getHiddenUserIdsByScope(db, 'comments'));
+        return json(res, 200, { ok: true, users: users.map(u => ({ ...u, verified: Boolean(u.verified), totalComments: hiddenCommentUsers.has(String(u.userId || '')) ? 0 : Number(u.totalComments || 0) })), pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
       }
 
       // --- User activity: per-day comment counts for contribution graph ---
       if (action === 'user-activity') {
         const userId = getParam(req, 'userId');
         if (!userId) return json(res, 400, { ok: false, message: 'userId required' });
+        const { state } = await getUserModerationState(db, userId);
+        if (state.full || state.profile || state.comments) {
+          return json(res, 200, { ok: true, activity: [] });
+        }
         const actCol = db.collection('comments');
         const activity = await actCol.aggregate([
           { $match: { userId, isDeleted: { $ne: true } } },
@@ -792,10 +1213,40 @@ module.exports = async (req, res) => {
         const userId = getParam(req, 'userId');
         const journalId = getParam(req, 'journalId');
         if (!userId) return json(res, 400, { ok: false, message: 'userId required' });
+        const { state } = await getUserModerationState(db, userId);
+        if (state.full || state.comments) {
+          return json(res, 200, {
+            ok: true,
+            blocked: true,
+            message: buildModerationMessage('comments', state),
+            blockType: 'moderation',
+            expiresAt: state.entries.full?.until || state.entries.comments?.until || null,
+          });
+        }
         const block = await getActiveBlock(db, userId, journalId);
-        if (!block) return json(res, 200, { ok: true, blocked: false });
+        if (!block) return json(res, 200, { ok: true, blocked: false, message: null, blockType: null, expiresAt: null });
         const msg = await buildBlockMessage(db, block);
         return json(res, 200, { ok: true, blocked: true, message: msg, blockType: block.blockType, expiresAt: block.expiresAt || null });
+      }
+
+      if (action === 'user-access') {
+        const userId = getParam(req, 'userId');
+        if (!userId) return json(res, 400, { ok: false, message: 'userId required' });
+        const { state } = await getUserModerationState(db, userId);
+        return json(res, 200, {
+          ok: true,
+          access: {
+            fullDeactivated: state.full,
+            commentBlocked: state.comments,
+            feedbackBlocked: state.feedback,
+            profileHidden: state.profile,
+            messages: {
+              comments: state.comments ? buildModerationMessage('comments', state) : null,
+              feedback: state.feedback ? buildModerationMessage('feedback', state) : null,
+              profile: state.profile ? buildModerationMessage('profile', state) : null,
+            },
+          },
+        });
       }
 
       // --- User comments: comments by a specific userId (admin only) ---
@@ -826,13 +1277,15 @@ module.exports = async (req, res) => {
         const permalinkCommentsCol = db.collection('comments');
         const comment = await permalinkCommentsCol.findOne({ _id: new ObjectId(commentId) });
         if (!comment) return json(res, 404, { ok: false, message: 'Comment not found' });
+        const hiddenCommentUsers = new Set(await getHiddenUserIdsByScope(db, 'comments'));
+        if (hiddenCommentUsers.has(String(comment.userId || ''))) return json(res, 404, { ok: false, message: 'Comment not found' });
         // Get the journal info
         const journal = await col.findOne({ _id: comment.journalId, published: true });
         if (!journal) return json(res, 404, { ok: false, message: 'Journal not found' });
         // Get replies if top-level comment
         let replies = [];
         if (!comment.parentId) {
-          replies = await permalinkCommentsCol.find({ parentId: comment._id, isDeleted: { $ne: true } }).sort({ createdAt: 1 }).toArray();
+          replies = await permalinkCommentsCol.find(await applyVisibleCommentUserFilter(db, { parentId: comment._id, isDeleted: { $ne: true } })).sort({ createdAt: 1 }).toArray();
         }
         // If it's a reply, get parent comment
         let parentComment = null;
@@ -926,9 +1379,38 @@ module.exports = async (req, res) => {
 
         // Get user info from users collection (prefer) or fall back to first comment
         const userDoc = await usersCol.findOne({ userId });
+        const moderationState = getUserModerationStateFromDoc(userDoc);
+        if (moderationState.full || moderationState.profile) {
+          if (!userDoc) return json(res, 404, { ok: false, message: 'User not found' });
+          return json(res, 200, {
+            ok: true,
+            deactivated: true,
+            user: {
+              userId,
+              userName: userDoc.userName,
+              userPic: userDoc.userPic,
+              verified: Boolean(userDoc.verified),
+              firstCommentAt: userDoc.firstCommentAt || userDoc.createdAt || new Date().toISOString(),
+              totalComments: 0,
+              profileTitle: userDoc.profileTitle,
+              bio: '',
+              description: '',
+              socialLinks: [],
+              profileDeactivated: true,
+              deactivationKind: moderationState.full ? 'full' : 'profile',
+              deactivationMessage: buildModerationMessage(moderationState.full ? 'full' : 'profile', moderationState),
+            },
+            comments: [],
+            pagination: { page, limit, total: 0, totalPages: 1 },
+          });
+        }
         const total = await userCommentsCol.countDocuments({ userId, isDeleted: { $ne: true } });
         if (total === 0 && !userDoc) return json(res, 404, { ok: false, message: 'User not found' });
-        const comments = await userCommentsCol.find({ userId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
+        const visibleCommentFilter = moderationState.comments ? { userId, isDeleted: { $ne: true }, _id: { $in: [] } } : await applyVisibleCommentUserFilter(db, { userId, isDeleted: { $ne: true } });
+        const totalVisibleComments = moderationState.comments ? 0 : await userCommentsCol.countDocuments(visibleCommentFilter);
+        const comments = moderationState.comments
+          ? []
+          : await userCommentsCol.find(visibleCommentFilter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray();
         const journalIds = [...new Set(comments.map(c => c.journalId?.toString()).filter(Boolean))].filter(id => ObjectId.isValid(id)).map(id => new ObjectId(id));
         let journalMap = {};
         if (journalIds.length) {
@@ -937,10 +1419,10 @@ module.exports = async (req, res) => {
         }
         const enrichedComments = comments.map(c => ({ ...c, originalText: undefined, journalInfo: journalMap[c.journalId?.toString()] || null }));
         const lastComment = comments.length > 0 ? comments[comments.length - 1] : null;
-        const userFallback = lastComment ? { userId, userName: lastComment.userName, userPic: lastComment.userPic, firstCommentAt: lastComment.createdAt, totalComments: total } : null;
+        const userFallback = lastComment ? { userId, userName: lastComment.userName, userPic: lastComment.userPic, firstCommentAt: lastComment.createdAt, totalComments: totalVisibleComments } : null;
         const profile = userDoc || userFallback;
         const isVerified = Boolean(userDoc?.verified);
-        return json(res, 200, { ok: true, user: { userId, userName: profile?.userName, userPic: profile?.userPic, verified: isVerified, firstCommentAt: profile?.firstCommentAt || profile?.createdAt, totalComments: total, profileTitle: userDoc?.profileTitle, bio: userDoc?.bio, description: userDoc?.description, socialLinks: userDoc?.socialLinks }, comments: enrichedComments.map(c => ({ ...c, isVerified })), pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+        return json(res, 200, { ok: true, user: { userId, userName: profile?.userName, userPic: profile?.userPic, verified: isVerified, firstCommentAt: profile?.firstCommentAt || profile?.createdAt, totalComments: totalVisibleComments, profileTitle: userDoc?.profileTitle, bio: userDoc?.bio, description: userDoc?.description, socialLinks: userDoc?.socialLinks }, comments: enrichedComments.map(c => ({ ...c, isVerified })), pagination: { page, limit, total: totalVisibleComments, totalPages: Math.max(1, Math.ceil(totalVisibleComments / limit)) } });
       }
 
       const slug = getParam(req, 'slug');
@@ -1153,11 +1635,138 @@ module.exports = async (req, res) => {
         return json(res, 200, { ok: true, likes: Number(existing.likes || 0) + 1, alreadyLiked: false });
       }
 
+      // --- Feedback add (public with Google token OR owner cookie) ---
+      if (action === 'feedback') {
+        const body = await readBody(req);
+        const credential = String(body.credential || '').trim();
+        const ownerPosting = isAuthenticated(req);
+        const clientIp = getClientIp(req);
+
+        let userInfo = null;
+        if (ownerPosting) {
+          userInfo = {
+            userId: 'owner',
+            name: 'Deep Dey',
+            picture: '/assets/images/myphoto.png',
+            email: '',
+          };
+        } else {
+          userInfo = await verifyGoogleToken(credential);
+          if (!userInfo) return json(res, 401, { ok: false, message: 'Authentication required' });
+          const { state } = await getUserModerationState(db, userInfo.userId);
+          if (state.full || state.feedback) {
+            return json(res, 403, { ok: false, message: buildModerationMessage('feedback', state) });
+          }
+        }
+
+        const subjectSlug = slugify(String(body.subject || body.subjectSlug || ''));
+        const subSubjectSlug = slugify(String(body.subSubject || body.subSubjectSlug || ''));
+        const title = String(body.title || '').trim().slice(0, 160);
+        const text = String(body.text || '').trim().slice(0, 3000);
+        const rating = normalizeFeedbackRating(body.rating);
+
+        if (!subjectSlug) return json(res, 400, { ok: false, message: 'Subject required' });
+        if (!subSubjectSlug) return json(res, 400, { ok: false, message: 'Sub-subject required' });
+        if (!title) return json(res, 400, { ok: false, message: 'Subject line required' });
+        if (!text) return json(res, 400, { ok: false, message: 'Feedback text required' });
+        if (text.length < MIN_COMMUNITY_TEXT_LENGTH) return json(res, 400, { ok: false, message: `Feedback must be at least ${MIN_COMMUNITY_TEXT_LENGTH} characters.` });
+        if (!rating) return json(res, 400, { ok: false, message: 'Rating required' });
+        const feedbackCooldown = checkCommunityCooldown(clientIp, 'feedback');
+        if (feedbackCooldown.limited) {
+          return json(res, 429, { ok: false, message: `Feedback cooldown active. Please wait ${feedbackCooldown.retryAfterSec} second(s).`, retryAfterSec: feedbackCooldown.retryAfterSec, scope: 'feedback' });
+        }
+
+        const feedbackCategories = await getFeedbackCategoriesMap(db);
+        const subjectInfo = feedbackCategories.get(subjectSlug);
+        if (!subjectInfo) return json(res, 400, { ok: false, message: 'Invalid subject' });
+        const validSubSubjectName = subjectInfo.sub.get(subSubjectSlug);
+        if (!validSubSubjectName) return json(res, 400, { ok: false, message: 'Invalid sub-subject' });
+
+        const feedbackCol = db.collection('feedbacks');
+        const exists = await feedbackCol.findOne({ userId: userInfo.userId, subjectSlug, subSubjectSlug });
+        if (exists) {
+          return json(res, 409, { ok: false, message: 'You can submit only one feedback for this subject and sub-subject.' });
+        }
+
+        const { text: censoredText, hasAbuse } = await censorTextWithFlag(db, text);
+        const now = new Date();
+
+        const doc = {
+          userId: userInfo.userId,
+          userName: userInfo.name,
+          userPic: userInfo.picture,
+          isOwner: ownerPosting,
+          subject: subjectInfo.subject,
+          subjectSlug,
+          subSubject: validSubSubjectName,
+          subSubjectSlug,
+          title,
+          text: censoredText,
+          originalText: hasAbuse ? text : null,
+          hasAbuse,
+          rating,
+          isPinned: false,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        const result = await feedbackCol.insertOne(doc);
+        startCommunityCooldown(clientIp, 'feedback');
+
+        if (!ownerPosting) {
+          try {
+            const clientIp = getClientIp(req);
+            const clientCountry = (req.headers['x-vercel-ip-country'] || req.headers['cf-ipcountry'] || '').toString().trim();
+            await db.collection('users').updateOne(
+              { userId: userInfo.userId },
+              {
+                $set: {
+                  userName: userInfo.name,
+                  userPic: userInfo.picture,
+                  lastCommentAt: now,
+                  lastActivityIp: clientIp,
+                  lastActivityCountry: clientCountry,
+                },
+                $setOnInsert: {
+                  userId: userInfo.userId,
+                  firstCommentAt: now,
+                  createdAt: now,
+                  verified: false,
+                  registrationIp: clientIp,
+                  registrationCountry: clientCountry,
+                },
+              },
+              { upsert: true },
+            );
+          } catch { /* ignore */ }
+        }
+
+        return json(res, 201, { ok: true, feedback: { ...doc, _id: result.insertedId } });
+      }
+
+      // --- Feedback pin/unpin (admin only, unlimited) ---
+      if (action === 'feedback-pin') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const body = await readBody(req);
+        const feedbackId = String(body.feedbackId || '').trim();
+        const pin = body.pin !== false;
+        if (!feedbackId || !ObjectId.isValid(feedbackId)) return json(res, 400, { ok: false, message: 'feedbackId required' });
+
+        const result = await db.collection('feedbacks').updateOne(
+          { _id: new ObjectId(feedbackId) },
+          { $set: { isPinned: pin, updatedAt: new Date() } },
+        );
+
+        if (!result.matchedCount) return json(res, 404, { ok: false, message: 'Feedback not found' });
+        return json(res, 200, { ok: true });
+      }
+
       // --- Comment: Add new comment (Google user or owner) ---
       if (action === 'comment') {
         const body = await readBody(req);
         const credential = String(body.credential || '').trim();
         const ownerPosting = isAuthenticated(req);
+        const clientIp = getClientIp(req);
 
         let userInfo;
         let isVerifiedUser = false;
@@ -1169,6 +1778,10 @@ module.exports = async (req, res) => {
           if (!userInfo) return json(res, 401, { ok: false, message: 'Invalid or expired Google token. Please sign in again.' });
           const existingUser = await db.collection('users').findOne({ userId: userInfo.userId }, { projection: { verified: 1 } });
           isVerifiedUser = Boolean(existingUser?.verified);
+          const { state } = await getUserModerationState(db, userInfo.userId);
+          if (state.full || state.comments) {
+            return json(res, 403, { ok: false, message: buildModerationMessage('comments', state) });
+          }
         }
 
         const journalRef = String(body.journalId || '').trim();
@@ -1178,10 +1791,16 @@ module.exports = async (req, res) => {
 
         const text = String(body.text || '').trim();
         if (!text) return json(res, 400, { ok: false, message: 'Comment text is required' });
+        if (text.length < MIN_COMMUNITY_TEXT_LENGTH) return json(res, 400, { ok: false, message: `Comment must be at least ${MIN_COMMUNITY_TEXT_LENGTH} characters.` });
         if (text.length > 2000) return json(res, 400, { ok: false, message: 'Comment too long (max 2000 chars)' });
 
         const parentIdParam = body.parentId ? String(body.parentId) : null;
         const parentId = parentIdParam && ObjectId.isValid(parentIdParam) ? new ObjectId(parentIdParam) : null;
+        const cooldownScope = parentId ? 'reply' : 'comment';
+        const commentCooldown = checkCommunityCooldown(clientIp, cooldownScope);
+        if (commentCooldown.limited) {
+          return json(res, 429, { ok: false, message: `${cooldownScope === 'reply' ? 'Reply' : 'Comment'} cooldown active. Please wait ${commentCooldown.retryAfterSec} second(s).`, retryAfterSec: commentCooldown.retryAfterSec, scope: cooldownScope });
+        }
 
         const journalExists = await col.findOne({ _id: resolvedJournalId, published: true });
         if (!journalExists) return json(res, 404, { ok: false, message: 'Journal not found' });
@@ -1218,6 +1837,7 @@ module.exports = async (req, res) => {
         };
 
         const result = await db.collection('comments').insertOne(commentDoc);
+        startCommunityCooldown(clientIp, cooldownScope);
 
         // Upsert user profile record (so Users tab works without manual sync)
         if (!ownerPosting) {
@@ -1400,6 +2020,68 @@ module.exports = async (req, res) => {
       const action = getParam(req, 'action');
       const body = await readBody(req);
 
+
+
+      // --- Feedback admin update (owner only) ---
+      if (action === 'feedback-admin') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+
+        const feedbackId = String(body.feedbackId || body._id || '').trim();
+        if (!feedbackId || !ObjectId.isValid(feedbackId)) return json(res, 400, { ok: false, message: 'feedbackId required' });
+
+        const feedbackCol = db.collection('feedbacks');
+        const existingFeedback = await feedbackCol.findOne({ _id: new ObjectId(feedbackId) });
+        if (!existingFeedback) return json(res, 404, { ok: false, message: 'Feedback not found' });
+
+        const nextSubjectSlug = slugify(body.subject || body.subjectSlug || existingFeedback.subjectSlug || '');
+        const nextSubSubjectSlug = slugify(body.subSubject || body.subSubjectSlug || existingFeedback.subSubjectSlug || '');
+        const nextTitle = body.title !== undefined ? String(body.title || '').trim().slice(0, 160) : existingFeedback.title;
+        const rawText = (body.text !== undefined
+          ? String(body.text || '')
+          : (existingFeedback.hasAbuse && existingFeedback.originalText
+              ? String(existingFeedback.originalText || '')
+              : String(existingFeedback.text || ''))).trim().slice(0, 3000);
+        const nextRating = body.rating !== undefined ? normalizeFeedbackRating(body.rating) : Number(existingFeedback.rating || 0);
+        const nextPinned = body.isPinned !== undefined ? Boolean(body.isPinned) : Boolean(existingFeedback.isPinned);
+
+        if (!nextSubjectSlug) return json(res, 400, { ok: false, message: 'Subject required' });
+        if (!nextSubSubjectSlug) return json(res, 400, { ok: false, message: 'Sub-subject required' });
+        if (!nextTitle) return json(res, 400, { ok: false, message: 'Subject line required' });
+        if (!rawText) return json(res, 400, { ok: false, message: 'Feedback text required' });
+        if (!nextRating) return json(res, 400, { ok: false, message: 'Rating required' });
+
+        const feedbackCategories = await getFeedbackCategoriesMap(db);
+        const subjectInfo = feedbackCategories.get(nextSubjectSlug);
+        if (!subjectInfo) return json(res, 400, { ok: false, message: 'Invalid subject' });
+        const subName = subjectInfo.sub.get(nextSubSubjectSlug);
+        if (!subName) return json(res, 400, { ok: false, message: 'Invalid sub-subject' });
+
+        const { text: censoredText, hasAbuse: nextHasAbuse } = await censorTextWithFlag(db, rawText);
+
+        await feedbackCol.updateOne(
+          { _id: new ObjectId(feedbackId) },
+          {
+            $set: {
+              subject: subjectInfo.subject,
+              subjectSlug: nextSubjectSlug,
+              subSubject: subName,
+              subSubjectSlug: nextSubSubjectSlug,
+              title: nextTitle,
+              text: censoredText,
+              originalText: nextHasAbuse ? rawText : null,
+              hasAbuse: nextHasAbuse,
+              rating: nextRating,
+              isPinned: nextPinned,
+              updatedAt: new Date(),
+              moderatedAt: new Date(),
+            },
+          },
+        );
+
+        const updated = await feedbackCol.findOne({ _id: new ObjectId(feedbackId) });
+        return json(res, 200, { ok: true, feedback: updated });
+      }
+
       // --- User profile update (self, authenticated via Google token or owner session) ---
       if (action === 'user-profile-update') {
         const credential = String(body.credential || '').trim();
@@ -1413,6 +2095,8 @@ module.exports = async (req, res) => {
           const tokenUser = await verifyGoogleToken(credential);
           if (!tokenUser) return json(res, 401, { ok: false, message: 'Invalid or expired Google token' });
           targetUserId = tokenUser.userId;
+          const { state } = await getUserModerationState(db, targetUserId);
+          if (state.full) return json(res, 403, { ok: false, message: buildModerationMessage('full', state) });
         }
 
         const profileTitle = String(body.profileTitle || '').trim().slice(0, 80);
@@ -1433,6 +2117,79 @@ module.exports = async (req, res) => {
           { upsert: true },
         );
         return json(res, 200, { ok: true, message: 'Profile updated' });
+      }
+
+      if (action === 'user-moderation') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const userId = String(body.userId || '').trim();
+        const operation = String(body.operation || '').trim();
+        const scope = String(body.scope || '').trim();
+        const reason = String(body.reason || '').trim().slice(0, 300);
+        const confirmPassword = String(body.confirmPassword || '').trim();
+
+        if (!verifyOwnerPassword(confirmPassword)) {
+          return json(res, 403, { ok: false, message: 'Owner password confirmation failed.' });
+        }
+        if (!userId || userId === 'owner') return json(res, 400, { ok: false, message: 'Valid non-owner userId required' });
+        if (!['deactivate', 'reactivate', 'delete-content', 'delete-user'].includes(operation)) {
+          return json(res, 400, { ok: false, message: 'Invalid moderation operation' });
+        }
+
+        const usersCol = db.collection('users');
+        const commentsCol = db.collection('comments');
+        const feedbackCol = db.collection('feedbacks');
+        const blocksCol = db.collection('blocked_users');
+        const existingUser = await usersCol.findOne({ userId });
+        if (!existingUser && operation !== 'delete-user') return json(res, 404, { ok: false, message: 'User not found' });
+
+        if (operation === 'deactivate' || operation === 'reactivate') {
+          if (!['full', 'comments', 'profile', 'feedback'].includes(scope)) {
+            return json(res, 400, { ok: false, message: 'Valid moderation scope required' });
+          }
+          let until = null;
+          if (operation === 'deactivate' && body.until) {
+            const parsedUntil = new Date(String(body.until));
+            if (Number.isNaN(parsedUntil.getTime()) || parsedUntil <= new Date()) {
+              return json(res, 400, { ok: false, message: 'Valid future deactivation time required' });
+            }
+            until = parsedUntil;
+          }
+          await usersCol.updateOne(
+            { userId },
+            {
+              $set: {
+                [`moderation.${scope}`]: {
+                  active: operation === 'deactivate',
+                  until,
+                  reason,
+                  updatedAt: new Date(),
+                  updatedAtIST: nowIST(),
+                },
+                moderationUpdatedAt: new Date(),
+              },
+            },
+            { upsert: false },
+          );
+          const updatedUser = await usersCol.findOne({ userId });
+          return json(res, 200, { ok: true, user: updatedUser, message: operation === 'deactivate' ? 'User deactivated.' : 'User reactivated.' });
+        }
+
+        if (operation === 'delete-content') {
+          await Promise.all([
+            commentsCol.deleteMany({ userId }),
+            feedbackCol.deleteMany({ userId }),
+          ]);
+          const updatedUser = await recalculateUserCommentStats(db, userId);
+          return json(res, 200, { ok: true, user: updatedUser, message: 'User comments, replies, and feedback deleted. Profile kept.' });
+        }
+
+        await Promise.all([
+          commentsCol.deleteMany({ userId }),
+          feedbackCol.deleteMany({ userId }),
+          blocksCol.deleteMany({ userId }),
+          usersCol.deleteOne({ userId }),
+        ]);
+        return json(res, 200, { ok: true, deletedUserId: userId, message: 'User and all related data permanently deleted.' });
       }
 
       if (action === 'user-verify') {
@@ -1564,6 +2321,17 @@ module.exports = async (req, res) => {
 
         await commentsCol.updateOne({ _id: new ObjectId(commentId) }, { $set: { isDeleted: true } });
         return json(res, 200, { ok: true, message: 'Comment deleted' });
+      }
+
+
+
+      // --- Feedback admin delete (owner only) ---
+      if (action === 'feedback-admin') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const feedbackId = String(getParam(req, 'id') || getParam(req, 'feedbackId') || '').trim();
+        if (!feedbackId || !ObjectId.isValid(feedbackId)) return json(res, 400, { ok: false, message: 'id required' });
+        await db.collection('feedbacks').deleteOne({ _id: new ObjectId(feedbackId) });
+        return json(res, 200, { ok: true, message: 'Feedback deleted' });
       }
 
       // --- Blacklist: Delete word (admin only) ---

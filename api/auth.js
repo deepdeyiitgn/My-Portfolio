@@ -40,6 +40,45 @@ function parseCookies(cookieHeader) {
   return cookies;
 }
 
+const LOGIN_WINDOW_MS = 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 5;
+const FIRST_LOCK_MS = 2 * 60 * 1000;
+const LOCK_STEP_MS = 5 * 60 * 1000;
+const LOCK_MAX_MS = 60 * 60 * 1000;
+const loginRateLimitState = new Map();
+
+function getClientIp(req) {
+  return (
+    req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+    req.headers['x-real-ip'] ||
+    req.socket?.remoteAddress ||
+    'unknown'
+  );
+}
+
+function getLoginRateState(ip, now = Date.now()) {
+  const existing = loginRateLimitState.get(ip);
+  if (!existing) {
+    const fresh = { attempts: 0, windowStart: now, lockUntil: 0, lockCount: 0 };
+    loginRateLimitState.set(ip, fresh);
+    return fresh;
+  }
+  if (existing.lockUntil && existing.lockUntil <= now) {
+    existing.lockUntil = 0;
+  }
+  if (now - existing.windowStart >= LOGIN_WINDOW_MS) {
+    existing.windowStart = now;
+    existing.attempts = 0;
+  }
+  return existing;
+}
+
+function nextLockDurationMs(lockCount) {
+  if (lockCount <= 1) return FIRST_LOCK_MS;
+  const stepped = (lockCount - 1) * LOCK_STEP_MS;
+  return Math.min(stepped, LOCK_MAX_MS);
+}
+
 module.exports = async (req, res) => {
   try {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -61,15 +100,50 @@ module.exports = async (req, res) => {
     if (req.method === 'POST') {
       const body = await readBody(req);
       const { password } = body;
+      const ip = getClientIp(req);
+      const now = Date.now();
+      const state = getLoginRateState(ip, now);
 
       const expectedPassword = process.env.SPACE_PASSWORD;
       if (!expectedPassword) {
         return json(res, 503, { ok: false, message: 'Auth not configured. Set SPACE_PASSWORD environment variable.' });
       }
 
-      if (!password || password !== expectedPassword) {
-        return json(res, 401, { ok: false, message: 'Incorrect password.' });
+      if (state.lockUntil && state.lockUntil > now) {
+        const retryAfterSec = Math.ceil((state.lockUntil - now) / 1000);
+        return json(res, 429, {
+          ok: false,
+          message: `Too many failed attempts. Try again in ${Math.ceil(retryAfterSec / 60)} minute(s).`,
+          retryAfterSec,
+          lockout: true,
+        });
       }
+
+      if (!password || password !== expectedPassword) {
+        state.attempts += 1;
+        if (state.attempts >= LOGIN_MAX_ATTEMPTS) {
+          state.lockCount += 1;
+          const lockDurationMs = nextLockDurationMs(state.lockCount);
+          state.lockUntil = now + lockDurationMs;
+          state.attempts = 0;
+          state.windowStart = now;
+          const retryAfterSec = Math.ceil(lockDurationMs / 1000);
+          return json(res, 429, {
+            ok: false,
+            message: `Too many failed attempts. Locked for ${Math.ceil(lockDurationMs / 60000)} minute(s).`,
+            retryAfterSec,
+            lockout: true,
+          });
+        }
+        const remaining = LOGIN_MAX_ATTEMPTS - state.attempts;
+        return json(res, 401, {
+          ok: false,
+          message: `Incorrect password. ${remaining} attempt(s) left in this 1-minute window.`,
+          attemptsLeft: remaining,
+        });
+      }
+
+      loginRateLimitState.delete(ip);
 
       // Set a forever cookie (10 years)
       res.setHeader(
