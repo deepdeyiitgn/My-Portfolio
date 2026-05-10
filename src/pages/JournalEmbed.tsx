@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Clock, Eye, Heart, ExternalLink, Calendar } from 'lucide-react';
 import { marked } from 'marked';
-import JournalHtmlBlobRenderer from '../components/JournalHtmlBlobRenderer';
 import SEO from '../components/SEO';
 import { buildJournalHtmlApiUrl } from '../utils/journalHtmlApiUrl';
 
@@ -10,7 +9,11 @@ import { buildJournalHtmlApiUrl } from '../utils/journalHtmlApiUrl';
 marked.setOptions({ gfm: true, breaks: true });
 
 function renderMarkdown(text: string): string {
-  return marked.parse(text) as string;
+  try {
+    return marked.parse(String(text || '')) as string;
+  } catch {
+    return '';
+  }
 }
 
 interface Journal {
@@ -160,16 +163,23 @@ export default function JournalEmbed() {
 
         <div className="border-t border-zinc-800 pt-5 text-zinc-300 prose prose-invert max-w-none text-sm">
           {normalizedContentType === 'html' ? (
-            <JournalHtmlBlobRenderer endpoint={htmlFileUrl} title={`${journal.title} (HTML)`} className="min-h-[420px]" />
+            <iframe
+              src={htmlFileUrl}
+              title={`${journal.title} (HTML)`}
+              loading="lazy"
+              className="w-full min-h-[640px] rounded-2xl border border-zinc-800 bg-zinc-950"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+              referrerPolicy="no-referrer"
+            />
           ) : normalizedContentType === 'richtext' ? (
             <div
               className={CONTENT_CLASSES}
-              dangerouslySetInnerHTML={{ __html: journal.content }}
+              dangerouslySetInnerHTML={{ __html: String(journal.content || '') }}
             />
           ) : (
             <div
               className={CONTENT_CLASSES}
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(journal.content) }}
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(String(journal.content || '')) }}
             />
           )}
         </div>
