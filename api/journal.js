@@ -2,6 +2,7 @@
  * /api/journal
  * GET  ?page=1&limit=20&category=<slug>&published=true  → paginated list
  * GET  ?slug=<slug>|id=<id>&countView=true              → single journal entry
+ * GET  ?action=html-file&slug=<slug>|id=<id>            → full HTML document for html posts
  * GET  ?action=status                                   → FETCH LIVE STATUS & HISTORY
  * GET  ?action=comments&journalId=X&page=1&sort=top     → paginated comments (top-level or replies)
  * GET  ?action=comment-count&journalIds=X,Y             → comment counts for multiple journals
@@ -30,6 +31,7 @@
 
 const { MongoClient, ObjectId } = require('mongodb');
 const crypto = require('crypto');
+const he = require('he');
 
 let cachedClient = null;
 // Public/admin user lists should only include real commenter accounts; exclude owner and malformed empty IDs.
@@ -496,6 +498,37 @@ async function resolveJournalObjectId(col, journalIdOrSlug, onlyPublished = true
   return doc?._id || null;
 }
 
+function renderJournalHtmlDocument(journal) {
+  const title = he.escape(String(journal?.title || 'Journal'));
+  const summary = he.escape(String(journal?.summary || ''));
+  const content = String(journal?.content || '');
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+  ${summary ? `<meta name="description" content="${summary}" />` : ''}
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; width: 100%; background: #0a0a0a; color: #d4d4d8; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; line-height: 1.65; }
+    body { padding: 1rem; overflow-x: auto; }
+    img, video, iframe { max-width: 100%; height: auto; border-radius: 0.75rem; }
+    pre, code { max-width: 100%; overflow-x: auto; }
+    a { color: #f59e0b; }
+  </style>
+</head>
+<body>
+  ${content}
+</body>
+</html>`;
+}
+
+function isHtmlContentType(contentType) {
+  return String(contentType || '').trim().toLowerCase() === 'html';
+}
+
 
 const FEEDBACK_DEFAULT_LIMIT = 20;
 
@@ -572,6 +605,37 @@ module.exports = async (req, res) => {
     // ==========================================
     if (req.method === 'GET') {
       const action = getParam(req, 'action');
+
+      // --- HTML Journal File (public) ---
+      if (action === 'html-file') {
+        const ref = String(getParam(req, 'slug') || getParam(req, 'id') || '').trim();
+        if (!ref) {
+          res.statusCode = 400;
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+          res.end('Missing journal id or slug');
+          return;
+        }
+        const journal = await resolveJournalByRef(col, ref, true);
+        if (!journal) {
+          res.statusCode = 404;
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+          res.end('Journal not found');
+          return;
+        }
+        if (!isHtmlContentType(journal.contentType)) {
+          res.statusCode = 415;
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+          res.end('Only HTML content type is supported for this endpoint');
+          return;
+        }
+        const allowedOrigin = String(process.env.JOURNAL_HTML_ALLOW_ORIGIN || '*').trim() || '*';
+        res.statusCode = 200;
+        res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
+        res.end(renderJournalHtmlDocument(journal));
+        return;
+      }
 
       // --- DB Stats: Storage usage for dashboard ---
       if (action === 'dbstats') {

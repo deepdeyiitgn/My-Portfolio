@@ -5,6 +5,8 @@ import { Clock, Eye, Heart, Share2, Code2, X, ChevronLeft, ChevronRight, Link2, 
 import { marked } from 'marked';
 import SEO from '../components/SEO';
 import CommentSection from '../components/CommentSection';
+import JournalHtmlBlobRenderer from '../components/JournalHtmlBlobRenderer';
+import { buildJournalHtmlApiUrl } from '../utils/journalHtmlApiUrl';
 
 interface Journal {
   _id: string;
@@ -126,6 +128,11 @@ export default function JournalView() {
     return `<iframe src="${src}" width="100%" height="600" style="border:0;max-width:100%;" loading="lazy" title="${journal?.title || 'Journal'}"></iframe>`;
   }, [id, journal?._id, journal?.slug, journal?.title]);
 
+  const htmlFileUrl = useMemo(() => {
+    const ref = journal?.slug || journal?._id || id;
+    return buildJournalHtmlApiUrl(String(ref || ''));
+  }, [id, journal?._id, journal?.slug]);
+
   const handleShare = async () => {
     const url = window.location.href;
     const title = journal?.title || 'Journal';
@@ -234,8 +241,10 @@ export default function JournalView() {
         )}
 
         <div className="border-t border-zinc-800 pt-8 text-zinc-300 prose prose-invert max-w-none">
-          {journal.contentType === 'html' || journal.contentType === 'richtext' ? (
-            // Rich Text and HTML: direct render so tags/iframes work
+          {journal.contentType === 'html' ? (
+            <JournalHtmlBlobRenderer endpoint={htmlFileUrl} title={`${journal.title} (HTML)`} />
+          ) : journal.contentType === 'richtext' ? (
+            // Rich Text: direct render so tags/iframes work
             <div
               className="w-full overflow-x-auto break-words [word-break:normal] [&_p]:mb-4 [&_p]:leading-relaxed [&_h1]:text-3xl [&_h1]:font-black [&_h1]:text-white [&_h1]:mt-8 [&_h1]:mb-4 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-amber-500 [&_h2]:mt-6 [&_h2]:mb-3 [&_h3]:text-xl [&_h3]:font-bold [&_h3]:text-white [&_h3]:mt-5 [&_h3]:mb-2 [&_h4]:text-lg [&_h4]:font-bold [&_h4]:text-white [&_h4]:mt-4 [&_h4]:mb-2 [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:ml-5 [&_ol]:mb-4 [&_li]:mb-1 [&_strong]:text-white [&_em]:italic [&_blockquote]:border-l-4 [&_blockquote]:border-amber-500/50 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-zinc-400 [&_blockquote]:my-4 [&_img]:rounded-xl [&_img]:my-4 [&_img]:max-w-full [&_a]:text-amber-400 [&_a]:underline [&_a:hover]:text-amber-300 [&_code]:bg-zinc-800 [&_code]:text-amber-400 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_pre]:bg-zinc-800 [&_pre]:rounded-xl [&_pre]:p-4 [&_pre]:overflow-x-auto [&_pre]:my-4 [&_pre_code]:bg-transparent [&_pre_code]:text-zinc-300 [&_pre_code]:p-0 [&_table]:w-full [&_table]:border-collapse [&_table]:my-4 [&_th]:border [&_th]:border-zinc-700 [&_th]:p-2 [&_th]:text-left [&_th]:bg-zinc-800 [&_td]:border [&_td]:border-zinc-700 [&_td]:p-2 [&_hr]:border-zinc-700 [&_hr]:my-6 [&_iframe]:w-full [&_iframe]:rounded-xl [&_iframe]:my-4 [&_iframe]:min-h-[240px] [&_video]:w-full [&_video]:rounded-xl [&_video]:my-4 [&_audio]:w-full [&_audio]:my-4"
               dangerouslySetInnerHTML={{ __html: journal.content }}

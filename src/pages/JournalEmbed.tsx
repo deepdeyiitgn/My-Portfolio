@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Clock, Eye, Heart, ExternalLink, Calendar } from 'lucide-react';
 import { marked } from 'marked';
+import JournalHtmlBlobRenderer from '../components/JournalHtmlBlobRenderer';
+import { buildJournalHtmlApiUrl } from '../utils/journalHtmlApiUrl';
 
 // Configure marked for GitHub-flavored markdown
 marked.setOptions({ gfm: true, breaks: true });
@@ -12,6 +14,7 @@ function renderMarkdown(text: string): string {
 
 interface Journal {
   _id: string;
+  slug?: string;
   title: string;
   summary: string;
   content: string;
@@ -94,6 +97,8 @@ export default function JournalEmbed() {
   }
 
   const journalUrl = `${window.location.origin}/journal/view/${id}`;
+  const htmlRef = journal.slug || journal._id || id;
+  const htmlFileUrl = buildJournalHtmlApiUrl(String(htmlRef || ''));
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-300 p-4 md:p-6">
@@ -120,7 +125,9 @@ export default function JournalEmbed() {
           </div>
         ) : (
           <div className="border-t border-zinc-800 pt-5 text-zinc-300 prose prose-invert max-w-none text-sm">
-            {journal.contentType === 'html' || journal.contentType === 'richtext' ? (
+            {journal.contentType === 'html' ? (
+              <JournalHtmlBlobRenderer endpoint={htmlFileUrl} title={`${journal.title} (HTML)`} className="min-h-[420px]" />
+            ) : journal.contentType === 'richtext' ? (
               <div
                 className={CONTENT_CLASSES}
                 dangerouslySetInnerHTML={{ __html: journal.content }}
