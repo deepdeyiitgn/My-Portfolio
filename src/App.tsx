@@ -76,12 +76,12 @@ function AnimatedRoutes() {
     const params = new URLSearchParams(location.search);
 
     if (params.has('signup')) {
-      navigate('/contact?signup=1', { replace: true });
+      navigate('/contact?signup', { replace: true });
       return;
     }
 
     if (params.has('login')) {
-      navigate('/contact?login=1', { replace: true });
+      navigate('/contact?login', { replace: true });
       return;
     }
 

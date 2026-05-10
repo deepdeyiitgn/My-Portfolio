@@ -201,7 +201,6 @@ export default function Contact() {
   const [ownerAuthed, setOwnerAuthed] = useState(false);
   const [ownerAuthChecked, setOwnerAuthChecked] = useState(false);
   const [googleIntentText, setGoogleIntentText] = useState<'signin_with' | 'signup_with'>('signin_with');
-  const [autoTriggerGoogle, setAutoTriggerGoogle] = useState(false);
 
   const activeType = useMemo(
     () => TICKET_TYPES.find((t) => t.key === formData.supportType) || defaultType,
@@ -226,27 +225,22 @@ export default function Contact() {
     if (wantsSignup) {
       setGoogleIntentText('signup_with');
       if (!ownerAuthed) {
-        window.open('https://accounts.google.com/signup', '_blank', 'noopener,noreferrer');
+        const popup = window.open('https://accounts.google.com/signup', '_blank', 'noopener,noreferrer');
+        if (!popup) {
+          setStatusMessage('Popup blocked. Open https://accounts.google.com/signup and then continue with Google below.');
+        } else {
+          setStatusMessage('Google signup page opened. After creating account, continue with Google below.');
+        }
       }
     } else {
       setGoogleIntentText('signin_with');
+      if (!ownerAuthed) {
+        setStatusMessage('Continue with Google below to complete login on this website.');
+      }
     }
 
-    if (!ownerAuthed && !currentUser) {
-      setAutoTriggerGoogle(true);
-    }
     navigate('/contact', { replace: true });
-  }, [location.search, navigate, ownerAuthed, currentUser, ownerAuthChecked]);
-
-  useEffect(() => {
-    if (!autoTriggerGoogle || ownerAuthed || currentUser) return;
-    const timer = window.setTimeout(() => {
-      const button = document.querySelector('#contact-google-entry div[role="button"]') as HTMLElement | null;
-      button?.click();
-      setAutoTriggerGoogle(false);
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [autoTriggerGoogle, ownerAuthed, currentUser]);
+  }, [location.search, navigate, ownerAuthed, ownerAuthChecked]);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
