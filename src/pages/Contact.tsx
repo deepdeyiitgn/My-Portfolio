@@ -211,7 +211,7 @@ export default function Contact() {
     if (wantsSignup) {
       setGoogleIntentText('signup_with');
       if (!ownerAuthed) {
-        const popup = window.open('https://accounts.google.com/signup', '_blank', 'noopener,noreferrer,width=600,height=700');
+        const popup = window.open('https://accounts.google.com/signup', 'google-signup', 'width=600,height=700');
         if (!popup) {
           setStatusMessage('Popup blocked. Open https://accounts.google.com/signup and then continue with Google below.');
         } else {

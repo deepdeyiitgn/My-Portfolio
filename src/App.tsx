@@ -100,6 +100,7 @@ function AnimatedRoutes() {
         const payload = await response.json().catch(() => ({}));
         if (cancelled) return;
         if (response.ok && payload?.ok) {
+          // Clear community Google session state to avoid owner/contact identity overlap.
           localStorage.removeItem(COMMENT_USER_STORAGE_KEY);
           navigate('/dashboard', { replace: true });
         } else {
@@ -124,7 +125,7 @@ function AnimatedRoutes() {
     if (!w.__ddFetchTrackerInstalled) {
       w.__ddFetchTrackerInstalled = true;
       w.__ddPendingFetches = 0;
-      w.__ddOriginalFetch = window.fetch.bind(window);
+      w.__ddOriginalFetch = w.fetch.bind(w);
 
       window.fetch = async (...args) => {
         w.__ddPendingFetches = (w.__ddPendingFetches || 0) + 1;
