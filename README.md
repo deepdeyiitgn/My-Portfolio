@@ -77,7 +77,7 @@ Custom `react-pdf` viewer wrapped in a Motion 3D physics engine (`rotateY`). Inc
 Backend-less intelligent intake. Routes 15 inquiry categories to the right email node with pre-filled mailto tickets and auto-generated ticket IDs.
 
 ### 📓 Journal CMS with Embed Support
-Full markdown/HTML journal system backed by MongoDB. Features per-visit view counting, one-like-per-session enforcement, native share API, image galleries, and embeddable output (`/journal/embed/:id`). HTML-type posts are served by `/api/journal?action=html-file` and rendered from in-memory Blob URLs (non-iframe) in journal view/embed, while markdown/richtext behavior remains unchanged.
+Full markdown/HTML journal system backed by MongoDB. Features per-visit view counting, one-like-per-session enforcement, native share API, image galleries, and embeddable output (`/journal/embed/:id`). Embed code now always uses the journal MongoDB `_id` for stable resolution. HTML-type posts are served by `/api/journal?action=html-file` and rendered inline (non-iframe) in journal view/embed, while markdown/richtext behavior remains unchanged.
 
 ### 📺 YouTube Live Hub
 Auto-loads the current live stream. Sidebar shows all channel content filtered by **All / Stream / Video / Shorts** tabs with newest-first sorting, views count, and Prev/Next pagination (20 per page).
@@ -303,7 +303,7 @@ Feedback and moderation features are implemented by extending existing handlers 
 | `/journal/comment/:commentId` | Legacy/short permalink route for a specific comment |
 | `/journal/view/:id/comment/:commentId` | Standalone comment permalink |
 | `/journal/comment` | Step-by-step guide for commenting and community rules |
-| `/journal/embed/:id` | Embeddable iframe view (no header/footer) |
+| `/journal/embed/:id` | Embeddable journal view (no header/footer), generated using journal `_id` |
 | `/feedback` | Public feedback page with rating summary, filters, sorting, and pagination |
 | `/user` | Community user listing — owner pinned at top, contributors below |
 | `/user/:userId` | Public user profile with bio, social links, contribution heatmap, and activity tabs |
