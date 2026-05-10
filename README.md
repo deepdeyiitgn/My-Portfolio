@@ -68,13 +68,13 @@ A global status widget is mounted at the app shell level and remains available a
 The `*` fallback route powers a command-driven terminal UI with route-aware `cd` navigation, API-backed `status`/`links` commands, command history, hidden easter-egg commands, and matrix-style effects.
 
 ### 🎬 Cinematic Loading Engine
-A system-parsing intro screen with a live progress bar and 50-quote rotating archive. Masks lazy-loaded asset hydration with an AAA-grade first impression.
+A one-time-per-browser-session cinematic title sequence (`Deep Dey's Portfolio` → `A QLYNK Production`) now plays before the normal loader. The normal loading screen no longer uses random hide timing; it stays visible until page readiness and keeps rotating a random 50+ quote archive.
 
 ### 🎞️ Kinetic 3D PDF Portfolio Viewer
 Custom `react-pdf` viewer wrapped in a Motion 3D physics engine (`rotateY`). Includes A4 aspect-ratio lock, zoom controls, and an external-URL fallback chain.
 
 ### 📬 Smart Contact Routing Matrix
-Backend-less intelligent intake. Routes 15 inquiry categories to the right email node with pre-filled mailto tickets and auto-generated ticket IDs.
+Backend-less intelligent intake. Routes 15 inquiry categories to the right email node with pre-filled mailto tickets and auto-generated ticket IDs. Contact now supports optional Google sign-in to prefill name/email and auto-attach each logged-in user's private service key to tickets (fallback label: `NON LOGIN USER`).
 
 ### 📓 Journal CMS with Embed Support
 Full rich text / markdown / HTML journal system backed by MongoDB. Features per-visit view counting, one-like-per-session enforcement, native share API, image galleries, and embeddable output (`/journal/embed/:id`). Embed code now always uses the journal MongoDB `_id` for stable resolution, and embeds render the actual post body for all supported content types. HTML-type posts are served by `/api/journal?action=html-file` and rendered inline (non-iframe) in journal view/embed, while markdown/richtext behavior remains unchanged. Unpublishing a post keeps existing comments/replies intact and preserves the original publish timestamp for any later re-publish.

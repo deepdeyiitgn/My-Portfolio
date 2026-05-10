@@ -44,24 +44,71 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 function AnimatedRoutes() {
   const location = useLocation();
   const [isNavigating, setIsNavigating] = useState(false);
+  const [showSessionIntro, setShowSessionIntro] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !window.sessionStorage.getItem('dd_session_intro_seen');
+  });
 
   useEffect(() => {
-    // Instant trigger on route change
     setIsNavigating(true);
-    
-    // Smooth transition delay to ensure Loader is seen and page content is hidden
-    const timer = setTimeout(() => {
-      setIsNavigating(false);
-      window.scrollTo(0, 0);
-    }, 800);
 
-    return () => clearTimeout(timer);
+    let cancelled = false;
+    let rafOne = 0;
+    let rafTwo = 0;
+    let loadListenerAdded = false;
+
+    const finishNavigation = () => {
+      rafOne = window.requestAnimationFrame(() => {
+        rafTwo = window.requestAnimationFrame(() => {
+          if (cancelled) return;
+          setIsNavigating(false);
+          window.scrollTo(0, 0);
+        });
+      });
+    };
+
+    if (document.readyState === 'complete') {
+      finishNavigation();
+    } else {
+      window.addEventListener('load', finishNavigation, { once: true });
+      loadListenerAdded = true;
+    }
+
+    return () => {
+      cancelled = true;
+      if (rafOne) window.cancelAnimationFrame(rafOne);
+      if (rafTwo) window.cancelAnimationFrame(rafTwo);
+      if (loadListenerAdded) {
+        window.removeEventListener('load', finishNavigation);
+      }
+    };
   }, [location.pathname]);
+
+  const handleIntroComplete = () => {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem('dd_session_intro_seen', '1');
+    }
+    setShowSessionIntro(false);
+  };
 
   return (
     <>
       <AnimatePresence>
-        {isNavigating && (
+        {showSessionIntro && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+            className="fixed inset-0 z-[300]"
+          >
+            <LoadingScreen mode="intro" onIntroComplete={handleIntroComplete} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {!showSessionIntro && isNavigating && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -82,7 +129,7 @@ function AnimatedRoutes() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <Suspense fallback={<LoadingScreen />}>
+          <Suspense fallback={<LoadingScreen mode="normal" />}>
           <Routes location={location}>
             <Route path="/" element={<Home />} />
             <Route path="/projects" element={<Projects />} />
