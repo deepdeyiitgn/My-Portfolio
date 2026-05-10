@@ -1,5 +1,6 @@
-import { useState, FormEvent, useMemo } from 'react';
+import { useState, FormEvent, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
+import { GoogleLogin } from '@react-oauth/google';
 import { Send, CheckCircle2, MessageSquare, Globe, Mail, Github, Instagram, Youtube, MessageCircle, ExternalLink, MapPin, Wrench, Phone, Loader2 } from 'lucide-react';
 import SEO from '../components/SEO';
 
@@ -113,6 +114,20 @@ const TICKET_TYPES: TicketTemplate[] = [
 ];
 
 type SupportType = (typeof TICKET_TYPES)[number]['key'];
+const STORAGE_KEY = 'dd_comment_user';
+const NON_LOGIN_SERVICE_KEY = 'NON LOGIN USER';
+
+interface GoogleUser {
+  userId?: string;
+  name?: string;
+  email?: string;
+  credential: string;
+}
+
+interface PrivateIdentity {
+  email: string | null;
+  serviceKey: string | null;
+}
 
 interface ContactFormData {
   name: string;
@@ -129,6 +144,16 @@ interface ContactFormData {
 function generateClientTicketId() {
   const random = `${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36).slice(-3)}`.toUpperCase();
   return `DD-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${random}`;
+}
+
+function getDisplayNameFromEmail(email?: string | null): string {
+  const normalized = String(email || '').trim();
+  if (!normalized.includes('@')) return '';
+  return normalized
+    .split('@')[0]
+    .replace(/[._-]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
 }
 
 export default function Contact() {
@@ -152,11 +177,106 @@ export default function Contact() {
   const [isSent, setIsSent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
+  const [currentUser, setCurrentUser] = useState<GoogleUser | null>(null);
+  const [privateIdentity, setPrivateIdentity] = useState<PrivateIdentity | null>(null);
+  const [identityLoading, setIdentityLoading] = useState(false);
 
   const activeType = useMemo(
     () => TICKET_TYPES.find((t) => t.key === formData.supportType) || defaultType,
     [defaultType, formData.supportType],
   );
+
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored) as GoogleUser;
+      if (parsed?.credential) {
+        setCurrentUser(parsed);
+        setFormData((prev) => ({
+          ...prev,
+          name: parsed.name || prev.name,
+          email: parsed.email || prev.email,
+        }));
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    } catch {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser?.credential) {
+      setPrivateIdentity(null);
+      setIdentityLoading(false);
+      return;
+    }
+    let cancelled = false;
+    const loadPrivateIdentity = async () => {
+      setIdentityLoading(true);
+      try {
+        const response = await fetch('/api/journal?action=user-private', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential: currentUser.credential, userId: currentUser.userId }),
+        });
+        const payload = await response.json();
+        if (!payload?.ok) {
+          if (!cancelled) {
+            setPrivateIdentity(null);
+            setStatusMessage(payload?.message || 'Google identity sync failed. Please sign in again.');
+            localStorage.removeItem(STORAGE_KEY);
+            setCurrentUser(null);
+          }
+          return;
+        }
+        if (cancelled) return;
+        const resolvedEmail = payload?.user?.email ? String(payload.user.email) : null;
+        const displayName = currentUser.name || getDisplayNameFromEmail(resolvedEmail);
+        const resolvedIdentity = {
+          email: resolvedEmail,
+          serviceKey: payload?.user?.serviceKey ? String(payload.user.serviceKey) : null,
+        };
+        setPrivateIdentity(resolvedIdentity);
+        setCurrentUser((prev) => ({
+          credential: prev?.credential || currentUser.credential,
+          userId: String(payload?.user?.userId || prev?.userId || ''),
+          email: resolvedEmail || prev?.email || '',
+          name: displayName || prev?.name || '',
+        }));
+        setFormData((prev) => ({
+          ...prev,
+          name: displayName || prev.name,
+          email: resolvedEmail || currentUser.email || prev.email,
+        }));
+      } catch {
+        if (!cancelled) {
+          setPrivateIdentity(null);
+          setStatusMessage('Unable to sync Google identity right now. You can still submit the form.');
+        }
+      } finally {
+        if (!cancelled) setIdentityLoading(false);
+      }
+    };
+    loadPrivateIdentity();
+    return () => { cancelled = true; };
+  }, [currentUser]);
+
+  const handleGoogleSuccess = (credentialResponse: { credential?: string }) => {
+    if (!credentialResponse.credential) return;
+    const user: GoogleUser = {
+      credential: credentialResponse.credential,
+    };
+    setCurrentUser(user);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+  };
+
+  const handleGoogleLogout = () => {
+    setCurrentUser(null);
+    setPrivateIdentity(null);
+    localStorage.removeItem(STORAGE_KEY);
+  };
 
   const handleSupportTypeChange = (supportType: SupportType) => {
     const nextType = TICKET_TYPES.find((t) => t.key === supportType) || defaultType;
@@ -184,6 +304,8 @@ export default function Contact() {
             ? `Custom Query: ${formData.customType.trim()}`
             : formData.supportType,
           targetEmail: activeType.targetEmail,
+          serviceKey: privateIdentity?.serviceKey || NON_LOGIN_SERVICE_KEY,
+          loginEmail: privateIdentity?.email || currentUser?.email || '',
         }),
       });
 
@@ -195,12 +317,17 @@ export default function Contact() {
 
       const ticketId = payload?.autoReply?.ticketId || generateClientTicketId();
       const sla = payload?.autoReply?.sla || 'Initial response within 24-48 hours.';
+      const resolvedServiceKey = privateIdentity?.serviceKey || NON_LOGIN_SERVICE_KEY;
+      const resolvedLoginEmail = privateIdentity?.email || currentUser?.email || 'N/A';
 
       const formattedBody = [
         `Ticket ID: ${ticketId}`,
         `Support Type: ${formData.supportType === 'Custom Query' && formData.customType.trim() ? `Custom Query: ${formData.customType.trim()}` : formData.supportType}`,
         `Name: ${formData.name}`,
         `Email: ${formData.email}`,
+        `Google Login Email: ${resolvedLoginEmail}`,
+        `Service Key: ${resolvedServiceKey}`,
+        `Google Auth Status: ${currentUser ? 'Logged In' : 'Not Logged In'}`,
         `Country: ${formData.country}`,
         `WhatsApp: ${formData.whatsapp || 'N/A'}`,
         '',
@@ -356,6 +483,32 @@ export default function Contact() {
           className="bg-zinc-900/40 border border-zinc-800 rounded-[3rem] p-8 md:p-10 shadow-2xl backdrop-blur-xl"
         >
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 space-y-3">
+              <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Identity Sync (Optional)</p>
+              {currentUser ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-zinc-300">Signed in as <span className="text-amber-500 font-semibold">{currentUser.name || 'Google User'}</span></p>
+                  <p className="text-xs text-zinc-500">Email: {privateIdentity?.email || currentUser.email || formData.email || 'N/A'}</p>
+                  <p className="text-xs text-zinc-500">Service Key: {privateIdentity?.serviceKey || (identityLoading ? 'Loading...' : NON_LOGIN_SERVICE_KEY)}</p>
+                  <button type="button" onClick={handleGoogleLogout} className="text-xs px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition-colors">
+                    Sign out Google
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => setStatusMessage('Google sign-in failed. Please try again.')}
+                    useOneTap={false}
+                    theme="filled_black"
+                    text="signin_with"
+                    shape="pill"
+                  />
+                  <p className="text-xs text-zinc-600">If not logged in, ticket service key will be: {NON_LOGIN_SERVICE_KEY}.</p>
+                </div>
+              )}
+            </div>
+
             <div className="absolute left-[-9999px] w-px h-px overflow-hidden" aria-hidden="true">
               <input
                 id="companyWebsite"

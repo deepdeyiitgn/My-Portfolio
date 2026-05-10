@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 
 const LOADING_QUOTES = [
   "Code is read more than it is written.",
@@ -54,57 +54,91 @@ const LOADING_QUOTES = [
   "Initializing technical sovereignty."
 ];
 
-export default function LoadingScreen() {
-  const [progress, setProgress] = useState(0);
-  const [quoteIndex, setQuoteIndex] = useState(0);
+type LoadingScreenMode = 'intro' | 'normal';
 
-  // Realistic Progress Bar Logic
+interface LoadingScreenProps {
+  mode?: LoadingScreenMode;
+  onIntroComplete?: () => void;
+}
+
+const INTRO_SLIDES = [
+  { title: "Deep Dey's Portfolio", subtitle: 'A website by Deep' },
+  { title: 'A QLYNK Production', subtitle: 'An app by Deep' },
+];
+
+export default function LoadingScreen({ mode = 'normal', onIntroComplete }: LoadingScreenProps) {
+  const reduceMotion = useReducedMotion();
+  const [quoteIndex, setQuoteIndex] = useState(() => Math.floor(Math.random() * LOADING_QUOTES.length));
+  const [introIndex, setIntroIndex] = useState(0);
+
+  // Random quote cycling
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    // Fast to 85%
-    if (progress < 85) {
-      interval = setInterval(() => {
-        setProgress(prev => Math.min(prev + Math.random() * 15, 85));
-      }, 150);
-    } 
-    // Slow to 99%
-    else if (progress < 99) {
-      interval = setInterval(() => {
-        setProgress(prev => Math.min(prev + Math.random() * 0.5, 99.5));
-      }, 500);
-    }
-
-    return () => clearInterval(interval);
-  }, [progress]);
-
-  // Quote Cycling Logic
-  useEffect(() => {
+    if (mode !== 'normal') return;
     const quoteInterval = setInterval(() => {
-      setQuoteIndex(prev => (prev + 1) % LOADING_QUOTES.length);
+      setQuoteIndex((prev) => {
+        if (LOADING_QUOTES.length <= 1) return prev;
+        let next = prev;
+        while (next === prev) {
+          next = Math.floor(Math.random() * LOADING_QUOTES.length);
+        }
+        return next;
+      });
     }, 2500);
     return () => clearInterval(quoteInterval);
-  }, []);
+  }, [mode]);
+
+  useEffect(() => {
+    if (mode !== 'intro') return;
+    if (introIndex >= INTRO_SLIDES.length) {
+      onIntroComplete?.();
+      return;
+    }
+    const timer = setTimeout(() => setIntroIndex((prev) => prev + 1), 2200);
+    return () => clearTimeout(timer);
+  }, [introIndex, mode, onIntroComplete]);
+
+  if (mode === 'intro') {
+    return (
+      <div className="fixed inset-0 bg-black flex items-center justify-center z-[300] px-6">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.12),transparent_55%)]" />
+        <AnimatePresence mode="wait">
+          {introIndex < INTRO_SLIDES.length && (
+            <motion.div
+              key={INTRO_SLIDES[introIndex].title}
+              initial={{ opacity: 0, y: 24, filter: 'blur(6px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -24, filter: 'blur(8px)' }}
+              transition={{ duration: 0.9, ease: 'easeOut' }}
+              className="text-center space-y-4"
+            >
+              <h1 className="text-4xl md:text-7xl font-black tracking-tight text-white">{INTRO_SLIDES[introIndex].title}</h1>
+              <p className="text-zinc-400 uppercase text-[11px] md:text-xs tracking-[0.35em]">{INTRO_SLIDES[introIndex].subtitle}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-zinc-950 flex flex-col items-center justify-center z-[100] px-6">
       <div className="w-full max-w-md space-y-12">
-        {/* Progress Display */}
+        {/* Loading Display */}
         <div className="text-center space-y-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-6xl md:text-8xl font-black text-white tracking-tighter"
+            className="text-3xl md:text-5xl font-black text-white tracking-[0.08em]"
           >
-            {Math.floor(progress)}<span className="text-amber-500">%</span>
+            LOADING<span className="text-amber-500">...</span>
           </motion.div>
           
           <div className="relative h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
             <motion.div 
               className="absolute inset-y-0 left-0 bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.6)]"
-              initial={{ width: "0%" }}
-              animate={{ width: `${progress}%` }}
-              transition={{ ease: "easeOut", duration: 0.5 }}
+              initial={{ x: reduceMotion ? '0%' : '-100%', width: reduceMotion ? '100%' : '45%' }}
+              animate={reduceMotion ? { x: '0%' } : { x: '220%' }}
+              transition={reduceMotion ? undefined : { ease: 'easeInOut', duration: 1.1, repeat: Infinity }}
             />
           </div>
         </div>
