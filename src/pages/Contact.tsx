@@ -160,7 +160,10 @@ function getDisplayNameFromEmail(email?: string | null): string {
 function decodeJwt(token: string): Record<string, unknown> | null {
   try {
     const [, payload] = token.split('.');
-    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const paddingNeeded = (4 - (base64.length % 4)) % 4;
+    const padded = `${base64}${'='.repeat(paddingNeeded)}`;
+    return JSON.parse(atob(padded));
   } catch {
     return null;
   }
@@ -203,7 +206,8 @@ export default function Contact() {
       const parsed = JSON.parse(stored) as GoogleUser;
       const payload = parsed?.credential ? decodeJwt(parsed.credential) : null;
       const resolvedExp = Number(parsed?.exp || payload?.exp || 0);
-      const isTokenValid = resolvedExp ? Date.now() < resolvedExp * 1000 : true;
+      const hasValidExpiry = Number.isFinite(resolvedExp) && resolvedExp > 0;
+      const isTokenValid = hasValidExpiry && Date.now() < resolvedExp * 1000;
       if (parsed?.credential && isTokenValid) {
         const resolvedName = String(parsed.name || payload?.name || payload?.given_name || '').trim();
         const resolvedEmail = String(parsed.email || payload?.email || '').trim();

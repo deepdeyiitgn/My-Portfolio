@@ -37,6 +37,11 @@ const Feedback = lazy(() => import('./pages/Feedback'));
 const UserProfile = lazy(() => import('./pages/UserProfile'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const MIN_LOADER_MS = 3000;
+const PROGRESS_UPDATE_INTERVAL_MS = 120;
+const MIN_NETWORK_PROGRESS = 86;
+const MAX_NETWORK_PROGRESS = 98;
+const MAX_TRACKED_REQUESTS = 10;
+const PROGRESS_DROP_PER_REQUEST = 2;
 
 /**
  * AnimatedRoutes Component
@@ -119,7 +124,9 @@ function AnimatedRoutes() {
       let networkProgress = timeProgress;
       if (pageLoaded) {
         const inFlight = pendingRequestsRef.current;
-        networkProgress = inFlight > 0 ? Math.max(86, 98 - Math.min(inFlight, 10) * 2) : 99;
+        networkProgress = inFlight > 0
+          ? Math.max(MIN_NETWORK_PROGRESS, MAX_NETWORK_PROGRESS - Math.min(inFlight, MAX_TRACKED_REQUESTS) * PROGRESS_DROP_PER_REQUEST)
+          : 99;
       }
 
       const nextProgress = Math.max(timeProgress, networkProgress);
@@ -151,7 +158,7 @@ function AnimatedRoutes() {
     progressInterval = window.setInterval(() => {
       updateProgress();
       tryFinish();
-    }, 120);
+    }, PROGRESS_UPDATE_INTERVAL_MS);
 
     updateProgress();
     tryFinish();
