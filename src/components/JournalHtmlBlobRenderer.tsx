@@ -18,6 +18,11 @@ export default function JournalHtmlBlobRenderer({ endpoint, title, className = '
       setLoading(true);
       setError('');
       try {
+        const resolvedEndpoint = new URL(endpoint, window.location.href);
+        if (resolvedEndpoint.origin !== window.location.origin) {
+          throw new Error('Only same-origin HTML journals are allowed');
+        }
+
         const r = await fetch(endpoint, { headers: { Accept: 'text/html' } });
         if (!r.ok) throw new Error(`Failed to load HTML (${r.status})`);
         const html = await r.text();
@@ -39,7 +44,9 @@ export default function JournalHtmlBlobRenderer({ endpoint, title, className = '
     if (!htmlText || !containerRef.current) return;
 
     const container = containerRef.current;
-    container.innerHTML = '';
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
+    }
 
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlText, 'text/html');
@@ -73,7 +80,9 @@ export default function JournalHtmlBlobRenderer({ endpoint, title, className = '
     }
 
     return () => {
-      container.innerHTML = '';
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
     };
   }, [htmlText]);
 
