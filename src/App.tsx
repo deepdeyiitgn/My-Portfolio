@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { useState, useEffect, Suspense, lazy } from 'react';
+import { useState, useEffect, Suspense, lazy, useRef } from 'react';
 import Layout from './components/Layout';
 import StatusWidget from './components/StatusWidget';
 import LoadingScreen from './components/LoadingScreen';
@@ -36,6 +36,7 @@ const AllUsers = lazy(() => import('./pages/AllUsers'));
 const Feedback = lazy(() => import('./pages/Feedback'));
 const UserProfile = lazy(() => import('./pages/UserProfile'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const MIN_LOADER_MS = 3000;
 
 /**
  * AnimatedRoutes Component
@@ -44,42 +45,123 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 function AnimatedRoutes() {
   const location = useLocation();
   const [isNavigating, setIsNavigating] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [pendingRequests, setPendingRequests] = useState(0);
   const [showSessionIntro, setShowSessionIntro] = useState(() => {
     if (typeof window === 'undefined') return false;
     return !window.sessionStorage.getItem('dd_session_intro_seen');
   });
+  const pendingRequestsRef = useRef(0);
+
+  useEffect(() => {
+    pendingRequestsRef.current = pendingRequests;
+  }, [pendingRequests]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const w = window as Window & {
+      __ddFetchTrackerInstalled?: boolean;
+      __ddPendingFetches?: number;
+      __ddOriginalFetch?: typeof fetch;
+    };
+
+    if (!w.__ddFetchTrackerInstalled) {
+      w.__ddFetchTrackerInstalled = true;
+      w.__ddPendingFetches = 0;
+      w.__ddOriginalFetch = window.fetch.bind(window);
+
+      window.fetch = async (...args) => {
+        w.__ddPendingFetches = (w.__ddPendingFetches || 0) + 1;
+        window.dispatchEvent(new Event('dd:fetch-pending-change'));
+        try {
+          return await (w.__ddOriginalFetch as typeof fetch)(...args);
+        } finally {
+          w.__ddPendingFetches = Math.max(0, (w.__ddPendingFetches || 0) - 1);
+          window.dispatchEvent(new Event('dd:fetch-pending-change'));
+        }
+      };
+    }
+
+    const syncPending = () => {
+      setPendingRequests(Math.max(0, w.__ddPendingFetches || 0));
+    };
+    syncPending();
+    window.addEventListener('dd:fetch-pending-change', syncPending);
+    return () => {
+      window.removeEventListener('dd:fetch-pending-change', syncPending);
+    };
+  }, []);
 
   useEffect(() => {
     setIsNavigating(true);
+    setLoadingProgress(0);
 
     let cancelled = false;
-    let rafOne = 0;
-    let rafTwo = 0;
+    let raf = 0;
+    let progressInterval = 0;
     let loadListenerAdded = false;
+    let pageLoaded = document.readyState === 'complete';
+    const startedAt = Date.now();
 
-    const finishNavigation = () => {
-      rafOne = window.requestAnimationFrame(() => {
-        rafTwo = window.requestAnimationFrame(() => {
-          if (cancelled) return;
-          setIsNavigating(false);
-          window.scrollTo(0, 0);
-        });
+    const completeNavigation = () => {
+      raf = window.requestAnimationFrame(() => {
+        if (cancelled) return;
+        setLoadingProgress(100);
+        setIsNavigating(false);
+        window.scrollTo(0, 0);
       });
     };
 
-    if (document.readyState === 'complete') {
-      finishNavigation();
-    } else {
-      window.addEventListener('load', finishNavigation, { once: true });
+    const updateProgress = () => {
+      const elapsed = Date.now() - startedAt;
+      const timeProgress = Math.min(80, Math.floor((elapsed / MIN_LOADER_MS) * 80));
+
+      let networkProgress = timeProgress;
+      if (pageLoaded) {
+        const inFlight = pendingRequestsRef.current;
+        networkProgress = inFlight > 0 ? Math.max(86, 98 - Math.min(inFlight, 10) * 2) : 99;
+      }
+
+      const nextProgress = Math.max(timeProgress, networkProgress);
+      setLoadingProgress((prev) => {
+        if (prev >= 99) return prev;
+        return Math.min(99, Math.max(prev, nextProgress));
+      });
+    };
+
+    const tryFinish = () => {
+      if (cancelled) return;
+      const elapsed = Date.now() - startedAt;
+      const ready = pageLoaded && pendingRequestsRef.current === 0 && elapsed >= MIN_LOADER_MS;
+      if (ready) {
+        completeNavigation();
+      }
+    };
+
+    const onPageLoad = () => {
+      pageLoaded = true;
+      tryFinish();
+    };
+
+    if (!pageLoaded) {
+      window.addEventListener('load', onPageLoad, { once: true });
       loadListenerAdded = true;
     }
 
+    progressInterval = window.setInterval(() => {
+      updateProgress();
+      tryFinish();
+    }, 120);
+
+    updateProgress();
+    tryFinish();
+
     return () => {
       cancelled = true;
-      if (rafOne) window.cancelAnimationFrame(rafOne);
-      if (rafTwo) window.cancelAnimationFrame(rafTwo);
+      if (raf) window.cancelAnimationFrame(raf);
+      if (progressInterval) window.clearInterval(progressInterval);
       if (loadListenerAdded) {
-        window.removeEventListener('load', finishNavigation);
+        window.removeEventListener('load', onPageLoad);
       }
     };
   }, [location.pathname]);
@@ -116,7 +198,7 @@ function AnimatedRoutes() {
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-[200]"
           >
-            <LoadingScreen />
+            <LoadingScreen progress={loadingProgress} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -129,7 +211,7 @@ function AnimatedRoutes() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <Suspense fallback={<LoadingScreen mode="normal" />}>
+          <Suspense fallback={<LoadingScreen mode="normal" progress={loadingProgress} />}>
           <Routes location={location}>
             <Route path="/" element={<Home />} />
             <Route path="/projects" element={<Projects />} />

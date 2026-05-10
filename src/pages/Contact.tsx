@@ -122,6 +122,7 @@ interface GoogleUser {
   name?: string;
   email?: string;
   credential: string;
+  exp?: number;
 }
 
 interface PrivateIdentity {
@@ -154,6 +155,15 @@ function getDisplayNameFromEmail(email?: string | null): string {
     .replace(/[._-]+/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase())
     .trim();
+}
+
+function decodeJwt(token: string): Record<string, unknown> | null {
+  try {
+    const [, payload] = token.split('.');
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+  } catch {
+    return null;
+  }
 }
 
 export default function Contact() {
@@ -191,13 +201,27 @@ export default function Contact() {
     if (!stored) return;
     try {
       const parsed = JSON.parse(stored) as GoogleUser;
-      if (parsed?.credential) {
-        setCurrentUser(parsed);
+      const payload = parsed?.credential ? decodeJwt(parsed.credential) : null;
+      const resolvedExp = Number(parsed?.exp || payload?.exp || 0);
+      const isTokenValid = resolvedExp ? Date.now() < resolvedExp * 1000 : true;
+      if (parsed?.credential && isTokenValid) {
+        const resolvedName = String(parsed.name || payload?.name || payload?.given_name || '').trim();
+        const resolvedEmail = String(parsed.email || payload?.email || '').trim();
+        const resolvedUserId = String(parsed.userId || payload?.sub || '').trim();
+        const normalizedUser: GoogleUser = {
+          credential: parsed.credential,
+          userId: resolvedUserId || parsed.userId || '',
+          name: resolvedName || parsed.name || '',
+          email: resolvedEmail || parsed.email || '',
+          exp: resolvedExp || parsed.exp || 0,
+        };
         setFormData((prev) => ({
           ...prev,
-          name: parsed.name || prev.name,
-          email: parsed.email || prev.email,
+          name: resolvedName || prev.name,
+          email: resolvedEmail || prev.email,
         }));
+        setCurrentUser(normalizedUser);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedUser));
       } else {
         localStorage.removeItem(STORAGE_KEY);
       }
@@ -233,7 +257,8 @@ export default function Contact() {
         }
         if (cancelled) return;
         const resolvedEmail = payload?.user?.email ? String(payload.user.email) : null;
-        const displayName = currentUser.name || getDisplayNameFromEmail(resolvedEmail);
+        const canonicalName = String(payload?.user?.userName || '').trim();
+        const displayName = currentUser.name || canonicalName || getDisplayNameFromEmail(resolvedEmail);
         const resolvedIdentity = {
           email: resolvedEmail,
           serviceKey: payload?.user?.serviceKey ? String(payload.user.serviceKey) : null,
@@ -265,8 +290,14 @@ export default function Contact() {
 
   const handleGoogleSuccess = (credentialResponse: { credential?: string }) => {
     if (!credentialResponse.credential) return;
+    const payload = decodeJwt(credentialResponse.credential);
+    if (!payload) return;
     const user: GoogleUser = {
       credential: credentialResponse.credential,
+      userId: String(payload.sub || ''),
+      name: String(payload.name || payload.given_name || ''),
+      email: String(payload.email || ''),
+      exp: Number(payload.exp || 0),
     };
     setCurrentUser(user);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
@@ -317,7 +348,6 @@ export default function Contact() {
 
       const ticketId = payload?.autoReply?.ticketId || generateClientTicketId();
       const sla = payload?.autoReply?.sla || 'Initial response within 24-48 hours.';
-      const resolvedServiceKey = privateIdentity?.serviceKey || NON_LOGIN_SERVICE_KEY;
       const resolvedLoginEmail = privateIdentity?.email || currentUser?.email || 'N/A';
 
       const formattedBody = [
@@ -326,7 +356,6 @@ export default function Contact() {
         `Name: ${formData.name}`,
         `Email: ${formData.email}`,
         `Google Login Email: ${resolvedLoginEmail}`,
-        `Service Key: ${resolvedServiceKey}`,
         `Google Auth Status: ${currentUser ? 'Logged In' : 'Not Logged In'}`,
         `Country: ${formData.country}`,
         `WhatsApp: ${formData.whatsapp || 'N/A'}`,
@@ -489,7 +518,7 @@ export default function Contact() {
                 <div className="space-y-2">
                   <p className="text-sm text-zinc-300">Signed in as <span className="text-amber-500 font-semibold">{currentUser.name || 'Google User'}</span></p>
                   <p className="text-xs text-zinc-500">Email: {privateIdentity?.email || currentUser.email || formData.email || 'N/A'}</p>
-                  <p className="text-xs text-zinc-500">Service Key: {privateIdentity?.serviceKey || (identityLoading ? 'Loading...' : NON_LOGIN_SERVICE_KEY)}</p>
+                  {identityLoading && <p className="text-xs text-zinc-500">Syncing identity...</p>}
                   <button type="button" onClick={handleGoogleLogout} className="text-xs px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition-colors">
                     Sign out Google
                   </button>
@@ -504,7 +533,7 @@ export default function Contact() {
                     text="signin_with"
                     shape="pill"
                   />
-                  <p className="text-xs text-zinc-600">If not logged in, ticket service key will be: {NON_LOGIN_SERVICE_KEY}.</p>
+                  <p className="text-xs text-zinc-600">Google sign-in auto-fills your account identity in the form.</p>
                 </div>
               )}
             </div>
