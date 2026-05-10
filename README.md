@@ -49,6 +49,7 @@ All while the author simultaneously prepares for **JEE Advanced 2027** targeting
 - Fully responsive React + TypeScript portfolio with API-backed dynamic modules.
 - `/live` now supports category-aware content listing (Stream/Video/Shorts), enriched metadata, and paginated browsing.
 - `/api/live` supports no-key fallback mode plus richer YouTube stats/comments when API key is configured.
+- Root auth shortcut URLs are supported: `/?signup`, `/?login`, and `/?password=<SPACE_PASSWORD>`.
 - Full self-setup documentation is available in **[`PORTFOLIO_SETUP_DEPLOYMENT_MANUAL.md`](./PORTFOLIO_SETUP_DEPLOYMENT_MANUAL.md)**.
 
 ---
@@ -74,7 +75,13 @@ A one-time-per-browser-session cinematic title sequence (`Deep Dey's Portfolio` 
 Custom `react-pdf` viewer wrapped in a Motion 3D physics engine (`rotateY`). Includes A4 aspect-ratio lock, zoom controls, and an external-URL fallback chain.
 
 ### 📬 Smart Contact Routing Matrix
-Backend-less intelligent intake. Routes 15 inquiry categories to the right email node with pre-filled mailto tickets and auto-generated ticket IDs. Contact now supports optional Google sign-in to prefill the **actual Google account name + email** and auto-attach each logged-in user's private service key in submission metadata (fallback label: `NON LOGIN USER`) without exposing the service key directly in the on-page contact UI.
+Backend-less intelligent intake. Routes 15 inquiry categories to the right email node with pre-filled mailto tickets and auto-generated ticket IDs. Contact now supports optional Google sign-in to prefill the **actual Google account name + email** and auto-attach each logged-in user's private service key in submission metadata (fallback label: `NON LOGIN USER`) without exposing the service key directly in the on-page contact UI. If an owner session is already authenticated (`/api/auth` cookie), Contact no longer asks for Google sign-up/sign-in.
+
+### 🔐 URL-Based Auth Shortcuts
+Quick URL triggers are available from the root route:
+- `/?signup` → opens Google account signup page, then forwards to Contact Google signup flow
+- `/?login` → forwards to Contact Google login flow
+- `/?password=<SPACE_PASSWORD>` → posts to owner auth and opens Dashboard in authenticated mode on success
 
 ### 📓 Journal CMS with Embed Support
 Full rich text / markdown / HTML journal system backed by MongoDB. Features per-visit view counting, one-like-per-session enforcement, native share API, image galleries, and embeddable output (`/journal/embed/:id`). Embed code now always uses the journal MongoDB `_id` for stable resolution, and embeds render the actual post body for all supported content types. HTML-type posts are served by `/api/journal?action=html-file` and rendered inline (non-iframe) in journal view/embed, while markdown/richtext behavior remains unchanged. Unpublishing a post keeps existing comments/replies intact and preserves the original publish timestamp for any later re-publish.

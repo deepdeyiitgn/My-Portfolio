@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState, useEffect, Suspense, lazy, useRef } from 'react';
 import Layout from './components/Layout';
@@ -57,6 +57,7 @@ function calculateNetworkProgress(inFlight: number) {
  */
 function AnimatedRoutes() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isNavigating, setIsNavigating] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [pendingRequests, setPendingRequests] = useState(0);
@@ -69,6 +70,47 @@ function AnimatedRoutes() {
   useEffect(() => {
     pendingRequestsRef.current = pendingRequests;
   }, [pendingRequests]);
+
+  useEffect(() => {
+    if (location.pathname !== '/') return;
+    const params = new URLSearchParams(location.search);
+
+    if (params.has('signup')) {
+      navigate('/contact?signup=1', { replace: true });
+      return;
+    }
+
+    if (params.has('login')) {
+      navigate('/contact?login=1', { replace: true });
+      return;
+    }
+
+    const ownerPassword = params.get('password');
+    if (!ownerPassword) return;
+
+    let cancelled = false;
+    const runOwnerAutoLogin = async () => {
+      try {
+        const response = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: ownerPassword }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (cancelled) return;
+        if (response.ok && payload?.ok) {
+          localStorage.removeItem('dd_comment_user');
+          navigate('/dashboard', { replace: true });
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
+      } catch {
+        if (!cancelled) navigate('/dashboard', { replace: true });
+      }
+    };
+    runOwnerAutoLogin();
+    return () => { cancelled = true; };
+  }, [location.pathname, location.search, navigate]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

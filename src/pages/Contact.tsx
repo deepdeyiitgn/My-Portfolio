@@ -1,6 +1,7 @@
 import { useState, FormEvent, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { GoogleLogin } from '@react-oauth/google';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Send, CheckCircle2, MessageSquare, Globe, Mail, Github, Instagram, Youtube, MessageCircle, ExternalLink, MapPin, Wrench, Phone, Loader2 } from 'lucide-react';
 import SEO from '../components/SEO';
 
@@ -172,6 +173,8 @@ function decodeJwt(token: string): Record<string, unknown> | null {
 }
 
 export default function Contact() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const inputClassName =
     'w-full bg-zinc-950/50 border border-zinc-800 rounded-2xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all';
 
@@ -195,11 +198,55 @@ export default function Contact() {
   const [currentUser, setCurrentUser] = useState<GoogleUser | null>(null);
   const [privateIdentity, setPrivateIdentity] = useState<PrivateIdentity | null>(null);
   const [identityLoading, setIdentityLoading] = useState(false);
+  const [ownerAuthed, setOwnerAuthed] = useState(false);
+  const [ownerAuthChecked, setOwnerAuthChecked] = useState(false);
+  const [googleIntentText, setGoogleIntentText] = useState<'signin_with' | 'signup_with'>('signin_with');
+  const [autoTriggerGoogle, setAutoTriggerGoogle] = useState(false);
 
   const activeType = useMemo(
     () => TICKET_TYPES.find((t) => t.key === formData.supportType) || defaultType,
     [defaultType, formData.supportType],
   );
+
+  useEffect(() => {
+    fetch('/api/auth')
+      .then((r) => r.json())
+      .then((d) => setOwnerAuthed(Boolean(d?.authenticated)))
+      .catch(() => setOwnerAuthed(false))
+      .finally(() => setOwnerAuthChecked(true));
+  }, []);
+
+  useEffect(() => {
+    if (!ownerAuthChecked) return;
+    const params = new URLSearchParams(location.search);
+    const wantsSignup = params.has('signup');
+    const wantsLogin = params.has('login');
+    if (!wantsSignup && !wantsLogin) return;
+
+    if (wantsSignup) {
+      setGoogleIntentText('signup_with');
+      if (!ownerAuthed) {
+        window.open('https://accounts.google.com/signup', '_blank', 'noopener,noreferrer');
+      }
+    } else {
+      setGoogleIntentText('signin_with');
+    }
+
+    if (!ownerAuthed && !currentUser) {
+      setAutoTriggerGoogle(true);
+    }
+    navigate('/contact', { replace: true });
+  }, [location.search, navigate, ownerAuthed, currentUser, ownerAuthChecked]);
+
+  useEffect(() => {
+    if (!autoTriggerGoogle || ownerAuthed || currentUser) return;
+    const timer = window.setTimeout(() => {
+      const button = document.querySelector('#contact-google-entry div[role="button"]') as HTMLElement | null;
+      button?.click();
+      setAutoTriggerGoogle(false);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [autoTriggerGoogle, ownerAuthed, currentUser]);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -520,7 +567,12 @@ export default function Contact() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 space-y-3">
               <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Identity Sync (Optional)</p>
-              {currentUser ? (
+              {ownerAuthed ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-zinc-300">Owner session detected. Google sign-in is not required.</p>
+                  <p className="text-xs text-zinc-500">You can submit tickets directly using your owner-authenticated session.</p>
+                </div>
+              ) : currentUser ? (
                 <div className="space-y-2">
                   <p className="text-sm text-zinc-300">Signed in as <span className="text-amber-500 font-semibold">{currentUser.name || 'Google User'}</span></p>
                   <p className="text-xs text-zinc-500">Email: {privateIdentity?.email || currentUser.email || formData.email || 'N/A'}</p>
@@ -530,13 +582,13 @@ export default function Contact() {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div id="contact-google-entry" className="space-y-2">
                   <GoogleLogin
                     onSuccess={handleGoogleSuccess}
                     onError={() => setStatusMessage('Google sign-in failed. Please try again.')}
                     useOneTap={false}
                     theme="filled_black"
-                    text="signin_with"
+                    text={googleIntentText}
                     shape="pill"
                   />
                   <p className="text-xs text-zinc-600">Google sign-in auto-fills your account identity in the form.</p>
