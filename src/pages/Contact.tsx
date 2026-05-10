@@ -158,20 +158,6 @@ function getDisplayNameFromEmail(email?: string | null): string {
     .trim();
 }
 
-function decodeJwt(token: string): Record<string, unknown> | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3 || !parts[1]) return null;
-    const payload = parts[1];
-    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const paddingNeeded = (4 - (base64.length % 4)) % 4;
-    const padded = `${base64}${'='.repeat(paddingNeeded)}`;
-    return JSON.parse(atob(padded));
-  } catch {
-    return null;
-  }
-}
-
 export default function Contact() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -247,25 +233,18 @@ export default function Contact() {
     if (!stored) return;
     try {
       const parsed = JSON.parse(stored) as GoogleUser;
-      const payload = parsed?.credential ? decodeJwt(parsed.credential) : null;
-      const resolvedExp = Number(parsed?.exp || payload?.exp || 0);
-      const hasValidExpiry = Number.isFinite(resolvedExp) && resolvedExp > 0;
-      const isTokenValid = hasValidExpiry && Date.now() < resolvedExp * 1000;
-      if (parsed?.credential && isTokenValid) {
-        const resolvedName = String(parsed.name || payload?.name || payload?.given_name || '').trim();
-        const resolvedEmail = String(parsed.email || payload?.email || '').trim();
-        const resolvedUserId = String(parsed.userId || payload?.sub || '').trim();
+      if (parsed?.credential) {
         const normalizedUser: GoogleUser = {
           credential: parsed.credential,
-          userId: resolvedUserId || parsed.userId || '',
-          name: resolvedName || parsed.name || '',
-          email: resolvedEmail || parsed.email || '',
-          exp: resolvedExp || parsed.exp || 0,
+          userId: String(parsed.userId || '').trim(),
+          name: String(parsed.name || '').trim(),
+          email: String(parsed.email || '').trim(),
+          exp: Number(parsed.exp || 0),
         };
         setFormData((prev) => ({
           ...prev,
-          name: resolvedName || prev.name,
-          email: resolvedEmail || prev.email,
+          name: normalizedUser.name || prev.name,
+          email: normalizedUser.email || prev.email,
         }));
         setCurrentUser(normalizedUser);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedUser));
@@ -337,14 +316,8 @@ export default function Contact() {
 
   const handleGoogleSuccess = (credentialResponse: { credential?: string }) => {
     if (!credentialResponse.credential) return;
-    const payload = decodeJwt(credentialResponse.credential);
-    if (!payload) return;
     const user: GoogleUser = {
       credential: credentialResponse.credential,
-      userId: String(payload.sub || ''),
-      name: String(payload.name || payload.given_name || ''),
-      email: String(payload.email || ''),
-      exp: Number(payload.exp || 0),
     };
     setCurrentUser(user);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));

@@ -42,6 +42,7 @@ const MIN_NETWORK_PROGRESS = 86;
 const MAX_NETWORK_PROGRESS = 98;
 const MAX_TRACKED_REQUESTS = 10;
 const PROGRESS_DROP_PER_REQUEST = 2;
+const COMMENT_USER_STORAGE_KEY = 'dd_comment_user';
 
 function calculateNetworkProgress(inFlight: number) {
   if (inFlight <= 0) return 99;
@@ -99,7 +100,7 @@ function AnimatedRoutes() {
         const payload = await response.json().catch(() => ({}));
         if (cancelled) return;
         if (response.ok && payload?.ok) {
-          localStorage.removeItem('dd_comment_user');
+          localStorage.removeItem(COMMENT_USER_STORAGE_KEY);
           navigate('/dashboard', { replace: true });
         } else {
           navigate('/dashboard', { replace: true });
