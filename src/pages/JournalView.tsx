@@ -5,8 +5,7 @@ import { Clock, Eye, Heart, Share2, Code2, X, ChevronLeft, ChevronRight, Link2, 
 import { marked } from 'marked';
 import SEO from '../components/SEO';
 import CommentSection from '../components/CommentSection';
-import JournalHtmlServerFrame from '../components/JournalHtmlServerFrame';
-import { buildJournalHtmlFileUrl } from '../utils/journalHtmlFileUrl';
+import JournalHtmlBlobRenderer from '../components/JournalHtmlBlobRenderer';
 
 interface Journal {
   _id: string;
@@ -130,7 +129,12 @@ export default function JournalView() {
 
   const htmlFileUrl = useMemo(() => {
     const ref = journal?.slug || journal?._id || id;
-    return buildJournalHtmlFileUrl(String(ref || '')) || 'about:blank';
+    const token = String(ref || '').trim();
+    if (!token) return '/api/journal?action=html-file';
+    const isObjectId = /^[a-f\d]{24}$/i.test(token);
+    return isObjectId
+      ? `/api/journal?action=html-file&id=${encodeURIComponent(token)}`
+      : `/api/journal?action=html-file&slug=${encodeURIComponent(token)}`;
   }, [id, journal?._id, journal?.slug]);
 
   const handleShare = async () => {
@@ -242,7 +246,7 @@ export default function JournalView() {
 
         <div className="border-t border-zinc-800 pt-8 text-zinc-300 prose prose-invert max-w-none">
           {journal.contentType === 'html' ? (
-            <JournalHtmlServerFrame src={htmlFileUrl} title={`${journal.title} (HTML)`} />
+            <JournalHtmlBlobRenderer endpoint={htmlFileUrl} title={`${journal.title} (HTML)`} />
           ) : journal.contentType === 'richtext' ? (
             // Rich Text: direct render so tags/iframes work
             <div

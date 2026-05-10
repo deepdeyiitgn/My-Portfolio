@@ -77,7 +77,7 @@ Custom `react-pdf` viewer wrapped in a Motion 3D physics engine (`rotateY`). Inc
 Backend-less intelligent intake. Routes 15 inquiry categories to the right email node with pre-filled mailto tickets and auto-generated ticket IDs.
 
 ### 📓 Journal CMS with Embed Support
-Full markdown/HTML journal system backed by MongoDB. Features per-visit view counting, one-like-per-session enforcement, native share API, image galleries, and embeddable iframe output (`/journal/embed/:id`). HTML-type posts are served as full server-rendered HTML files via `/api/journal-html` (inside an iframe) so inline post scripts execute reliably in both journal view and embed view, while markdown/richtext behavior remains unchanged.
+Full markdown/HTML journal system backed by MongoDB. Features per-visit view counting, one-like-per-session enforcement, native share API, image galleries, and embeddable output (`/journal/embed/:id`). HTML-type posts are served by `/api/journal?action=html-file` and rendered from in-memory Blob URLs (non-iframe) in journal view/embed, while markdown/richtext behavior remains unchanged.
 
 ### 📺 YouTube Live Hub
 Auto-loads the current live stream. Sidebar shows all channel content filtered by **All / Stream / Video / Shorts** tabs with newest-first sorting, views count, and Prev/Next pagination (20 per page).

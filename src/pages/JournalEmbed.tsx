@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Clock, Eye, Heart, ExternalLink, Calendar } from 'lucide-react';
 import { marked } from 'marked';
-import JournalHtmlServerFrame from '../components/JournalHtmlServerFrame';
-import { buildJournalHtmlFileUrl } from '../utils/journalHtmlFileUrl';
+import JournalHtmlBlobRenderer from '../components/JournalHtmlBlobRenderer';
 
 // Configure marked for GitHub-flavored markdown
 marked.setOptions({ gfm: true, breaks: true });
@@ -98,7 +97,12 @@ export default function JournalEmbed() {
 
   const journalUrl = `${window.location.origin}/journal/view/${id}`;
   const htmlRef = journal.slug || journal._id || id;
-  const htmlFileUrl = buildJournalHtmlFileUrl(String(htmlRef || '')) || 'about:blank';
+  const htmlToken = String(htmlRef || '').trim();
+  const htmlFileUrl = !htmlToken
+    ? '/api/journal?action=html-file'
+    : (/^[a-f\d]{24}$/i.test(htmlToken)
+      ? `/api/journal?action=html-file&id=${encodeURIComponent(htmlToken)}`
+      : `/api/journal?action=html-file&slug=${encodeURIComponent(htmlToken)}`);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-300 p-4 md:p-6">
@@ -126,7 +130,7 @@ export default function JournalEmbed() {
         ) : (
           <div className="border-t border-zinc-800 pt-5 text-zinc-300 prose prose-invert max-w-none text-sm">
             {journal.contentType === 'html' ? (
-              <JournalHtmlServerFrame src={htmlFileUrl} title={`${journal.title} (HTML)`} className="min-h-[420px]" />
+              <JournalHtmlBlobRenderer endpoint={htmlFileUrl} title={`${journal.title} (HTML)`} className="min-h-[420px]" />
             ) : journal.contentType === 'richtext' ? (
               <div
                 className={CONTENT_CLASSES}
