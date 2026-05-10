@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 type Props = {
   src: string;
@@ -8,15 +8,18 @@ type Props = {
 
 export default function JournalHtmlServerFrame({ src, title, className = '' }: Props) {
   const [height, setHeight] = useState(640);
+  const frameRef = useRef<HTMLIFrameElement | null>(null);
   const frameStyle = useMemo(() => ({ height: `${height}px` }), [height]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.source !== frameRef.current?.contentWindow) return;
       if (!event?.data || typeof event.data !== 'object') return;
       if (event.data.type !== 'journal-html-height') return;
       const nextHeight = Number(event.data.height || 0);
       if (!Number.isFinite(nextHeight)) return;
-      setHeight((prev) => Math.max(prev, Math.max(320, Math.ceil(nextHeight))));
+      setHeight(Math.max(320, Math.ceil(nextHeight)));
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
@@ -28,6 +31,7 @@ export default function JournalHtmlServerFrame({ src, title, className = '' }: P
 
   return (
     <iframe
+      ref={frameRef}
       src={src}
       title={title}
       className={`w-full border border-zinc-800 rounded-2xl bg-zinc-950 ${className}`.trim()}

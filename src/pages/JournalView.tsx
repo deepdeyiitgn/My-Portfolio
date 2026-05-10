@@ -6,6 +6,7 @@ import { marked } from 'marked';
 import SEO from '../components/SEO';
 import CommentSection from '../components/CommentSection';
 import JournalHtmlServerFrame from '../components/JournalHtmlServerFrame';
+import { buildJournalHtmlFileUrl } from '../utils/journalHtmlFileUrl';
 
 interface Journal {
   _id: string;
@@ -129,11 +130,7 @@ export default function JournalView() {
 
   const htmlFileUrl = useMemo(() => {
     const ref = journal?.slug || journal?._id || id;
-    const isObjectId = /^[a-f\d]{24}$/i.test(String(ref || ''));
-    const params = new URLSearchParams();
-    if (isObjectId) params.set('id', String(ref));
-    else params.set('slug', String(ref));
-    return `/api/journal-html?${params.toString()}`;
+    return buildJournalHtmlFileUrl(String(ref || '')) || 'about:blank';
   }, [id, journal?._id, journal?.slug]);
 
   const handleShare = async () => {

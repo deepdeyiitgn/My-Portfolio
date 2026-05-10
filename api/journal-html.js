@@ -86,6 +86,13 @@ function renderHtmlDocument(journal) {
   ${content}
   <script>
     (() => {
+      const targetOrigin = (() => {
+        try {
+          return document.referrer ? new URL(document.referrer).origin : window.location.origin;
+        } catch {
+          return window.location.origin;
+        }
+      })();
       const postHeight = () => {
         try {
           const body = document.body;
@@ -98,16 +105,24 @@ function renderHtmlDocument(journal) {
             html ? html.offsetHeight : 0
           );
           if (window.parent && window.parent !== window) {
-            window.parent.postMessage({ type: 'journal-html-height', height }, '*');
+            window.parent.postMessage({ type: 'journal-html-height', height }, targetOrigin);
           }
         } catch {}
       };
-      window.addEventListener('load', postHeight);
-      window.addEventListener('resize', postHeight);
-      new MutationObserver(postHeight).observe(document.documentElement, { childList: true, subtree: true, attributes: true, characterData: true });
-      setTimeout(postHeight, 0);
-      setTimeout(postHeight, 300);
-      setTimeout(postHeight, 1000);
+      let rafId = 0;
+      const schedulePostHeight = () => {
+        if (rafId) return;
+        rafId = window.requestAnimationFrame(() => {
+          rafId = 0;
+          postHeight();
+        });
+      };
+      window.addEventListener('load', schedulePostHeight);
+      window.addEventListener('resize', schedulePostHeight);
+      new MutationObserver(schedulePostHeight).observe(document.documentElement, { childList: true, subtree: true, attributes: true, characterData: true });
+      setTimeout(schedulePostHeight, 0);
+      setTimeout(schedulePostHeight, 300);
+      setTimeout(schedulePostHeight, 1000);
     })();
   </script>
 </body>
@@ -116,7 +131,8 @@ function renderHtmlDocument(journal) {
 
 module.exports = async (req, res) => {
   try {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const allowedOrigin = String(process.env.JOURNAL_HTML_ALLOW_ORIGIN || '*').trim() || '*';
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -163,7 +179,8 @@ module.exports = async (req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
     res.end(renderHtmlDocument(journal));
-  } catch {
+  } catch (error) {
+    console.error('[api/journal-html] failed:', error);
     res.statusCode = 500;
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.end('Internal Server Error');
