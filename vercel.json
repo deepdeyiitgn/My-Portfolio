@@ -19,7 +19,7 @@
     {
       "source": "/(.*)/",
       "destination": "/index.html"
-    }    
+    },    
     {
       "source": "/",
       "destination": "/api/journal?action=render-page&path=/"
