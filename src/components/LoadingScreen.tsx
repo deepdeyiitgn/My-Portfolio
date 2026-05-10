@@ -51,7 +51,57 @@ const LOADING_QUOTES = [
   "Consistency is the companion of architectural integrity.",
   "Engineering the path to 2027.",
   "The digital ghost in the machine.",
-  "Initializing technical sovereignty."
+  "Initializing technical sovereignty.",
+  "Great systems are grown, not guessed.",
+  "Small commits, massive outcomes.",
+  "Latency is a user feeling.",
+  "Clarity is a performance feature.",
+  "Design for failure, then for scale.",
+  "Ideas become products through execution.",
+  "Resilience is engineered, not hoped for.",
+  "Model the domain, then code the model.",
+  "Data tells the truth if you listen.",
+  "Consistency creates compounding returns.",
+  "Think in systems, deliver in increments.",
+  "APIs are contracts, honor them.",
+  "Craft over chaos, always.",
+  "Every deployment is a promise.",
+  "Readability is future velocity.",
+  "Fast feedback beats perfect planning.",
+  "Ship value, then optimize.",
+  "Healthy abstractions unlock speed.",
+  "Careful naming prevents hidden bugs.",
+  "One architecture, many evolutions.",
+  "Constraint breeds creativity.",
+  "Secure defaults save real teams.",
+  "Observability is operational confidence.",
+  "The roadmap rewards focus.",
+  "Progress is built on routines.",
+  "Elegance survives refactors.",
+  "Strong fundamentals outlast trends.",
+  "Intentional practice creates mastery.",
+  "Measure twice, deploy once.",
+  "From prototype to platform.",
+  "Code with empathy for maintainers.",
+  "Reliable systems are quietly heroic.",
+  "Less friction, more flow.",
+  "Thoughtful UX is invisible power.",
+  "Momentum comes from daily discipline.",
+  "Automation protects creativity.",
+  "Great products respect user time.",
+  "Quality is everyone’s job.",
+  "Make complexity legible.",
+  "Future-proof by simplifying today.",
+  "Strong teams write clear interfaces.",
+  "Execution turns goals into history.",
+  "Stay curious, stay precise.",
+  "Depth over noise.",
+  "Habits are the engine of excellence.",
+  "Architecture is strategy made visible.",
+  "Own the details, win the outcome.",
+  "Long-term thinking compounds.",
+  "The best optimization is understanding.",
+  "Build trust with predictable systems."
 ];
 
 type LoadingScreenMode = 'intro' | 'normal';
@@ -59,6 +109,7 @@ type LoadingScreenMode = 'intro' | 'normal';
 interface LoadingScreenProps {
   mode?: LoadingScreenMode;
   onIntroComplete?: () => void;
+  progress?: number;
 }
 
 const INTRO_SLIDES = [
@@ -66,10 +117,12 @@ const INTRO_SLIDES = [
   { title: 'A QLYNK Production', subtitle: 'An app by Deep' },
 ];
 
-export default function LoadingScreen({ mode = 'normal', onIntroComplete }: LoadingScreenProps) {
+export default function LoadingScreen({ mode = 'normal', onIntroComplete, progress = 0 }: LoadingScreenProps) {
   const reduceMotion = useReducedMotion();
   const [quoteIndex, setQuoteIndex] = useState(() => Math.floor(Math.random() * LOADING_QUOTES.length));
   const [introIndex, setIntroIndex] = useState(0);
+  const [lastProgress, setLastProgress] = useState(0);
+  const safeProgress = Math.max(0, Math.min(100, Number.isFinite(progress) ? progress : 0));
 
   // Random quote cycling
   useEffect(() => {
@@ -96,6 +149,11 @@ export default function LoadingScreen({ mode = 'normal', onIntroComplete }: Load
     const timer = setTimeout(() => setIntroIndex((prev) => prev + 1), 2200);
     return () => clearTimeout(timer);
   }, [introIndex, mode, onIntroComplete]);
+
+  useEffect(() => {
+    if (mode !== 'normal') return;
+    setLastProgress((prev) => Math.max(prev, safeProgress));
+  }, [mode, safeProgress]);
 
   if (mode === 'intro') {
     return (
@@ -133,12 +191,13 @@ export default function LoadingScreen({ mode = 'normal', onIntroComplete }: Load
             LOADING<span className="text-amber-500">...</span>
           </motion.div>
           
-          <div className="relative h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
-            <motion.div 
+          <p className="text-zinc-400 font-mono text-xs tracking-[0.3em]">{Math.round(lastProgress)}%</p>
+          <div className="relative h-2.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
+            <motion.div
               className="absolute inset-y-0 left-0 bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.6)]"
-              initial={{ x: reduceMotion ? '0%' : '-100%', width: reduceMotion ? '100%' : '45%' }}
-              animate={reduceMotion ? { x: '0%' } : { x: '220%' }}
-              transition={reduceMotion ? undefined : { ease: 'easeInOut', duration: 1.1, repeat: Infinity }}
+              initial={{ width: '0%' }}
+              animate={{ width: `${lastProgress}%` }}
+              transition={reduceMotion ? { duration: 0 } : { duration: 0.35, ease: 'easeOut' }}
             />
           </div>
         </div>

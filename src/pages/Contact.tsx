@@ -1,6 +1,7 @@
 import { useState, FormEvent, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { GoogleLogin } from '@react-oauth/google';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Send, CheckCircle2, MessageSquare, Globe, Mail, Github, Instagram, Youtube, MessageCircle, ExternalLink, MapPin, Wrench, Phone, Loader2 } from 'lucide-react';
 import SEO from '../components/SEO';
 
@@ -122,6 +123,7 @@ interface GoogleUser {
   name?: string;
   email?: string;
   credential: string;
+  exp?: number;
 }
 
 interface PrivateIdentity {
@@ -157,6 +159,8 @@ function getDisplayNameFromEmail(email?: string | null): string {
 }
 
 export default function Contact() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const inputClassName =
     'w-full bg-zinc-950/50 border border-zinc-800 rounded-2xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all';
 
@@ -180,6 +184,10 @@ export default function Contact() {
   const [currentUser, setCurrentUser] = useState<GoogleUser | null>(null);
   const [privateIdentity, setPrivateIdentity] = useState<PrivateIdentity | null>(null);
   const [identityLoading, setIdentityLoading] = useState(false);
+  const [ownerAuthed, setOwnerAuthed] = useState(false);
+  const [ownerAuthChecked, setOwnerAuthChecked] = useState(false);
+  const [googleIntentText, setGoogleIntentText] = useState<'signin_with' | 'signup_with'>('signin_with');
+  const [redirectToProfileAfterAuth, setRedirectToProfileAfterAuth] = useState(false);
 
   const activeType = useMemo(
     () => TICKET_TYPES.find((t) => t.key === formData.supportType) || defaultType,
@@ -187,17 +195,62 @@ export default function Contact() {
   );
 
   useEffect(() => {
+    fetch('/api/auth')
+      .then((r) => r.json())
+      .then((d) => setOwnerAuthed(Boolean(d?.authenticated)))
+      .catch(() => setOwnerAuthed(false))
+      .finally(() => setOwnerAuthChecked(true));
+  }, []);
+
+  useEffect(() => {
+    if (!ownerAuthChecked) return;
+    const params = new URLSearchParams(location.search);
+    const wantsSignup = params.has('signup');
+    const wantsLogin = params.has('login');
+    if (!wantsSignup && !wantsLogin) return;
+
+    if (wantsSignup) {
+      setGoogleIntentText('signup_with');
+      if (!ownerAuthed) {
+        setRedirectToProfileAfterAuth(true);
+        const popup = window.open('https://accounts.google.com/signup', 'google-signup', 'width=600,height=700');
+        if (!popup) {
+          setStatusMessage('Popup blocked. Open https://accounts.google.com/signup and then continue with Google below.');
+        } else {
+          setStatusMessage('Google signup page opened. After creating account, continue with Google below.');
+        }
+      }
+    } else {
+      setGoogleIntentText('signin_with');
+      if (!ownerAuthed) {
+        setRedirectToProfileAfterAuth(true);
+        setStatusMessage('Continue with Google below to complete login on this website.');
+      }
+    }
+
+    navigate('/contact', { replace: true });
+  }, [location.search, navigate, ownerAuthed, ownerAuthChecked]);
+
+  useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return;
     try {
       const parsed = JSON.parse(stored) as GoogleUser;
       if (parsed?.credential) {
-        setCurrentUser(parsed);
+        const normalizedUser: GoogleUser = {
+          credential: parsed.credential,
+          userId: String(parsed.userId || '').trim(),
+          name: String(parsed.name || '').trim(),
+          email: String(parsed.email || '').trim(),
+          exp: Number(parsed.exp || 0),
+        };
         setFormData((prev) => ({
           ...prev,
-          name: parsed.name || prev.name,
-          email: parsed.email || prev.email,
+          name: normalizedUser.name || prev.name,
+          email: normalizedUser.email || prev.email,
         }));
+        setCurrentUser(normalizedUser);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedUser));
       } else {
         localStorage.removeItem(STORAGE_KEY);
       }
@@ -233,7 +286,8 @@ export default function Contact() {
         }
         if (cancelled) return;
         const resolvedEmail = payload?.user?.email ? String(payload.user.email) : null;
-        const displayName = currentUser.name || getDisplayNameFromEmail(resolvedEmail);
+        const backendUserName = String(payload?.user?.userName || '').trim();
+        const displayName = currentUser.name || backendUserName || getDisplayNameFromEmail(resolvedEmail);
         const resolvedIdentity = {
           email: resolvedEmail,
           serviceKey: payload?.user?.serviceKey ? String(payload.user.serviceKey) : null,
@@ -250,6 +304,11 @@ export default function Contact() {
           name: displayName || prev.name,
           email: resolvedEmail || currentUser.email || prev.email,
         }));
+        if (redirectToProfileAfterAuth) {
+          const profileUserId = String(payload?.user?.userId || currentUser.userId || '').trim();
+          setRedirectToProfileAfterAuth(false);
+          navigate(profileUserId ? `/user/${encodeURIComponent(profileUserId)}` : '/user', { replace: true });
+        }
       } catch {
         if (!cancelled) {
           setPrivateIdentity(null);
@@ -261,7 +320,7 @@ export default function Contact() {
     };
     loadPrivateIdentity();
     return () => { cancelled = true; };
-  }, [currentUser]);
+  }, [currentUser, navigate, redirectToProfileAfterAuth]);
 
   const handleGoogleSuccess = (credentialResponse: { credential?: string }) => {
     if (!credentialResponse.credential) return;
@@ -317,7 +376,6 @@ export default function Contact() {
 
       const ticketId = payload?.autoReply?.ticketId || generateClientTicketId();
       const sla = payload?.autoReply?.sla || 'Initial response within 24-48 hours.';
-      const resolvedServiceKey = privateIdentity?.serviceKey || NON_LOGIN_SERVICE_KEY;
       const resolvedLoginEmail = privateIdentity?.email || currentUser?.email || 'N/A';
 
       const formattedBody = [
@@ -326,7 +384,6 @@ export default function Contact() {
         `Name: ${formData.name}`,
         `Email: ${formData.email}`,
         `Google Login Email: ${resolvedLoginEmail}`,
-        `Service Key: ${resolvedServiceKey}`,
         `Google Auth Status: ${currentUser ? 'Logged In' : 'Not Logged In'}`,
         `Country: ${formData.country}`,
         `WhatsApp: ${formData.whatsapp || 'N/A'}`,
@@ -485,26 +542,31 @@ export default function Contact() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 space-y-3">
               <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Identity Sync (Optional)</p>
-              {currentUser ? (
+              {ownerAuthed ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-zinc-300">Owner session detected. Google sign-in is not required.</p>
+                  <p className="text-xs text-zinc-500">You can submit tickets directly using your owner-authenticated session.</p>
+                </div>
+              ) : currentUser ? (
                 <div className="space-y-2">
                   <p className="text-sm text-zinc-300">Signed in as <span className="text-amber-500 font-semibold">{currentUser.name || 'Google User'}</span></p>
                   <p className="text-xs text-zinc-500">Email: {privateIdentity?.email || currentUser.email || formData.email || 'N/A'}</p>
-                  <p className="text-xs text-zinc-500">Service Key: {privateIdentity?.serviceKey || (identityLoading ? 'Loading...' : NON_LOGIN_SERVICE_KEY)}</p>
+                  {identityLoading && <p className="text-xs text-zinc-500">Syncing identity...</p>}
                   <button type="button" onClick={handleGoogleLogout} className="text-xs px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition-colors">
                     Sign out Google
                   </button>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div id="contact-google-entry" className="space-y-2">
                   <GoogleLogin
                     onSuccess={handleGoogleSuccess}
                     onError={() => setStatusMessage('Google sign-in failed. Please try again.')}
                     useOneTap={false}
                     theme="filled_black"
-                    text="signin_with"
+                    text={googleIntentText}
                     shape="pill"
                   />
-                  <p className="text-xs text-zinc-600">If not logged in, ticket service key will be: {NON_LOGIN_SERVICE_KEY}.</p>
+                  <p className="text-xs text-zinc-600">Google sign-in auto-fills your account identity in the form.</p>
                 </div>
               )}
             </div>
