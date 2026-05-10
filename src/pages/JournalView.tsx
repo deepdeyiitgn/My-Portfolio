@@ -6,6 +6,7 @@ import { marked } from 'marked';
 import SEO from '../components/SEO';
 import CommentSection from '../components/CommentSection';
 import JournalHtmlBlobRenderer from '../components/JournalHtmlBlobRenderer';
+import { buildJournalHtmlApiUrl } from '../utils/journalHtmlApiUrl';
 
 interface Journal {
   _id: string;
@@ -129,12 +130,7 @@ export default function JournalView() {
 
   const htmlFileUrl = useMemo(() => {
     const ref = journal?.slug || journal?._id || id;
-    const token = String(ref || '').trim();
-    if (!token) return '/api/journal?action=html-file';
-    const isObjectId = /^[a-f\d]{24}$/i.test(token);
-    return isObjectId
-      ? `/api/journal?action=html-file&id=${encodeURIComponent(token)}`
-      : `/api/journal?action=html-file&slug=${encodeURIComponent(token)}`;
+    return buildJournalHtmlApiUrl(String(ref || ''));
   }, [id, journal?._id, journal?.slug]);
 
   const handleShare = async () => {

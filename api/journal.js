@@ -525,6 +525,10 @@ function renderJournalHtmlDocument(journal) {
 </html>`;
 }
 
+function isHtmlContentType(contentType) {
+  return String(contentType || '').trim().toLowerCase() === 'html';
+}
+
 
 const FEEDBACK_DEFAULT_LIMIT = 20;
 
@@ -618,10 +622,10 @@ module.exports = async (req, res) => {
           res.end('Journal not found');
           return;
         }
-        if (String(journal.contentType || '').toLowerCase() !== 'html') {
+        if (!isHtmlContentType(journal.contentType)) {
           res.statusCode = 415;
           res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-          res.end('Only html content type is supported on this endpoint');
+          res.end('Only HTML content type is supported for this endpoint');
           return;
         }
         const allowedOrigin = String(process.env.JOURNAL_HTML_ALLOW_ORIGIN || '*').trim() || '*';

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Clock, Eye, Heart, ExternalLink, Calendar } from 'lucide-react';
 import { marked } from 'marked';
 import JournalHtmlBlobRenderer from '../components/JournalHtmlBlobRenderer';
+import { buildJournalHtmlApiUrl } from '../utils/journalHtmlApiUrl';
 
 // Configure marked for GitHub-flavored markdown
 marked.setOptions({ gfm: true, breaks: true });
@@ -97,12 +98,7 @@ export default function JournalEmbed() {
 
   const journalUrl = `${window.location.origin}/journal/view/${id}`;
   const htmlRef = journal.slug || journal._id || id;
-  const htmlToken = String(htmlRef || '').trim();
-  const htmlFileUrl = !htmlToken
-    ? '/api/journal?action=html-file'
-    : (/^[a-f\d]{24}$/i.test(htmlToken)
-      ? `/api/journal?action=html-file&id=${encodeURIComponent(htmlToken)}`
-      : `/api/journal?action=html-file&slug=${encodeURIComponent(htmlToken)}`);
+  const htmlFileUrl = buildJournalHtmlApiUrl(String(htmlRef || ''));
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-300 p-4 md:p-6">

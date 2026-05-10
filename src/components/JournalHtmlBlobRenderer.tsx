@@ -19,14 +19,14 @@ export default function JournalHtmlBlobRenderer({ endpoint, title, className = '
       setError('');
       try {
         const r = await fetch(endpoint, { headers: { Accept: 'text/html' } });
-        if (!r.ok) throw new Error('Failed to load HTML');
+        if (!r.ok) throw new Error(`Failed to load HTML (${r.status})`);
         const html = await r.text();
         if (!mounted) return;
         const blob = new Blob([html], { type: 'text/html' });
         localBlobUrl = URL.createObjectURL(blob);
         setBlobUrl(localBlobUrl);
-      } catch {
-        if (mounted) setError('Failed to load HTML content');
+      } catch (err) {
+        if (mounted) setError(err instanceof Error ? err.message : 'Failed to load HTML content');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -43,7 +43,7 @@ export default function JournalHtmlBlobRenderer({ endpoint, title, className = '
   }
 
   if (error || !blobUrl) {
-    return <div className="w-full min-h-[240px] rounded-2xl border border-red-900/50 bg-red-950/20 text-red-400 grid place-items-center px-4 text-center">{error || 'Unable to render HTML content'}</div>;
+    return <div role="alert" className="w-full min-h-[240px] rounded-2xl border border-red-900/50 bg-red-950/20 text-red-400 grid place-items-center px-4 text-center">{error || 'Unable to render HTML content'}</div>;
   }
 
   return (
@@ -54,7 +54,7 @@ export default function JournalHtmlBlobRenderer({ endpoint, title, className = '
       className={`w-full min-h-[640px] rounded-2xl border border-zinc-800 bg-zinc-950 ${className}`.trim()}
     >
       <a href={blobUrl} target="_blank" rel="noopener noreferrer" className="text-amber-400 underline">
-        Open HTML content
+        Open {title} in new tab
       </a>
     </object>
   );
