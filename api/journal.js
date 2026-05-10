@@ -2546,8 +2546,8 @@ module.exports = async (req, res) => {
         categoryName: body.categoryName !== undefined ? String(body.categoryName).trim() : existing.categoryName,
         images: body.images !== undefined ? normalizeImages(body.images) : normalizeImages(existing.images),
         published: publish,
-        publishedAt: publish ? (existing.publishedAt || now) : null,
-        publishedAtIST: publish ? (existing.publishedAtIST || nowIST()) : null,
+        publishedAt: publish ? (existing.publishedAt || now) : (existing.publishedAt || null),
+        publishedAtIST: publish ? (existing.publishedAtIST || nowIST()) : (existing.publishedAtIST || null),
         updatedAt: now,
         readMinutes: estimateReadMinutes(content),
       };

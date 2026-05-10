@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence, Variants } from 'motion/react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ChevronLeft, ChevronRight, Download, BookOpen, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
+import SEO from '../components/SEO';
 
 // pdfjs worker setup for local asset loading
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
@@ -65,6 +66,11 @@ export default function Portfolio() {
 
   return (
     <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 flex flex-col items-center space-y-16">
+      <SEO
+        title="Portfolio Viewer | Deep Dey"
+        description="Explore Deep Dey's portfolio document with the interactive PDF viewer and direct download access."
+        route="/portfolio"
+      />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

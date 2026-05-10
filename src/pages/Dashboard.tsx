@@ -570,6 +570,9 @@ function JournalEditor({
               Custom HTML
             </button>
           </div>
+          <p className="text-[10px] font-mono text-zinc-500">
+            Pick the format you want to publish: Rich Text editor, Markdown, or raw HTML. The website, embeds, and previews will use this selected content type.
+          </p>
 
           {/* Media Embed Actions */}
           <div className="flex flex-wrap gap-2 pt-1 border-t border-zinc-800/50">

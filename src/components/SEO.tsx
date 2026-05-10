@@ -8,6 +8,7 @@ interface SEOProps {
   route: string;
   schema?: object;
   image?: string;
+  type?: string;
 }
 
 export default function SEO({ 
@@ -16,11 +17,12 @@ export default function SEO({
   keywords, 
   route, 
   schema, 
-  image = '/assets/images/myphoto.png' 
+  image = '/assets/images/myphoto.png',
+  type = 'website',
 }: SEOProps) {
   const baseUrl = 'https://deepdey.vercel.app';
   const fullUrl = `${baseUrl}${route === '/' ? '' : route}`;
-  const fullImage = `${baseUrl}${image}`;
+  const fullImage = /^https?:\/\//i.test(image) ? image : `${baseUrl}${image.startsWith('/') ? image : `/${image}`}`;
 
   return (
     <Helmet>
@@ -31,7 +33,7 @@ export default function SEO({
       <link rel="canonical" href={fullUrl} />
 
       {/* Open Graph / Facebook */}
-      <meta property="og:type" content="website" />
+      <meta property="og:type" content={type} />
       <meta property="og:url" content={fullUrl} />
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
