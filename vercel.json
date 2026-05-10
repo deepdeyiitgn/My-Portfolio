@@ -13,12 +13,16 @@
       "destination": "/api/$1"
     },
     {
+      "source": "/",
+      "destination": "/api/journal?action=render-page&path=/"
+    },
+    {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/api/journal?action=render-page&path=/$1"
     },
     {
       "source": "/(.*)/",
-      "destination": "/index.html"
+      "destination": "/api/journal?action=render-page&path=/$1"
     }   
   ],
   "redirects": [

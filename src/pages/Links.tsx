@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { ExternalLink, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { linksData, LinkItem } from '../data/linksData';
+import SEO from '../components/SEO';
 
 export default function Links() {
   const [dynamicLinks, setDynamicLinks] = useState<LinkItem[]>(linksData);
@@ -33,6 +34,11 @@ export default function Links() {
 
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col items-center py-20 px-6 space-y-16 overflow-x-hidden relative">
+      <SEO
+        title="Links Hub | Deep Dey"
+        description="All important Deep Dey links, socials, products, communities, and external platforms in one place."
+        route="/links"
+      />
       {/* Background Decorative Gradient */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-amber-500/5 blur-[120px] rounded-full -z-10"></div>
 

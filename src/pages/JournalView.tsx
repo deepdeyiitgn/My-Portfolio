@@ -176,10 +176,17 @@ export default function JournalView() {
   const images = (Array.isArray(journal.images) ? journal.images : [])
     .map((img) => sanitizeImageUrl(img))
     .filter(Boolean);
+  const shareImage = images[0] || '/assets/images/myphoto.png';
 
   return (
     <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 space-y-8">
-      <SEO title={`${journal.title} | Journal`} description={journal.summary || 'Journal post'} route={`/journal/view/${journalRouteKey}`} />
+      <SEO
+        title={`${journal.title} | Journal`}
+        description={journal.summary || 'Journal post'}
+        route={`/journal/view/${journalRouteKey}`}
+        image={shareImage}
+        type="article"
+      />
 
       {/* Go Back button */}
       <button

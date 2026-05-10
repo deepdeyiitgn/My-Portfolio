@@ -77,7 +77,7 @@ Custom `react-pdf` viewer wrapped in a Motion 3D physics engine (`rotateY`). Inc
 Backend-less intelligent intake. Routes 15 inquiry categories to the right email node with pre-filled mailto tickets and auto-generated ticket IDs.
 
 ### 📓 Journal CMS with Embed Support
-Full markdown/HTML journal system backed by MongoDB. Features per-visit view counting, one-like-per-session enforcement, native share API, image galleries, and embeddable output (`/journal/embed/:id`). Embed code now always uses the journal MongoDB `_id` for stable resolution. HTML-type posts are served by `/api/journal?action=html-file` and rendered inline (non-iframe) in journal view/embed, while markdown/richtext behavior remains unchanged.
+Full rich text / markdown / HTML journal system backed by MongoDB. Features per-visit view counting, one-like-per-session enforcement, native share API, image galleries, and embeddable output (`/journal/embed/:id`). Embed code now always uses the journal MongoDB `_id` for stable resolution, and embeds render the actual post body for all supported content types. HTML-type posts are served by `/api/journal?action=html-file` and rendered inline (non-iframe) in journal view/embed, while markdown/richtext behavior remains unchanged. Unpublishing a post keeps existing comments/replies intact and preserves the original publish timestamp for any later re-publish.
 
 ### 📺 YouTube Live Hub
 Auto-loads the current live stream. Sidebar shows all channel content filtered by **All / Stream / Video / Shorts** tabs with newest-first sorting, views count, and Prev/Next pagination (20 per page).
@@ -92,7 +92,7 @@ A JSON-driven hub mapping 30+ internal/external nodes with dynamic inline SVG ic
 The milestone timeline uses `new Date().getFullYear()` to auto-highlight the current active phase with a glowing amber radar pulse (extends to 2035).
 
 ### 🔍 Max-Level SEO
-`react-helmet-async` drives per-route metadata injection: Canonical URLs, OpenGraph/Twitter cards, and `Schema.org` JSON-LD (Person, FAQPage, SoftwareApplication). All routes including `/search`, `/user`, `/feedback`, and `/journal/comment` are included in the XML sitemap.
+`react-helmet-async` drives per-route metadata injection: Canonical URLs, OpenGraph/Twitter cards, and `Schema.org` JSON-LD (Person, FAQPage, SoftwareApplication). A server-rendered HTML shell also injects the correct title/description/image for shared links, so WhatsApp, Twitter/X, Discord, and other unfurlers can read page-specific metadata before the SPA hydrates. Journal posts automatically use a random uploaded post image for share cards, with `/assets/images/myphoto.png` as the fallback when a post has no uploaded images. All routes including `/search`, `/user`, `/feedback`, and `/journal/comment` are included in the XML sitemap.
 
 ### 🌍 12-Language i18n
 Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · JA · KO · ZH via a custom React Context provider.

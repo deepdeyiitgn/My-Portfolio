@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Clock, Eye, Heart, ExternalLink, Calendar } from 'lucide-react';
 import { marked } from 'marked';
 import JournalHtmlBlobRenderer from '../components/JournalHtmlBlobRenderer';
+import SEO from '../components/SEO';
 import { buildJournalHtmlApiUrl } from '../utils/journalHtmlApiUrl';
 
 // Configure marked for GitHub-flavored markdown
@@ -74,14 +75,6 @@ export default function JournalEmbed() {
   const [journal, setJournal] = useState<Journal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isCompact, setIsCompact] = useState(false);
-
-  useEffect(() => {
-    setIsCompact(window.innerWidth < 520);
-    const onResize = () => setIsCompact(window.innerWidth < 520);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -128,13 +121,6 @@ export default function JournalEmbed() {
     () => String(journal?.contentType || 'markdown').trim().toLowerCase(),
     [journal?.contentType],
   );
-  const compactPreview = useMemo(() => {
-    if (!journal) return '';
-    if (normalizedContentType === 'markdown') return journal.content;
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(journal.content || '', 'text/html');
-    return (doc.body.textContent || '').trim();
-  }, [journal, normalizedContentType]);
 
   if (loading) {
     return <div className="min-h-screen bg-zinc-950 text-zinc-500 p-4">Loading…</div>;
@@ -149,6 +135,12 @@ export default function JournalEmbed() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-300 p-4 md:p-6">
+      <SEO
+        title={`${journal.title} | Journal Embed`}
+        description={journal.summary || 'Embedded journal post'}
+        route={`/journal/embed/${encodeURIComponent(journal._id || journal.slug || id)}`}
+        type="article"
+      />
       <article className="max-w-4xl mx-auto space-y-4">
         <h1 className="text-xl md:text-3xl font-black text-white tracking-tight">{journal.title}</h1>
 
@@ -166,27 +158,21 @@ export default function JournalEmbed() {
 
         {journal.summary && <p className="text-zinc-400 text-sm">{journal.summary}</p>}
 
-        {isCompact ? (
-            <div className="border border-zinc-800 rounded-2xl p-4 bg-zinc-900/30 text-sm text-zinc-400">
-            {journal.summary || compactPreview.slice(0, 240) || 'No preview available'}
-            </div>
+        <div className="border-t border-zinc-800 pt-5 text-zinc-300 prose prose-invert max-w-none text-sm">
+          {normalizedContentType === 'html' ? (
+            <JournalHtmlBlobRenderer endpoint={htmlFileUrl} title={`${journal.title} (HTML)`} className="min-h-[420px]" />
+          ) : normalizedContentType === 'richtext' ? (
+            <div
+              className={CONTENT_CLASSES}
+              dangerouslySetInnerHTML={{ __html: journal.content }}
+            />
           ) : (
-            <div className="border-t border-zinc-800 pt-5 text-zinc-300 prose prose-invert max-w-none text-sm">
-            {normalizedContentType === 'html' ? (
-              <JournalHtmlBlobRenderer endpoint={htmlFileUrl} title={`${journal.title} (HTML)`} className="min-h-[420px]" />
-            ) : normalizedContentType === 'richtext' ? (
-              <div
-                className={CONTENT_CLASSES}
-                dangerouslySetInnerHTML={{ __html: journal.content }}
-              />
-            ) : (
-              <div
-                className={CONTENT_CLASSES}
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(journal.content) }}
-              />
-            )}
-          </div>
-        )}
+            <div
+              className={CONTENT_CLASSES}
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(journal.content) }}
+            />
+          )}
+        </div>
       </article>
 
       {/* Transparent go-to-journal button in bottom-right corner */}
