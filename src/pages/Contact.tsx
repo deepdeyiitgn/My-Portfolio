@@ -159,7 +159,9 @@ function getDisplayNameFromEmail(email?: string | null): string {
 
 function decodeJwt(token: string): Record<string, unknown> | null {
   try {
-    const [, payload] = token.split('.');
+    const parts = token.split('.');
+    if (parts.length !== 3 || !parts[1]) return null;
+    const payload = parts[1];
     const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
     const paddingNeeded = (4 - (base64.length % 4)) % 4;
     const padded = `${base64}${'='.repeat(paddingNeeded)}`;
@@ -261,8 +263,8 @@ export default function Contact() {
         }
         if (cancelled) return;
         const resolvedEmail = payload?.user?.email ? String(payload.user.email) : null;
-        const canonicalName = String(payload?.user?.userName || '').trim();
-        const displayName = currentUser.name || canonicalName || getDisplayNameFromEmail(resolvedEmail);
+        const backendUserName = String(payload?.user?.userName || '').trim();
+        const displayName = currentUser.name || backendUserName || getDisplayNameFromEmail(resolvedEmail);
         const resolvedIdentity = {
           email: resolvedEmail,
           serviceKey: payload?.user?.serviceKey ? String(payload.user.serviceKey) : null,

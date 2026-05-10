@@ -43,6 +43,14 @@ const MAX_NETWORK_PROGRESS = 98;
 const MAX_TRACKED_REQUESTS = 10;
 const PROGRESS_DROP_PER_REQUEST = 2;
 
+function calculateNetworkProgress(inFlight: number) {
+  if (inFlight <= 0) return 99;
+  return Math.max(
+    MIN_NETWORK_PROGRESS,
+    MAX_NETWORK_PROGRESS - Math.min(inFlight, MAX_TRACKED_REQUESTS) * PROGRESS_DROP_PER_REQUEST,
+  );
+}
+
 /**
  * AnimatedRoutes Component
  * Handles the page transitions and Suspense boundary.
@@ -124,9 +132,7 @@ function AnimatedRoutes() {
       let networkProgress = timeProgress;
       if (pageLoaded) {
         const inFlight = pendingRequestsRef.current;
-        networkProgress = inFlight > 0
-          ? Math.max(MIN_NETWORK_PROGRESS, MAX_NETWORK_PROGRESS - Math.min(inFlight, MAX_TRACKED_REQUESTS) * PROGRESS_DROP_PER_REQUEST)
-          : 99;
+        networkProgress = calculateNetworkProgress(inFlight);
       }
 
       const nextProgress = Math.max(timeProgress, networkProgress);
