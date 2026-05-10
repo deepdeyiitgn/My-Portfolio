@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Clock, Eye, Heart, ExternalLink, Calendar, MessageSquare } from 'lucide-react';
 import { marked } from 'marked';
 import SEO from '../components/SEO';
+import JournalHtmlBlobRenderer from '../components/JournalHtmlBlobRenderer';
 import { buildJournalHtmlApiUrl } from '../utils/journalHtmlApiUrl';
 
 // Configure marked for GitHub-flavored markdown
@@ -11,16 +12,6 @@ marked.setOptions({ gfm: true, breaks: true });
 function renderMarkdown(text: string): string {
   try {
     return marked.parse(String(text || '')) as string;
-  } catch {
-    return '';
-  }
-}
-
-function extractEmbedHtmlWithoutImages(rawHtml: string): string {
-  try {
-    const doc = new DOMParser().parseFromString(String(rawHtml || ''), 'text/html');
-    doc.querySelectorAll('img, picture, source, figure, script, noscript').forEach((el) => el.remove());
-    return String(doc.body?.innerHTML || '').trim();
   } catch {
     return '';
   }
@@ -89,8 +80,6 @@ export default function JournalEmbed() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [commentCount, setCommentCount] = useState(0);
-  const [htmlContent, setHtmlContent] = useState('');
-  const [htmlLoading, setHtmlLoading] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -99,8 +88,6 @@ export default function JournalEmbed() {
       setError('');
       setJournal(null);
       setCommentCount(0);
-      setHtmlContent('');
-      setHtmlLoading(false);
       try {
         const isObjectId = /^[a-f\d]{24}$/i.test(id);
         const primaryUrl = isObjectId
@@ -140,6 +127,10 @@ export default function JournalEmbed() {
     () => String(journal?.contentType || 'markdown').trim().toLowerCase(),
     [journal?.contentType],
   );
+  const htmlFileUrl = useMemo(
+    () => buildJournalHtmlApiUrl(String(journal?._id || journal?.slug || id || '')),
+    [id, journal?._id, journal?.slug],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -164,43 +155,6 @@ export default function JournalEmbed() {
       mounted = false;
     };
   }, [journal?._id]);
-
-  useEffect(() => {
-    let mounted = true;
-    const run = async () => {
-      if (!journal || normalizedContentType !== 'html') {
-        if (mounted) {
-          setHtmlContent('');
-          setHtmlLoading(false);
-        }
-        return;
-      }
-      const htmlRef = journal._id || journal.slug || id;
-      const endpoint = buildJournalHtmlApiUrl(String(htmlRef || ''));
-      if (mounted) {
-        setHtmlLoading(true);
-        setHtmlContent('');
-      }
-      try {
-        const r = await fetch(endpoint, { headers: { Accept: 'text/html' } });
-        const html = await r.text();
-        if (!mounted) return;
-        if (!r.ok) {
-          setHtmlContent('');
-          return;
-        }
-        setHtmlContent(extractEmbedHtmlWithoutImages(html));
-      } catch {
-        if (mounted) setHtmlContent('');
-      } finally {
-        if (mounted) setHtmlLoading(false);
-      }
-    };
-    run();
-    return () => {
-      mounted = false;
-    };
-  }, [id, journal, normalizedContentType]);
 
   if (loading) {
     return <div className="min-h-screen bg-zinc-950 text-zinc-500 p-4">Loading…</div>;
@@ -247,14 +201,7 @@ export default function JournalEmbed() {
 
         <div className="border-t border-zinc-800 pt-5 text-zinc-300 prose prose-invert max-w-none text-sm">
           {normalizedContentType === 'html' ? (
-            htmlLoading ? (
-              <div className="w-full min-h-[420px] rounded-2xl border border-zinc-800 bg-zinc-950 text-zinc-500 grid place-items-center">Loading HTML…</div>
-            ) : (
-              <div
-                className={CONTENT_CLASSES}
-                dangerouslySetInnerHTML={{ __html: htmlContent || '<p class="text-zinc-500">No HTML content available.</p>' }}
-              />
-            )
+            <JournalHtmlBlobRenderer endpoint={htmlFileUrl} title={`${journal.title} (HTML)`} />
           ) : normalizedContentType === 'richtext' ? (
             <div
               className={CONTENT_CLASSES}
