@@ -200,6 +200,7 @@ function replaceTag(html, pattern, replacement) {
 function buildRenderedHtml(meta) {
   const fullUrl = `${BASE_URL}${meta.path === '/' ? '' : meta.path}${meta.query || ''}`;
   const title = escapeHtml(meta.title);
+  const titleAttr = escapeAttr(meta.title);
   const description = escapeAttr(meta.description);
   const image = escapeAttr(meta.image || `${BASE_URL}${DEFAULT_IMAGE}`);
   const canonical = escapeAttr(fullUrl);
@@ -208,17 +209,17 @@ function buildRenderedHtml(meta) {
   let html = readTemplate();
 
   html = replaceTag(html, /<title>[\s\S]*?<\/title>/i, `<title>${title}</title>`);
-  html = replaceTag(html, /<meta\s+name="title"\s+content="[\s\S]*?"\s*\/?>/i, `<meta name="title" content="${title}" />`);
+  html = replaceTag(html, /<meta\s+name="title"\s+content="[\s\S]*?"\s*\/?>/i, `<meta name="title" content="${titleAttr}" />`);
   html = replaceTag(html, /<meta\s+name="description"\s+content="[\s\S]*?"\s*\/?>/i, `<meta name="description" content="${description}" />`);
   html = replaceTag(html, /<link\s+rel="canonical"\s+href="[\s\S]*?"\s*\/?>/i, `<link rel="canonical" href="${canonical}" />`);
   html = replaceTag(html, /<meta\s+property="og:type"\s+content="[\s\S]*?"\s*\/?>/i, `<meta property="og:type" content="${ogType}" />`);
   html = replaceTag(html, /<meta\s+property="og:url"\s+content="[\s\S]*?"\s*\/?>/i, `<meta property="og:url" content="${canonical}" />`);
-  html = replaceTag(html, /<meta\s+property="og:title"\s+content="[\s\S]*?"\s*\/?>/i, `<meta property="og:title" content="${title}" />`);
+  html = replaceTag(html, /<meta\s+property="og:title"\s+content="[\s\S]*?"\s*\/?>/i, `<meta property="og:title" content="${titleAttr}" />`);
   html = replaceTag(html, /<meta\s+property="og:description"\s+content="[\s\S]*?"\s*\/?>/i, `<meta property="og:description" content="${description}" />`);
   html = replaceTag(html, /<meta\s+property="og:image"\s+content="[\s\S]*?"\s*\/?>/i, `<meta property="og:image" content="${image}" />`);
   html = replaceTag(html, /<meta\s+(?:name|property)="twitter:card"\s+content="[\s\S]*?"\s*\/?>/i, '<meta name="twitter:card" content="summary_large_image" />');
   html = replaceTag(html, /<meta\s+(?:name|property)="twitter:url"\s+content="[\s\S]*?"\s*\/?>/i, `<meta name="twitter:url" content="${canonical}" />`);
-  html = replaceTag(html, /<meta\s+(?:name|property)="twitter:title"\s+content="[\s\S]*?"\s*\/?>/i, `<meta name="twitter:title" content="${title}" />`);
+  html = replaceTag(html, /<meta\s+(?:name|property)="twitter:title"\s+content="[\s\S]*?"\s*\/?>/i, `<meta name="twitter:title" content="${titleAttr}" />`);
   html = replaceTag(html, /<meta\s+(?:name|property)="twitter:description"\s+content="[\s\S]*?"\s*\/?>/i, `<meta name="twitter:description" content="${description}" />`);
   html = replaceTag(html, /<meta\s+(?:name|property)="twitter:image"\s+content="[\s\S]*?"\s*\/?>/i, `<meta name="twitter:image" content="${image}" />`);
 
