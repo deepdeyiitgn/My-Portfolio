@@ -76,6 +76,24 @@ function AnimatedRoutes() {
     if (location.pathname !== '/') return;
     const params = new URLSearchParams(location.search);
 
+    if (params.has('logout')) {
+      let cancelled = false;
+      const runGlobalLogout = async () => {
+        try {
+          await fetch('/api/auth', { method: 'DELETE' });
+        } catch {
+          // Ignore network failures and still clear local auth state.
+        } finally {
+          if (!cancelled) {
+            localStorage.removeItem(COMMENT_USER_STORAGE_KEY);
+            navigate('/', { replace: true });
+          }
+        }
+      };
+      runGlobalLogout();
+      return () => { cancelled = true; };
+    }
+
     if (params.has('signup')) {
       navigate('/contact?signup', { replace: true });
       return;

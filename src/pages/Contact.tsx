@@ -187,6 +187,7 @@ export default function Contact() {
   const [ownerAuthed, setOwnerAuthed] = useState(false);
   const [ownerAuthChecked, setOwnerAuthChecked] = useState(false);
   const [googleIntentText, setGoogleIntentText] = useState<'signin_with' | 'signup_with'>('signin_with');
+  const [redirectToProfileAfterAuth, setRedirectToProfileAfterAuth] = useState(false);
 
   const activeType = useMemo(
     () => TICKET_TYPES.find((t) => t.key === formData.supportType) || defaultType,
@@ -211,6 +212,7 @@ export default function Contact() {
     if (wantsSignup) {
       setGoogleIntentText('signup_with');
       if (!ownerAuthed) {
+        setRedirectToProfileAfterAuth(true);
         const popup = window.open('https://accounts.google.com/signup', 'google-signup', 'width=600,height=700');
         if (!popup) {
           setStatusMessage('Popup blocked. Open https://accounts.google.com/signup and then continue with Google below.');
@@ -221,6 +223,7 @@ export default function Contact() {
     } else {
       setGoogleIntentText('signin_with');
       if (!ownerAuthed) {
+        setRedirectToProfileAfterAuth(true);
         setStatusMessage('Continue with Google below to complete login on this website.');
       }
     }
@@ -301,6 +304,11 @@ export default function Contact() {
           name: displayName || prev.name,
           email: resolvedEmail || currentUser.email || prev.email,
         }));
+        if (redirectToProfileAfterAuth) {
+          const profileUserId = String(payload?.user?.userId || currentUser.userId || '').trim();
+          setRedirectToProfileAfterAuth(false);
+          navigate(profileUserId ? `/user/${encodeURIComponent(profileUserId)}` : '/user', { replace: true });
+        }
       } catch {
         if (!cancelled) {
           setPrivateIdentity(null);
@@ -312,7 +320,7 @@ export default function Contact() {
     };
     loadPrivateIdentity();
     return () => { cancelled = true; };
-  }, [currentUser]);
+  }, [currentUser, navigate, redirectToProfileAfterAuth]);
 
   const handleGoogleSuccess = (credentialResponse: { credential?: string }) => {
     if (!credentialResponse.credential) return;
