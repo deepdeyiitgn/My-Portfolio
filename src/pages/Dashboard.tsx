@@ -571,6 +571,19 @@ function JournalEditor({
             </button>
           </div>
 
+          {/* Content type hint */}
+          <p className="text-[10px] font-mono text-zinc-500 leading-relaxed">
+            {contentType === 'richtext' && (
+              <span>✏️ <span className="text-amber-500/80">RichText (HTML)</span> — WYSIWYG editor. Bold, italic, lists, and more via toolbar. Content is saved as HTML.</span>
+            )}
+            {contentType === 'markdown' && (
+              <span>✍️ <span className="text-amber-500/80">Markdown</span> — Write in plain text using <code className="text-zinc-400"># Heading</code>, <code className="text-zinc-400">**bold**</code>, <code className="text-zinc-400">_italic_</code>, links, code blocks, etc.</span>
+            )}
+            {contentType === 'html' && (
+              <span>🔧 <span className="text-amber-500/80">Custom HTML</span> — Raw HTML / CSS / JS. Full control over layout and styling. Use with caution.</span>
+            )}
+          </p>
+
           {/* Media Embed Actions */}
           <div className="flex flex-wrap gap-2 pt-1 border-t border-zinc-800/50">
             <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest self-center mr-1">Embed:</span>
@@ -2397,7 +2410,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
                         <div className="flex items-center gap-2 shrink-0">
                           <button
                             onClick={() => handleTogglePublish(j)}
-                            title={j.published ? 'Unpublish' : 'Publish'}
+                            title={j.published ? 'Unpublish (comments preserved · original date kept on re-publish)' : 'Publish (original publish date restored if previously published)'}
                             className="p-2 rounded-xl hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-amber-500"
                           >
                             {j.published ? <ToggleRight size={18} className="text-emerald-400" /> : <ToggleLeft size={18} />}
