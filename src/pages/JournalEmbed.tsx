@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Clock, Eye, Heart, ExternalLink, Calendar } from 'lucide-react';
 import { marked } from 'marked';
@@ -72,6 +72,8 @@ const CONTENT_CLASSES =
 export default function JournalEmbed() {
   const { id = '' } = useParams();
   const [journal, setJournal] = useState<Journal | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [isCompact, setIsCompact] = useState(false);
 
   useEffect(() => {
@@ -82,22 +84,67 @@ export default function JournalEmbed() {
   }, []);
 
   useEffect(() => {
-    fetch(`/api/journal?id=${encodeURIComponent(id)}&countView=true`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.ok) setJournal(d.journal);
-      })
-      .catch(() => {
-        // ignore
-      });
+    let mounted = true;
+    const run = async () => {
+      setLoading(true);
+      setError('');
+      setJournal(null);
+      try {
+        const isObjectId = /^[a-f\d]{24}$/i.test(id);
+        const primaryUrl = isObjectId
+          ? `/api/journal?id=${encodeURIComponent(id)}&countView=true`
+          : `/api/journal?slug=${encodeURIComponent(id)}&countView=true`;
+        const fallbackUrl = isObjectId
+          ? `/api/journal?slug=${encodeURIComponent(id)}&countView=true`
+          : `/api/journal?id=${encodeURIComponent(id)}&countView=true`;
+
+        const fetchJournal = async (url: string): Promise<Journal | null> => {
+          const r = await fetch(url);
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok || !d?.ok || !d?.journal) return null;
+          return d.journal as Journal;
+        };
+
+        const found = await fetchJournal(primaryUrl) || await fetchJournal(fallbackUrl);
+        if (!mounted) return;
+        if (!found) {
+          setError('Journal not found');
+          return;
+        }
+        setJournal(found);
+      } catch {
+        if (mounted) setError('Failed to load journal');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    run();
+    return () => {
+      mounted = false;
+    };
   }, [id]);
 
-  if (!journal) {
+  const normalizedContentType = useMemo(
+    () => String(journal?.contentType || 'markdown').trim().toLowerCase(),
+    [journal?.contentType],
+  );
+  const compactPreview = useMemo(() => {
+    if (!journal) return '';
+    if (normalizedContentType === 'markdown') return journal.content;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(journal.content || '', 'text/html');
+    return (doc.body.textContent || '').trim();
+  }, [journal, normalizedContentType]);
+
+  if (loading) {
     return <div className="min-h-screen bg-zinc-950 text-zinc-500 p-4">Loading…</div>;
   }
 
-  const journalUrl = `${window.location.origin}/journal/view/${id}`;
-  const htmlRef = journal.slug || journal._id || id;
+  if (error || !journal) {
+    return <div className="min-h-screen bg-zinc-950 text-red-400 p-4">{error || 'Journal not found'}</div>;
+  }
+  const journalUrl = `${window.location.origin}/journal/view/${encodeURIComponent(journal._id || journal.slug || id)}`;
+  const htmlRef = journal._id || journal.slug || id;
   const htmlFileUrl = buildJournalHtmlApiUrl(String(htmlRef || ''));
 
   return (
@@ -114,20 +161,20 @@ export default function JournalEmbed() {
           <span className="flex items-center gap-1"><Clock size={12} /> {journal.readMinutes} min read</span>
           <span className="flex items-center gap-1"><Heart size={12} /> {Number(journal.likes || 0)} likes</span>
           <span className="flex items-center gap-1"><Eye size={12} /> {Number(journal.views || 0)} views</span>
-          <span className="uppercase text-amber-500/50 border border-amber-500/20 px-1.5 rounded">{journal.contentType || 'markdown'}</span>
+          <span className="uppercase text-amber-500/50 border border-amber-500/20 px-1.5 rounded">{normalizedContentType}</span>
         </div>
 
         {journal.summary && <p className="text-zinc-400 text-sm">{journal.summary}</p>}
 
         {isCompact ? (
-          <div className="border border-zinc-800 rounded-2xl p-4 bg-zinc-900/30 text-sm text-zinc-400">
-            {journal.summary || journal.content.slice(0, 240)}
-          </div>
-        ) : (
-          <div className="border-t border-zinc-800 pt-5 text-zinc-300 prose prose-invert max-w-none text-sm">
-            {journal.contentType === 'html' ? (
+            <div className="border border-zinc-800 rounded-2xl p-4 bg-zinc-900/30 text-sm text-zinc-400">
+            {journal.summary || compactPreview.slice(0, 240) || 'No preview available'}
+            </div>
+          ) : (
+            <div className="border-t border-zinc-800 pt-5 text-zinc-300 prose prose-invert max-w-none text-sm">
+            {normalizedContentType === 'html' ? (
               <JournalHtmlBlobRenderer endpoint={htmlFileUrl} title={`${journal.title} (HTML)`} className="min-h-[420px]" />
-            ) : journal.contentType === 'richtext' ? (
+            ) : normalizedContentType === 'richtext' ? (
               <div
                 className={CONTENT_CLASSES}
                 dangerouslySetInnerHTML={{ __html: journal.content }}

@@ -124,12 +124,13 @@ export default function JournalView() {
   }, [id]);
 
   const embedCode = useMemo(() => {
-    const src = `${window.location.origin}/journal/embed/${journal?.slug || journal?._id || id}`;
+    const embedRef = journal?._id || id;
+    const src = `${window.location.origin}/journal/embed/${encodeURIComponent(embedRef)}`;
     return `<iframe src="${src}" width="100%" height="600" style="border:0;max-width:100%;" loading="lazy" title="${journal?.title || 'Journal'}"></iframe>`;
-  }, [id, journal?._id, journal?.slug, journal?.title]);
+  }, [id, journal?._id, journal?.title]);
 
   const htmlFileUrl = useMemo(() => {
-    const ref = journal?.slug || journal?._id || id;
+    const ref = journal?._id || journal?.slug || id;
     return buildJournalHtmlApiUrl(String(ref || ''));
   }, [id, journal?._id, journal?.slug]);
 
@@ -292,7 +293,7 @@ export default function JournalView() {
                 >
                   Copy Code
                 </button>
-                <a href={`${window.location.origin}/journal/embed/${journal?.slug || journal?._id || id}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-sm font-bold inline-flex items-center gap-2">
+                <a href={`${window.location.origin}/journal/embed/${encodeURIComponent(journal?._id || id)}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-sm font-bold inline-flex items-center gap-2">
                   <Link2 size={14} /> Open Embed URL
                 </a>
               </div>
