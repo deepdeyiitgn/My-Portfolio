@@ -75,7 +75,7 @@
 <!-- =========== Ai Chat Bot Script [START] ============-->
 <script>
   (function bootLiveChat() {
-    var isJournalEmbed = window.location.pathname.startsWith('/journal/embed');
+    var isJournalEmbed = /^\/journal\/embed(\/|$)/.test(window.location.pathname);
     if (isJournalEmbed) return;
     var script = document.createElement('script');
     script.src = 'https://app.thinkstack.ai/bot/thinkstackai-loader.min.js';

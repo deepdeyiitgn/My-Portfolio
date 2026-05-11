@@ -30,7 +30,6 @@ async function fetchProviderStatus(provider) {
     const response = await fetch(provider.endpoint, {
       method: 'GET',
       headers: { Accept: 'application/json' },
-      cache: 'no-store',
     });
     const latencyMs = Date.now() - started;
     let data = null;
