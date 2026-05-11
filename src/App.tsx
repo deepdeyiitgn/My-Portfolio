@@ -195,6 +195,7 @@ function AnimatedRoutes() {
     previousPathnameRef.current = location.pathname;
     setIsNavigating(true);
     setLoadingProgress(0);
+    const initialScrollY = window.scrollY;
 
     let cancelled = false;
     let raf = 0;
@@ -209,7 +210,10 @@ function AnimatedRoutes() {
         setLoadingProgress(100);
         setIsNavigating(false);
         if (isRouteChange) {
-          window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+          const userAlreadyScrolled = Math.abs(window.scrollY - initialScrollY) > 8;
+          if (!userAlreadyScrolled) {
+            window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+          }
         }
       });
     };
