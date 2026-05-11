@@ -50,6 +50,7 @@ All while the author simultaneously prepares for **JEE Advanced 2027** targeting
 - `/live` now supports category-aware content listing (Stream/Video/Shorts), enriched metadata, and paginated browsing.
 - `/api/live` supports no-key fallback mode plus richer YouTube stats/comments when API key is configured.
 - Root auth shortcut URLs are supported: `/?signup`, `/?login`, `/?logout`, and `/?password=<SPACE_PASSWORD>`.
+- Google shortcut callback on `/contact?googleAuth=1&intent=...` now persists session identity so login/signup both remain signed in consistently.
 - Full self-setup documentation is available in **[`PORTFOLIO_SETUP_DEPLOYMENT_MANUAL.md`](./PORTFOLIO_SETUP_DEPLOYMENT_MANUAL.md)**.
 
 ---
@@ -75,12 +76,13 @@ A one-time-per-browser-session cinematic title sequence (`Deep Dey's Portfolio` 
 Custom `react-pdf` viewer wrapped in a Motion 3D physics engine (`rotateY`). Includes A4 aspect-ratio lock, zoom controls, and an external-URL fallback chain.
 
 ### 📬 Smart Contact Routing Matrix
-Backend-less intelligent intake. Routes 15 inquiry categories to the right email node with pre-filled mailto tickets and auto-generated ticket IDs. Contact now supports optional Google sign-in to prefill the **actual Google account name + email** and auto-attach each logged-in user's private service key in submission metadata (fallback label: `NON LOGIN USER`) without exposing the service key directly in the on-page contact UI. If an owner session is already authenticated (`/api/auth` cookie), Contact no longer asks for Google sign-up/sign-in.
+Backend-less intelligent intake. Routes 15 inquiry categories to the right email node with pre-filled mailto tickets and auto-generated ticket IDs. Contact now supports optional Google sign-in to prefill the **actual Google account name + email** and auto-attach each logged-in user's private service key in submission metadata (fallback label: `NON LOGIN USER`) without exposing the service key directly in the on-page contact UI. If an owner session is already authenticated (`/api/auth` cookie), Contact no longer asks for Google sign-up/sign-in. Contact page container keeps horizontal clipping only (`overflow-x-hidden`) so vertical scroll remains normal on mobile browsers.
 
 ### 🔐 URL-Based Auth Shortcuts
 Quick URL triggers are available from the root route:
 - `/?signup` → calls backend auth URL builder, redirects to Google auth, then returns to Contact callback flow and redirects the signed-in user to `/user/:userId`
 - `/?login` → calls backend auth URL builder, redirects to Google auth, then returns to Contact callback flow and redirects the signed-in user to `/user/:userId`
+- Both callbacks persist the Google identity in local storage after state + nonce validation, so Contact/login state stays synced after redirect.
 - `/?logout` → calls backend logout, clears owner/community session state, then redirects to home (`/`)
 - `/?password=<SPACE_PASSWORD>` → posts to owner auth and redirects to Dashboard (`/dashboard`)
 
