@@ -87,7 +87,7 @@ async function fetchProviderStatus(provider) {
 
     if (provider.type === 'gcp') {
       const incidents = Array.isArray(data) ? data : [];
-      const activeIncidents = incidents.filter((incident) => !incident?.end || String(incident.end).trim() === '');
+      const activeIncidents = incidents.filter((incident) => !String(incident?.end || '').trim());
       const activeCount = activeIncidents.length;
       return {
         id: provider.id,
