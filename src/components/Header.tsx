@@ -48,11 +48,15 @@ export default function Header() {
 
   // Lock body scroll when menu is open
   useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
     if (isOpen) {
       document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = '';
     }
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
   }, [isOpen]);
 
   useEffect(() => {
