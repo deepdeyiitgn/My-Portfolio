@@ -48,6 +48,7 @@ const GOOGLE_OAUTH_CTX_STORAGE_KEY = 'dd_google_oauth_ctx';
 function AnimatedRoutes() {
   const location = useLocation();
   const navigate = useNavigate();
+  const isJournalEmbedRoute = location.pathname.startsWith('/journal/embed/');
   const [isNavigating, setIsNavigating] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [pendingRequests, setPendingRequests] = useState(0);
@@ -358,6 +359,7 @@ function AnimatedRoutes() {
         </Suspense>
       </motion.div>
     </AnimatePresence>
+    {!isJournalEmbedRoute && <StatusWidget />}
     </>
   );
 }
@@ -367,7 +369,6 @@ export default function App() {
     <BrowserRouter>
       <Layout>
         <AnimatedRoutes />
-        <StatusWidget />
       </Layout>
     </BrowserRouter>
   );

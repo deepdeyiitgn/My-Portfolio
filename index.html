@@ -73,11 +73,18 @@
   <body>
 
 <!-- =========== Ai Chat Bot Script [START] ============-->
-<script
-    chatbot_id="69f34e5a2ed14b89f290d904"
-    data-type="default"
-    src="https://app.thinkstack.ai/bot/thinkstackai-loader.min.js"
-></script>
+<script>
+  (function bootLiveChat() {
+    var isJournalEmbed = window.location.pathname === '/journal/embed' || window.location.pathname.startsWith('/journal/embed/');
+    if (isJournalEmbed) return;
+    var script = document.createElement('script');
+    script.src = 'https://app.thinkstack.ai/bot/thinkstackai-loader.min.js';
+    script.setAttribute('chatbot_id', '69f34e5a2ed14b89f290d904');
+    script.setAttribute('data-type', 'default');
+    script.async = true;
+    document.body.appendChild(script);
+  })();
+</script>
 
     <!-- =========== Ai Chat Bot Script [END] ============-->
     
