@@ -70,10 +70,8 @@ async function fetchProviderStatus(provider) {
     }
 
     if (provider.type === 'aws') {
-      const services = Array.isArray(data?.archive) ? data.archive : [];
-      const hasServiceIssue = services.some((entry) => String(entry?.summary || '').trim().length > 0);
-      const indicator = data?.current?.status ?? data?.status ?? (hasServiceIssue ? '1' : '0');
-      const description = data?.current?.summary || data?.current?.description || (hasServiceIssue ? 'Service events reported' : 'Service is operating normally');
+      const indicator = data?.current?.status ?? data?.status ?? '0';
+      const description = data?.current?.summary || data?.current?.description || 'Service is operating normally';
       return {
         id: provider.id,
         name: provider.name,
