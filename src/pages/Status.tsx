@@ -90,12 +90,7 @@ const ENDPOINTS: EndpointDef[] = [
   { id: 'contact-submit',   path: '/api/contact',                      method: 'POST', label: 'Contact Submit',      description: 'Contact intake submission endpoint',      heavy: false },
   { id: 'sitemap',          path: '/api/sitemap',                      method: 'GET',  label: 'Sitemap',             description: 'XML sitemap generator',                  heavy: true  },
   { id: 'upload-image',     path: '/api/upload-image',                 method: 'POST', label: 'Upload Proxy',        description: 'Dashboard media upload proxy route',      heavy: true  },
-  { id: 'third-party-vercel', path: '/api/third-party-status?provider=vercel', method: 'GET', label: 'Vercel Status API', description: 'Third-party status proxy for Vercel', heavy: true  },
-  { id: 'third-party-netlify', path: '/api/third-party-status?provider=netlify', method: 'GET', label: 'Netlify Status API', description: 'Third-party status proxy for Netlify', heavy: true  },
-  { id: 'third-party-cloudflare', path: '/api/third-party-status?provider=cloudflare', method: 'GET', label: 'Cloudflare DNS Status API', description: 'Third-party status proxy for Cloudflare DNS', heavy: true  },
-  { id: 'third-party-aws', path: '/api/third-party-status?provider=aws', method: 'GET', label: 'AWS Status API', description: 'Third-party status proxy for AWS', heavy: true  },
-  { id: 'third-party-gcp', path: '/api/third-party-status?provider=gcp', method: 'GET', label: 'Google Cloud Status API', description: 'Third-party status proxy for Google Cloud', heavy: true  },
-  { id: 'third-party-github', path: '/api/third-party-status?provider=github', method: 'GET', label: 'GitHub Status API', description: 'Third-party status proxy for GitHub', heavy: true  },
+  { id: 'third-party-status', path: '/api/third-party-status', method: 'GET', label: 'Third-Party Status Aggregator', description: 'Aggregated provider status proxy (Vercel, Netlify, Cloudflare DNS, AWS, Google Cloud, GitHub)', heavy: true  },
 ];
 
 const LIGHT_INTERVAL_MS = 60_000;   // 60 s for light endpoints
