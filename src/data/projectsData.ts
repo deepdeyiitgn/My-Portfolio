@@ -60,6 +60,27 @@ export const projectsData: Project[] = [
     screenshotUrl: '/69eb01deef048160b7374d68.png'
   },
   {
+    id: 'discord-top-user-audio-engine',
+    title: 'Discord Top User & Audio Engine',
+    shortDescription: 'Enterprise-grade Discord bot with custom audio CDN and productivity trackers.',
+    fullDescription: 'An enterprise-grade Discord bot featuring a Flask web management dashboard, custom 96kbps audio compression, HF Space CDN integration, interactive RAM-based games, and an advanced AFK/Pomodoro focus tracker.',
+    techStack: ['Python', 'Discord.py', 'Flask', 'MongoDB', 'Tailwind CSS', 'Render', 'FFmpeg'],
+    liveUrl: 'https://deepdey.onrender.com/',
+    githubUrl: 'https://github.com/deepdeyiitgn/Discord-Top-User',
+    logoUrl: '/discord-activity-bot.png',
+    category: 'Discord Bot / Audio Engine',
+    problem: 'Needed a scalable, rate-limit-proof bot for music streaming, activity tracking, and focus management without external API dependencies.',
+    solution: 'Developed a Python-based bot with local FFmpeg audio compression, 10MB chunked uploads to an independent HF Space CDN, and MongoDB state persistence.',
+    impact: 'Delivered a seamless music and productivity experience with an independent web dashboard for remote server administration.',
+    metrics: [
+      { label: 'Audio Compression', value: '96kbps MP3' },
+      { label: 'File Handling', value: '10MB Chunked Uploads' },
+      { label: 'State Management', value: 'MongoDB + RAM Buffer' },
+    ],
+    architectureLayers: ['Discord.py Bot Engine', 'Flask Web Dashboard', 'FFmpeg Processing', 'HF CDN Integration'],
+    screenshotUrl: '/discord-activity-bot.png'
+  },
+  {
     id: 'transparent-clock',
     title: 'Transparent Clock',
     shortDescription: 'A highly customizable Windows desktop overlay for focus tracking.',
