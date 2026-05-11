@@ -289,8 +289,8 @@ export default function Contact() {
     const normalizedUser = buildGoogleUserFromToken(idToken);
     sessionStorage.removeItem(GOOGLE_OAUTH_CTX_STORAGE_KEY);
     setRedirectToProfileAfterAuth(true);
-    setCurrentUser(normalizedUser);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedUser));
+    setCurrentUser(normalizedUser);
     setFormData((prev) => ({
       ...prev,
       name: normalizedUser.name || prev.name,
@@ -472,8 +472,8 @@ export default function Contact() {
   const handleGoogleSuccess = (credentialResponse: { credential?: string }) => {
     if (!credentialResponse.credential) return;
     const user = buildGoogleUserFromToken(credentialResponse.credential);
-    setCurrentUser(user);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+    setCurrentUser(user);
   };
 
   const handleGoogleLogout = () => {
