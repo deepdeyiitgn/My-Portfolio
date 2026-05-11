@@ -173,6 +173,21 @@ function parseJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
+function buildGoogleUserFromToken(credential: string): GoogleUser {
+  const payload = parseJwtPayload(credential);
+  const userId = String(payload?.sub || '').trim();
+  const name = String(payload?.name || payload?.given_name || '').trim();
+  const email = String(payload?.email || '').trim();
+  const expRaw = Number(payload?.exp || 0);
+  return {
+    credential,
+    userId,
+    name,
+    email,
+    exp: Number.isFinite(expRaw) && expRaw > 0 ? expRaw : undefined,
+  };
+}
+
 export default function Contact() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -271,9 +286,16 @@ export default function Contact() {
       return;
     }
 
+    const normalizedUser = buildGoogleUserFromToken(idToken);
     sessionStorage.removeItem(GOOGLE_OAUTH_CTX_STORAGE_KEY);
     setRedirectToProfileAfterAuth(true);
-    setCurrentUser({ credential: idToken });
+    setCurrentUser(normalizedUser);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedUser));
+    setFormData((prev) => ({
+      ...prev,
+      name: normalizedUser.name || prev.name,
+      email: normalizedUser.email || prev.email,
+    }));
     navigate('/contact', { replace: true });
   }, [location.hash, location.search, navigate]);
 
@@ -369,7 +391,8 @@ export default function Contact() {
   }, []);
 
   useEffect(() => {
-    if (!currentUser?.credential) {
+    const activeCredential = String(currentUser?.credential || '').trim();
+    if (!activeCredential) {
       setPrivateIdentity(null);
       setIdentityLoading(false);
       return;
@@ -381,7 +404,7 @@ export default function Contact() {
         const response = await fetch('/api/journal?action=user-private', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ credential: currentUser.credential, userId: currentUser.userId }),
+          body: JSON.stringify({ credential: activeCredential, userId: currentUser?.userId }),
         });
         const payload = await response.json();
         if (!payload?.ok) {
@@ -402,12 +425,27 @@ export default function Contact() {
           serviceKey: payload?.user?.serviceKey ? String(payload.user.serviceKey) : null,
         };
         setPrivateIdentity(resolvedIdentity);
-        setCurrentUser((prev) => ({
-          credential: prev?.credential || currentUser.credential,
-          userId: String(payload?.user?.userId || prev?.userId || ''),
-          email: resolvedEmail || prev?.email || '',
-          name: displayName || prev?.name || '',
-        }));
+        setCurrentUser((prev) => {
+          const nextUser: GoogleUser = {
+            credential: prev?.credential || activeCredential,
+            userId: String(payload?.user?.userId || prev?.userId || ''),
+            email: resolvedEmail || prev?.email || '',
+            name: displayName || prev?.name || '',
+            exp: prev?.exp,
+          };
+          if (
+            prev &&
+            prev.credential === nextUser.credential &&
+            String(prev.userId || '') === String(nextUser.userId || '') &&
+            String(prev.email || '') === String(nextUser.email || '') &&
+            String(prev.name || '') === String(nextUser.name || '') &&
+            Number(prev.exp || 0) === Number(nextUser.exp || 0)
+          ) {
+            return prev;
+          }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
+          return nextUser;
+        });
         setFormData((prev) => ({
           ...prev,
           name: displayName || prev.name,
@@ -429,13 +467,11 @@ export default function Contact() {
     };
     loadPrivateIdentity();
     return () => { cancelled = true; };
-  }, [currentUser, navigate, redirectToProfileAfterAuth]);
+  }, [currentUser?.credential, currentUser?.userId, navigate, redirectToProfileAfterAuth]);
 
   const handleGoogleSuccess = (credentialResponse: { credential?: string }) => {
     if (!credentialResponse.credential) return;
-    const user: GoogleUser = {
-      credential: credentialResponse.credential,
-    };
+    const user = buildGoogleUserFromToken(credentialResponse.credential);
     setCurrentUser(user);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
   };
@@ -522,7 +558,7 @@ export default function Contact() {
   };
 
   return (
-    <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 md:py-24 space-y-20 overflow-hidden">
+    <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 md:py-24 space-y-20 overflow-x-hidden">
       <SEO
         title="Contact Engine | Deep Dey"
         description="Connect with Deep Dey for software architecture consultations, bug reports, and collaborations through a tracked lead pipeline."
