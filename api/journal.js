@@ -3,6 +3,7 @@
  * GET  ?page=1&limit=20&category=<slug>&published=true  → paginated list
  * GET  ?slug=<slug>|id=<id>&countView=true              → single journal entry
  * GET  ?action=html-file&slug=<slug>|id=<id>            → full HTML document for html posts
+ * GET  ?action=third-party-status&provider=<id>          → third-party provider status aggregation
  * GET  ?action=status                                   → FETCH LIVE STATUS & HISTORY
  * GET  ?action=comments&journalId=X&page=1&sort=top     → paginated comments (top-level or replies)
  * GET  ?action=comment-count&journalIds=X,Y             → comment counts for multiple journals
@@ -611,6 +612,126 @@ function buildModerationMessage(scope, state) {
   return `This user profile is temporarily deactivated${untilText}.${reasonText}`;
 }
 
+const THIRD_PARTY_PROVIDERS = {
+  vercel: { id: 'vercel', name: 'Vercel', endpoint: 'https://www.vercel-status.com/api/v2/status.json', type: 'statuspage' },
+  netlify: { id: 'netlify', name: 'Netlify', endpoint: 'https://www.netlifystatus.com/api/v2/status.json', type: 'statuspage' },
+  cloudflare: { id: 'cloudflare', name: 'Cloudflare DNS', endpoint: 'https://www.cloudflarestatus.com/api/v2/status.json', type: 'statuspage' },
+  aws: { id: 'aws', name: 'AWS', endpoint: 'https://status.aws.amazon.com/data.json', type: 'aws' },
+  gcp: { id: 'gcp', name: 'Google Cloud', endpoint: 'https://status.cloud.google.com/incidents.json', type: 'gcp' },
+  github: { id: 'github', name: 'GitHub', endpoint: 'https://www.githubstatus.com/api/v2/status.json', type: 'statuspage' },
+};
+
+function mapThirdPartyIndicatorToStatus(indicator) {
+  const value = String(indicator || '').toLowerCase();
+  if (!value || value === 'none' || value === 'ok' || value === 'operational' || value === '0') return 'operational';
+  if (value === 'minor' || value === 'degraded' || value === 'maintenance' || value === '1') return 'degraded';
+  if (value === 'major' || value === 'critical' || value === 'down' || value === '2' || value === '3') return 'down';
+  return 'degraded';
+}
+
+async function fetchThirdPartyProviderStatus(provider) {
+  const started = Date.now();
+  try {
+    const response = await fetch(provider.endpoint, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+    const latencyMs = Date.now() - started;
+    let data = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+
+    if (!response.ok) {
+      return {
+        id: provider.id,
+        name: provider.name,
+        mainEndpoint: provider.endpoint,
+        status: 'down',
+        indicator: 'http_error',
+        description: `HTTP ${response.status}`,
+        httpStatus: response.status,
+        latencyMs,
+        lastUpdated: null,
+      };
+    }
+
+    if (provider.type === 'statuspage') {
+      const indicator = data?.status?.indicator || 'unknown';
+      return {
+        id: provider.id,
+        name: provider.name,
+        mainEndpoint: provider.endpoint,
+        status: mapThirdPartyIndicatorToStatus(indicator),
+        indicator,
+        description: data?.status?.description || 'Status data available',
+        httpStatus: response.status,
+        latencyMs,
+        lastUpdated: data?.page?.updated_at || data?.status?.updated_at || null,
+      };
+    }
+
+    if (provider.type === 'aws') {
+      const indicator = data?.current?.status ?? data?.status ?? '0';
+      const description = data?.current?.summary || data?.current?.description || 'Service is operating normally';
+      return {
+        id: provider.id,
+        name: provider.name,
+        mainEndpoint: provider.endpoint,
+        status: mapThirdPartyIndicatorToStatus(indicator),
+        indicator: String(indicator ?? ''),
+        description,
+        httpStatus: response.status,
+        latencyMs,
+        lastUpdated: data?.current?.date || data?.current?.time || null,
+      };
+    }
+
+    if (provider.type === 'gcp') {
+      const incidents = Array.isArray(data) ? data : [];
+      const activeIncidents = incidents.filter((incident) => !String(incident?.end || '').trim());
+      const activeCount = activeIncidents.length;
+      return {
+        id: provider.id,
+        name: provider.name,
+        mainEndpoint: provider.endpoint,
+        status: activeCount === 0 ? 'operational' : 'degraded',
+        indicator: activeCount === 0 ? 'none' : 'minor',
+        description: activeCount === 0 ? 'No active incidents reported' : `${activeCount} active incident${activeCount > 1 ? 's' : ''} reported`,
+        httpStatus: response.status,
+        latencyMs,
+        lastUpdated: activeIncidents[0]?.modified || incidents[0]?.modified || null,
+      };
+    }
+
+    return {
+      id: provider.id,
+      name: provider.name,
+      mainEndpoint: provider.endpoint,
+      status: 'degraded',
+      indicator: 'unknown',
+      description: 'Unknown provider format',
+      httpStatus: response.status,
+      latencyMs,
+      lastUpdated: null,
+    };
+  } catch (error) {
+    return {
+      id: provider.id,
+      name: provider.name,
+      mainEndpoint: provider.endpoint,
+      status: 'down',
+      indicator: 'fetch_error',
+      description: error instanceof Error ? error.message : 'Failed to fetch provider status',
+      httpStatus: null,
+      latencyMs: null,
+      lastUpdated: null,
+    };
+  }
+}
+
 async function getUserModerationState(db, userId) {
   if (!userId || userId === 'owner') return { userDoc: null, state: getUserModerationStateFromDoc(null) };
   const userDoc = await db.collection('users').findOne({ userId });
@@ -1101,6 +1222,25 @@ module.exports = async (req, res) => {
           dbPingMs,
           loadAverage: os.loadavg(),
           diskInfo,
+        });
+      }
+
+      // --- NAYA: Live Status Fetch Logic ---
+      if (action === 'third-party-status') {
+        const requestedProvider = String(getParam(req, 'provider') || '').trim().toLowerCase();
+        const selectedProviders = requestedProvider
+          ? (THIRD_PARTY_PROVIDERS[requestedProvider] ? [THIRD_PARTY_PROVIDERS[requestedProvider]] : [])
+          : Object.values(THIRD_PARTY_PROVIDERS);
+
+        if (requestedProvider && selectedProviders.length === 0) {
+          return json(res, 400, { ok: false, message: 'Invalid provider' });
+        }
+
+        const providers = await Promise.all(selectedProviders.map(fetchThirdPartyProviderStatus));
+        return json(res, 200, {
+          ok: true,
+          checkedAt: Date.now(),
+          providers,
         });
       }
 

@@ -50,6 +50,18 @@ interface ServerHealth {
   ipLimit?: number;
 }
 
+interface ThirdPartyProviderStatus {
+  id: string;
+  name: string;
+  mainEndpoint: string;
+  status: EndpointResult['status'];
+  indicator: string;
+  description: string;
+  httpStatus: number | null;
+  latencyMs: number | null;
+  lastUpdated: string | null;
+}
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const ENDPOINTS: EndpointDef[] = [
@@ -78,6 +90,7 @@ const ENDPOINTS: EndpointDef[] = [
   { id: 'contact-submit',   path: '/api/contact',                      method: 'POST', label: 'Contact Submit',      description: 'Contact intake submission endpoint',      heavy: false },
   { id: 'sitemap',          path: '/api/sitemap',                      method: 'GET',  label: 'Sitemap',             description: 'XML sitemap generator',                  heavy: true  },
   { id: 'upload-image',     path: '/api/upload-image',                 method: 'POST', label: 'Upload Proxy',        description: 'Dashboard media upload proxy route',      heavy: true  },
+  { id: 'third-party-status', path: '/api/journal?action=third-party-status', method: 'GET', label: 'Third-Party Status Aggregator', description: 'Aggregated external provider status monitoring', heavy: true  },
 ];
 
 const LIGHT_INTERVAL_MS = 60_000;   // 60 s for light endpoints
@@ -116,6 +129,13 @@ function fmtSince(ts: number | null): string {
   if (d < 60) return `${d}s ago`;
   if (d < 3600) return `${Math.floor(d / 60)}m ago`;
   return `${Math.floor(d / 3600)}h ago`;
+}
+
+function fmtDateTime(ts: string | null): string {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString();
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -158,6 +178,8 @@ export default function Status() {
   const [results, setResults] = useState<Record<string, EndpointResult>>(initResults);
   const [health, setHealth] = useState<ServerHealth | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
+  const [thirdParty, setThirdParty] = useState<ThirdPartyProviderStatus[]>([]);
+  const [thirdPartyLoading, setThirdPartyLoading] = useState(false);
 
   // Countdown to next light refresh
   const [lightCountdown, setLightCountdown] = useState(LIGHT_INTERVAL_MS / 1000);
@@ -218,6 +240,22 @@ export default function Status() {
     finally { setHealthLoading(false); }
   }, []);
 
+  // ── Fetch third-party provider statuses ────────────────────────────────────
+  const fetchThirdPartyStatuses = useCallback(async () => {
+    setThirdPartyLoading(true);
+    try {
+      // Warm-up call for cold starts, then actual response fetch
+      await fetch('/api/journal?action=third-party-status', { cache: 'no-store' }).catch(() => {});
+      const r = await fetch('/api/journal?action=third-party-status', { cache: 'no-store' });
+      const d = await r.json();
+      if (d?.ok && Array.isArray(d.providers)) setThirdParty(d.providers as ThirdPartyProviderStatus[]);
+    } catch {
+      setThirdParty([]);
+    } finally {
+      setThirdPartyLoading(false);
+    }
+  }, []);
+
   // ── Measure client-side ping ───────────────────────────────────────────────
   const measureClientPing = useCallback(async () => {
     try {
@@ -238,8 +276,9 @@ export default function Status() {
     probeLight();
     probeHeavy();
     fetchHealth();
+    fetchThirdPartyStatuses();
     measureClientPing();
-  }, [probeLight, probeHeavy, fetchHealth, measureClientPing]);
+  }, [probeLight, probeHeavy, fetchHealth, fetchThirdPartyStatuses, measureClientPing]);
 
   // ── Light interval ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -256,10 +295,11 @@ export default function Status() {
     const interval = setInterval(() => {
       probeHeavy();
       fetchHealth();
+      fetchThirdPartyStatuses();
       heavyRef.current = HEAVY_INTERVAL_MS / 1000;
     }, HEAVY_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [probeHeavy, fetchHealth]);
+  }, [probeHeavy, fetchHealth, fetchThirdPartyStatuses]);
 
   // ── Countdown tickers ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -295,6 +335,7 @@ export default function Status() {
     setResults(initResults());
     probeLight();
     probeHeavy();
+    fetchThirdPartyStatuses();
     measureClientPing();
     setLightCountdown(LIGHT_INTERVAL_MS / 1000);
     setHeavyCountdown(HEAVY_INTERVAL_MS / 1000);
@@ -454,6 +495,68 @@ export default function Status() {
               );
             })}
           </div>
+        </section>
+
+        {/* ── Third-Party Apps Status ───────────────────────────────────────── */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-white font-black text-lg flex items-center gap-2">
+              <Activity size={18} className="text-amber-500" />
+              Third-Party Apps Status
+            </h2>
+            <span className="text-zinc-600 text-[10px] font-mono">Fetched via provider main status endpoints</span>
+          </div>
+
+          {thirdPartyLoading && thirdParty.length === 0 && (
+            <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 text-center text-zinc-500 text-sm">
+              Checking provider statuses…
+            </div>
+          )}
+
+          {!thirdPartyLoading && thirdParty.length === 0 && (
+            <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 text-center text-zinc-500 text-sm">
+              Could not load provider status data. Try refreshing.
+            </div>
+          )}
+
+          {thirdParty.length > 0 && (
+            <div className="grid gap-3">
+              {thirdParty.map((provider, i) => (
+                <motion.div
+                  key={provider.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.03 }}
+                  className="bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4 transition-colors"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-zinc-100 font-bold">{provider.name}</span>
+                        <StatusBadge status={provider.status} />
+                      </div>
+                      <p className="text-zinc-500 text-sm mt-1">{provider.description}</p>
+                      <p className="text-zinc-600 text-[11px] font-mono mt-1 break-all [overflow-wrap:anywhere]">{provider.mainEndpoint}</p>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 min-w-0">
+                      <div>
+                        <p className="text-zinc-600 text-[9px] font-mono uppercase tracking-widest">Latency</p>
+                        <LatencyBar ms={provider.latencyMs} />
+                      </div>
+                      <div>
+                        <p className="text-zinc-600 text-[9px] font-mono uppercase tracking-widest">HTTP</p>
+                        <p className="text-zinc-300 text-sm font-bold font-mono">{provider.httpStatus ?? '—'}</p>
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <p className="text-zinc-600 text-[9px] font-mono uppercase tracking-widest">Updated</p>
+                        <p className="text-zinc-400 text-[11px] font-mono">{fmtDateTime(provider.lastUpdated)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* ── Connection Quality ─────────────────────────────────────────────── */}
