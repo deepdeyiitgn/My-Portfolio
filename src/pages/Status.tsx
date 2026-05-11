@@ -90,7 +90,7 @@ const ENDPOINTS: EndpointDef[] = [
   { id: 'contact-submit',   path: '/api/contact',                      method: 'POST', label: 'Contact Submit',      description: 'Contact intake submission endpoint',      heavy: false },
   { id: 'sitemap',          path: '/api/sitemap',                      method: 'GET',  label: 'Sitemap',             description: 'XML sitemap generator',                  heavy: true  },
   { id: 'upload-image',     path: '/api/upload-image',                 method: 'POST', label: 'Upload Proxy',        description: 'Dashboard media upload proxy route',      heavy: true  },
-  { id: 'third-party-status', path: '/api/journal?action=third-party-status', method: 'GET', label: 'Third-Party Status Aggregator', description: 'Aggregated provider status proxy (Vercel, Netlify, Cloudflare DNS, AWS, Google Cloud, GitHub)', heavy: true  },
+  { id: 'third-party-status', path: '/api/journal?action=third-party-status', method: 'GET', label: 'Third-Party Status Aggregator', description: 'Aggregated external provider status monitoring', heavy: true  },
 ];
 
 const LIGHT_INTERVAL_MS = 60_000;   // 60 s for light endpoints
