@@ -116,6 +116,7 @@ const TICKET_TYPES: TicketTemplate[] = [
 
 type SupportType = (typeof TICKET_TYPES)[number]['key'];
 const STORAGE_KEY = 'dd_comment_user';
+const GOOGLE_OAUTH_CTX_STORAGE_KEY = 'dd_google_oauth_ctx';
 const NON_LOGIN_SERVICE_KEY = 'NON LOGIN USER';
 
 interface GoogleUser {
@@ -156,6 +157,20 @@ function getDisplayNameFromEmail(email?: string | null): string {
     .replace(/[._-]+/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase())
     .trim();
+}
+
+function parseJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    const payload = JSON.parse(window.atob(padded));
+    return payload && typeof payload === 'object' ? payload : null;
+  } catch (error) {
+    console.warn('Unable to parse Google ID token payload:', error);
+    return null;
+  }
 }
 
 export default function Contact() {
@@ -203,32 +218,126 @@ export default function Contact() {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (!params.has('googleAuth')) return;
+
+    const hashRaw = location.hash.replace(/^#/, '');
+    const hashParams = new URLSearchParams(hashRaw);
+    const idToken = String(hashParams.get('id_token') || '').trim();
+    const authError = String(hashParams.get('error') || '').trim();
+    const returnedState = String(hashParams.get('state') || '').trim();
+    const intent = params.get('intent') === 'signup' ? 'signup' : 'login';
+
+    setGoogleIntentText(intent === 'signup' ? 'signup_with' : 'signin_with');
+
+    if (authError) {
+      setStatusMessage(`Google auth failed: ${authError}`);
+      navigate('/contact', { replace: true });
+      return;
+    }
+
+    if (!idToken) {
+      setStatusMessage('Google auth did not return a valid token. Please try again.');
+      navigate('/contact', { replace: true });
+      return;
+    }
+
+    const oauthCtxRaw = sessionStorage.getItem(GOOGLE_OAUTH_CTX_STORAGE_KEY);
+    let expectedState = '';
+    let expectedNonce = '';
+    if (oauthCtxRaw) {
+      try {
+        const parsed = JSON.parse(oauthCtxRaw) as { state?: string; nonce?: string };
+        expectedState = String(parsed?.state || '').trim();
+        expectedNonce = String(parsed?.nonce || '').trim();
+      } catch {
+        expectedState = '';
+        expectedNonce = '';
+      }
+    }
+    if (!expectedState || !returnedState || expectedState !== returnedState) {
+      sessionStorage.removeItem(GOOGLE_OAUTH_CTX_STORAGE_KEY);
+      setStatusMessage('Google auth session validation failed. Please try login/signup again.');
+      navigate('/contact', { replace: true });
+      return;
+    }
+
+    const tokenPayload = parseJwtPayload(idToken);
+    const tokenNonce = String(tokenPayload?.nonce || '').trim();
+    if (!expectedNonce || !tokenNonce || expectedNonce !== tokenNonce) {
+      sessionStorage.removeItem(GOOGLE_OAUTH_CTX_STORAGE_KEY);
+      setStatusMessage('Google auth nonce validation failed. Please retry.');
+      navigate('/contact', { replace: true });
+      return;
+    }
+
+    sessionStorage.removeItem(GOOGLE_OAUTH_CTX_STORAGE_KEY);
+    setRedirectToProfileAfterAuth(true);
+    setCurrentUser({ credential: idToken });
+    navigate('/contact', { replace: true });
+  }, [location.hash, location.search, navigate]);
+
+  useEffect(() => {
     if (!ownerAuthChecked) return;
     const params = new URLSearchParams(location.search);
     const wantsSignup = params.has('signup');
     const wantsLogin = params.has('login');
     if (!wantsSignup && !wantsLogin) return;
 
-    if (wantsSignup) {
-      setGoogleIntentText('signup_with');
-      if (!ownerAuthed) {
-        setRedirectToProfileAfterAuth(true);
-        const popup = window.open('https://accounts.google.com/signup', 'google-signup', 'width=600,height=700');
-        if (!popup) {
-          setStatusMessage('Popup blocked. Open https://accounts.google.com/signup and then continue with Google below.');
-        } else {
-          setStatusMessage('Google signup page opened. After creating account, continue with Google below.');
+    const redirectToGoogleAuth = async (intent: 'signup' | 'login') => {
+      try {
+        const response = await fetch(`/api/auth?action=google-url&intent=${intent}`);
+        const payload = await response.json().catch(() => ({}));
+        if (response.ok && payload?.ok && payload?.url) {
+          if (payload?.state && payload?.nonce) {
+            window.sessionStorage.setItem(
+              GOOGLE_OAUTH_CTX_STORAGE_KEY,
+              JSON.stringify({
+                state: String(payload.state),
+                nonce: String(payload.nonce),
+                intent,
+                createdAt: Date.now(),
+              }),
+            );
+          }
+          window.location.assign(String(payload.url));
+          return true;
+        }
+      } catch {
+        if (!cancelled) {
+          setStatusMessage('Network issue while preparing Google auth redirect. Please try again.');
         }
       }
-    } else {
-      setGoogleIntentText('signin_with');
-      if (!ownerAuthed) {
-        setRedirectToProfileAfterAuth(true);
-        setStatusMessage('Continue with Google below to complete login on this website.');
-      }
-    }
+      return false;
+    };
 
-    navigate('/contact', { replace: true });
+    let cancelled = false;
+    const runIntentRouting = async () => {
+      if (wantsSignup) {
+        setGoogleIntentText('signup_with');
+        if (!ownerAuthed) {
+          setRedirectToProfileAfterAuth(true);
+          const redirected = await redirectToGoogleAuth('signup');
+          if (!redirected && !cancelled) {
+            setStatusMessage('Unable to open Google signup redirect right now. Please continue with Google below.');
+          }
+        }
+      } else {
+        setGoogleIntentText('signin_with');
+        if (!ownerAuthed) {
+          setRedirectToProfileAfterAuth(true);
+          const redirected = await redirectToGoogleAuth('login');
+          if (!redirected && !cancelled) {
+            setStatusMessage('Continue with Google below to complete login on this website.');
+          }
+        }
+      }
+
+      if (!cancelled) navigate('/contact', { replace: true });
+    };
+
+    runIntentRouting();
+    return () => { cancelled = true; };
   }, [location.search, navigate, ownerAuthed, ownerAuthChecked]);
 
   useEffect(() => {

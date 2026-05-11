@@ -69,7 +69,7 @@ A global status widget is mounted at the app shell level and remains available a
 The `*` fallback route powers a command-driven terminal UI with route-aware `cd` navigation, API-backed `status`/`links` commands, command history, hidden easter-egg commands, and matrix-style effects.
 
 ### 🎬 Cinematic Loading Engine
-A one-time-per-browser-session cinematic title sequence (`Deep Dey's Portfolio` → `A QLYNK Production`) now plays before the normal loader. The normal loading screen now enforces a strict **minimum 3-second visibility**, then waits for document load plus in-flight fetch calls to finish before disappearing. It now includes a live percentage readout, determinate progress bar, and rotating random quotes from a **100-quote archive**.
+A one-time-per-browser-session cinematic title sequence (`Deep Dey's Portfolio` → `A QLYNK Production`) now plays before the normal loader. The normal loading screen enforces a strict **minimum 3-second visibility**, then waits for document load plus in-flight fetch calls to finish before disappearing. Progress percentage/bar are now synchronized with loader completion timing, and route-loader scroll reset now uses non-smooth top reset only on real route changes to avoid bounce/jump effects.
 
 ### 🎞️ Kinetic 3D PDF Portfolio Viewer
 Custom `react-pdf` viewer wrapped in a Motion 3D physics engine (`rotateY`). Includes A4 aspect-ratio lock, zoom controls, and an external-URL fallback chain.
@@ -79,10 +79,10 @@ Backend-less intelligent intake. Routes 15 inquiry categories to the right email
 
 ### 🔐 URL-Based Auth Shortcuts
 Quick URL triggers are available from the root route:
-- `/?signup` → opens Google account signup page, then forwards to Contact Google signup flow, then redirects to that signed-in user profile (`/user/:userId`)
-- `/?login` → forwards to Contact Google login flow, then redirects to that signed-in user profile (`/user/:userId`)
-- `/?logout` → logs out both owner session and Google user session, then redirects to home (`/`)
-- `/?password=<SPACE_PASSWORD>` → posts to owner auth and opens Dashboard (`/dashboard`) in authenticated mode on success
+- `/?signup` → calls backend auth URL builder, redirects to Google auth, then returns to Contact callback flow and redirects the signed-in user to `/user/:userId`
+- `/?login` → calls backend auth URL builder, redirects to Google auth, then returns to Contact callback flow and redirects the signed-in user to `/user/:userId`
+- `/?logout` → calls backend logout, clears owner/community session state, then redirects to home (`/`)
+- `/?password=<SPACE_PASSWORD>` → posts to owner auth and redirects to Dashboard (`/dashboard`)
 
 ### 📓 Journal CMS with Embed Support
 Full rich text / markdown / HTML journal system backed by MongoDB. Features per-visit view counting, one-like-per-session enforcement, native share API, image galleries, and embeddable output (`/journal/embed/:id`). Embed code now always uses the journal MongoDB `_id` for stable resolution, and embeds render the actual post body for all supported content types. HTML-type posts are served by `/api/journal?action=html-file` and rendered inline (non-iframe) in journal view/embed, while markdown/richtext behavior remains unchanged. Unpublishing a post keeps existing comments/replies intact and preserves the original publish timestamp for any later re-publish.

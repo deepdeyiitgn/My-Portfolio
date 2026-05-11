@@ -3,6 +3,7 @@
  * POST { password } → verify against SPACE_PASSWORD env, set forever session cookie
  * GET  → verify dd_auth cookie, return { ok, authenticated }
  */
+const { randomBytes } = require('crypto');
 
 function json(res, status, payload) {
   res.statusCode = status;
@@ -38,6 +39,20 @@ function parseCookies(cookieHeader) {
     if (k) cookies[k.trim()] = decodeURIComponent(v.join('='));
   });
   return cookies;
+}
+
+function toBase64Url(value) {
+  return Buffer.from(value, 'utf8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function getRequestUrl(req) {
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost';
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  return new URL(req.url || '/', `${proto}://${host}`);
 }
 
 const LOGIN_WINDOW_MS = 60 * 1000;
@@ -92,6 +107,42 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'GET') {
+      const requestUrl = getRequestUrl(req);
+      const action = requestUrl.searchParams.get('action');
+      if (action === 'google-url') {
+        const intentRaw = String(requestUrl.searchParams.get('intent') || '').trim().toLowerCase();
+        const intent = intentRaw === 'signup' ? 'signup' : intentRaw === 'login' ? 'login' : '';
+        if (!intent) {
+          return json(res, 400, { ok: false, message: 'Invalid intent. Use intent=signup or intent=login.' });
+        }
+
+        const clientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
+        if (!clientId) {
+          return json(res, 503, { ok: false, message: 'Google auth not configured. Set GOOGLE_CLIENT_ID.' });
+        }
+
+        const baseOrigin = `${requestUrl.protocol}//${requestUrl.host}`;
+        const redirectUri = `${baseOrigin}/contact?googleAuth=1&intent=${intent}`;
+        const state = toBase64Url(JSON.stringify({ intent, ts: Date.now(), rand: randomBytes(16).toString('hex') }));
+        const nonce = randomBytes(16).toString('hex');
+        const authParams = new URLSearchParams({
+          client_id: clientId,
+          redirect_uri: redirectUri,
+          response_type: 'id_token',
+          scope: 'openid email profile',
+          nonce,
+          state,
+          prompt: 'select_account',
+        });
+        return json(res, 200, {
+          ok: true,
+          intent,
+          state,
+          nonce,
+          url: `https://accounts.google.com/o/oauth2/v2/auth?${authParams.toString()}`,
+        });
+      }
+
       const cookies = parseCookies(req.headers['cookie']);
       const authenticated = cookies['dd_auth'] === 'authenticated';
       return json(res, 200, { ok: true, authenticated });

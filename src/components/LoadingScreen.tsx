@@ -191,7 +191,7 @@ export default function LoadingScreen({ mode = 'normal', onIntroComplete, progre
             LOADING<span className="text-amber-500">...</span>
           </motion.div>
           
-          <p className="text-zinc-400 font-mono text-xs tracking-[0.3em]">{Math.round(lastProgress)}%</p>
+          <p className="text-zinc-400 text-xs tracking-[0.3em]">{Math.round(lastProgress)}%</p>
           <div className="relative h-2.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
             <motion.div
               className="absolute inset-y-0 left-0 bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.6)]"
@@ -211,7 +211,7 @@ export default function LoadingScreen({ mode = 'normal', onIntroComplete, progre
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.6 }}
-              className="text-zinc-500 font-mono text-xs md:text-sm uppercase tracking-[0.2em] leading-relaxed"
+              className="text-zinc-500 text-xs md:text-sm uppercase tracking-[0.2em] leading-relaxed"
             >
               "{LOADING_QUOTES[quoteIndex]}"
             </motion.p>
@@ -223,7 +223,7 @@ export default function LoadingScreen({ mode = 'normal', onIntroComplete, progre
       <motion.div 
         animate={{ opacity: [0.1, 0.3, 0.1] }}
         transition={{ duration: 3, repeat: Infinity }}
-        className="absolute bottom-12 text-[10px] font-mono text-zinc-800 uppercase tracking-[1em]"
+        className="absolute bottom-12 text-[10px] text-zinc-800 uppercase tracking-[1em]"
       >
         Initializing System Core
       </motion.div>
