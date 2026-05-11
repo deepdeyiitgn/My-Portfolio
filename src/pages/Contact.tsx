@@ -203,32 +203,82 @@ export default function Contact() {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (!params.has('googleAuth')) return;
+
+    const hashRaw = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
+    const hashParams = new URLSearchParams(hashRaw);
+    const idToken = String(hashParams.get('id_token') || '').trim();
+    const authError = String(hashParams.get('error') || '').trim();
+    const intent = params.get('intent') === 'signup' ? 'signup' : 'login';
+
+    setGoogleIntentText(intent === 'signup' ? 'signup_with' : 'signin_with');
+
+    if (authError) {
+      setStatusMessage(`Google auth failed: ${authError}`);
+      navigate('/contact', { replace: true });
+      return;
+    }
+
+    if (!idToken) {
+      setStatusMessage('Google auth did not return a valid token. Please try again.');
+      navigate('/contact', { replace: true });
+      return;
+    }
+
+    setRedirectToProfileAfterAuth(true);
+    setCurrentUser({ credential: idToken });
+    navigate('/contact', { replace: true });
+  }, [location.hash, location.search, navigate]);
+
+  useEffect(() => {
     if (!ownerAuthChecked) return;
     const params = new URLSearchParams(location.search);
     const wantsSignup = params.has('signup');
     const wantsLogin = params.has('login');
     if (!wantsSignup && !wantsLogin) return;
 
-    if (wantsSignup) {
-      setGoogleIntentText('signup_with');
-      if (!ownerAuthed) {
-        setRedirectToProfileAfterAuth(true);
-        const popup = window.open('https://accounts.google.com/signup', 'google-signup', 'width=600,height=700');
-        if (!popup) {
-          setStatusMessage('Popup blocked. Open https://accounts.google.com/signup and then continue with Google below.');
-        } else {
-          setStatusMessage('Google signup page opened. After creating account, continue with Google below.');
+    const redirectToGoogleAuth = async (intent: 'signup' | 'login') => {
+      try {
+        const response = await fetch(`/api/auth?action=google-url&intent=${intent}&origin=${encodeURIComponent(window.location.origin)}`);
+        const payload = await response.json().catch(() => ({}));
+        if (response.ok && payload?.ok && payload?.url) {
+          window.location.assign(String(payload.url));
+          return true;
+        }
+      } catch {
+        // fallback handled by caller
+      }
+      return false;
+    };
+
+    let cancelled = false;
+    const runIntentRouting = async () => {
+      if (wantsSignup) {
+        setGoogleIntentText('signup_with');
+        if (!ownerAuthed) {
+          setRedirectToProfileAfterAuth(true);
+          const redirected = await redirectToGoogleAuth('signup');
+          if (!redirected && !cancelled) {
+            setStatusMessage('Unable to open Google signup redirect right now. Please continue with Google below.');
+          }
+        }
+      } else {
+        setGoogleIntentText('signin_with');
+        if (!ownerAuthed) {
+          setRedirectToProfileAfterAuth(true);
+          const redirected = await redirectToGoogleAuth('login');
+          if (!redirected && !cancelled) {
+            setStatusMessage('Continue with Google below to complete login on this website.');
+          }
         }
       }
-    } else {
-      setGoogleIntentText('signin_with');
-      if (!ownerAuthed) {
-        setRedirectToProfileAfterAuth(true);
-        setStatusMessage('Continue with Google below to complete login on this website.');
-      }
-    }
 
-    navigate('/contact', { replace: true });
+      if (!cancelled) navigate('/contact', { replace: true });
+    };
+
+    runIntentRouting();
+    return () => { cancelled = true; };
   }, [location.search, navigate, ownerAuthed, ownerAuthChecked]);
 
   useEffect(() => {

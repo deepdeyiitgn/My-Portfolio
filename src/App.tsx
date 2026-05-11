@@ -38,19 +38,7 @@ const UserProfile = lazy(() => import('./pages/UserProfile'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const MIN_LOADER_MS = 3000;
 const PROGRESS_UPDATE_INTERVAL_MS = 120;
-const MIN_NETWORK_PROGRESS = 86;
-const MAX_NETWORK_PROGRESS = 98;
-const MAX_TRACKED_REQUESTS = 10;
-const PROGRESS_DROP_PER_REQUEST = 2;
 const COMMENT_USER_STORAGE_KEY = 'dd_comment_user';
-
-function calculateNetworkProgress(inFlight: number) {
-  if (inFlight <= 0) return 99;
-  return Math.max(
-    MIN_NETWORK_PROGRESS,
-    MAX_NETWORK_PROGRESS - Math.min(inFlight, MAX_TRACKED_REQUESTS) * PROGRESS_DROP_PER_REQUEST,
-  );
-}
 
 /**
  * AnimatedRoutes Component
@@ -67,6 +55,8 @@ function AnimatedRoutes() {
     return !window.sessionStorage.getItem('dd_session_intro_seen');
   });
   const pendingRequestsRef = useRef(0);
+  const previousPathnameRef = useRef(location.pathname);
+  const processedShortcutSearchRef = useRef<string | null>(null);
 
   useEffect(() => {
     pendingRequestsRef.current = pendingRequests;
@@ -74,6 +64,8 @@ function AnimatedRoutes() {
 
   useEffect(() => {
     if (location.pathname !== '/') return;
+    if (processedShortcutSearchRef.current === location.search) return;
+    processedShortcutSearchRef.current = location.search;
     const params = new URLSearchParams(location.search);
 
     if (params.has('logout')) {
@@ -94,14 +86,27 @@ function AnimatedRoutes() {
       return () => { cancelled = true; };
     }
 
-    if (params.has('signup')) {
-      navigate('/contact?signup', { replace: true });
-      return;
-    }
-
-    if (params.has('login')) {
-      navigate('/contact?login', { replace: true });
-      return;
+    if (params.has('signup') || params.has('login')) {
+      const intent = params.has('signup') ? 'signup' : 'login';
+      let cancelled = false;
+      const runGoogleAuthShortcut = async () => {
+        try {
+          const response = await fetch(
+            `/api/auth?action=google-url&intent=${intent}&origin=${encodeURIComponent(window.location.origin)}`,
+          );
+          const payload = await response.json().catch(() => ({}));
+          if (cancelled) return;
+          if (response.ok && payload?.ok && payload?.url) {
+            window.location.assign(String(payload.url));
+            return;
+          }
+          navigate(`/contact?${intent}`, { replace: true });
+        } catch {
+          if (!cancelled) navigate(`/contact?${intent}`, { replace: true });
+        }
+      };
+      runGoogleAuthShortcut();
+      return () => { cancelled = true; };
     }
 
     const ownerPassword = params.get('password');
@@ -168,6 +173,8 @@ function AnimatedRoutes() {
   }, []);
 
   useEffect(() => {
+    const isRouteChange = previousPathnameRef.current !== location.pathname;
+    previousPathnameRef.current = location.pathname;
     setIsNavigating(true);
     setLoadingProgress(0);
 
@@ -183,21 +190,27 @@ function AnimatedRoutes() {
         if (cancelled) return;
         setLoadingProgress(100);
         setIsNavigating(false);
-        window.scrollTo(0, 0);
+        if (isRouteChange) {
+          window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        }
       });
     };
 
     const updateProgress = () => {
       const elapsed = Date.now() - startedAt;
-      const timeProgress = Math.min(80, Math.floor((elapsed / MIN_LOADER_MS) * 80));
+      const inFlight = pendingRequestsRef.current;
+      const beforeMinElapsedProgress = Math.min(96, Math.floor((elapsed / MIN_LOADER_MS) * 96));
+      let nextProgress = beforeMinElapsedProgress;
 
-      let networkProgress = timeProgress;
-      if (pageLoaded) {
-        const inFlight = pendingRequestsRef.current;
-        networkProgress = calculateNetworkProgress(inFlight);
+      if (elapsed >= MIN_LOADER_MS) {
+        if (pageLoaded && inFlight === 0) {
+          const settleProgress = 96 + Math.floor((elapsed - MIN_LOADER_MS) / PROGRESS_UPDATE_INTERVAL_MS);
+          nextProgress = Math.min(99, settleProgress);
+        } else {
+          nextProgress = 96;
+        }
       }
 
-      const nextProgress = Math.max(timeProgress, networkProgress);
       setLoadingProgress((prev) => {
         if (prev >= 99) return prev;
         return Math.min(99, Math.max(prev, nextProgress));
