@@ -54,7 +54,10 @@ interface ServerHealth {
 
 const ENDPOINTS: EndpointDef[] = [
   { id: 'auth-session',      path: '/api/auth',                            method: 'GET',  label: 'Auth Session',       description: 'Dashboard session validation',            heavy: false },
+  { id: 'auth-google-login', path: '/api/auth?action=google-url&intent=login', method: 'GET', label: 'Google Sign-In',  description: 'Google OAuth login URL generator',        heavy: false },
+  { id: 'auth-google-signup', path: '/api/auth?action=google-url&intent=signup', method: 'GET', label: 'Google Sign-Up', description: 'Google OAuth signup URL generator',       heavy: false },
   { id: 'journal-list',     path: '/api/journal?page=1&limit=1',       method: 'GET',  label: 'Journal List',        description: 'Paginated journal entries',              heavy: false },
+  { id: 'journal-render-page', path: '/api/journal?action=render-page&path=/status', method: 'GET', label: 'Rendered Page', description: 'Vercel serverless rendered page metadata pipeline', heavy: true  },
   { id: 'journal-top',      path: '/api/journal?action=top-journals&limit=1', method: 'GET', label: 'Top Journals',     description: 'Homepage journal spotlight query',        heavy: false },
   { id: 'journal-search',   path: '/api/journal?action=search&q=',      method: 'GET',  label: 'Search Engine',       description: 'Global search API (empty query probe)',   heavy: false },
   { id: 'journal-count',    path: '/api/journal?action=comment-count&journalIds=sample', method: 'GET', label: 'Comment Count', description: 'Bulk journal comment counts',          heavy: false },
@@ -63,7 +66,9 @@ const ENDPOINTS: EndpointDef[] = [
   { id: 'journal-activity', path: '/api/journal?action=user-activity&userId=owner', method: 'GET', label: 'User Activity', description: 'Contribution heatmap activity API',   heavy: false },
   { id: 'journal-status',   path: '/api/journal?action=status',        method: 'GET',  label: 'Live Status',         description: 'Current personal status widget',         heavy: false },
   { id: 'journal-health',   path: '/api/journal?action=health',        method: 'GET',  label: 'Health Check',        description: 'Server & database health probe',         heavy: false },
+  { id: 'journal-dbstats',  path: '/api/journal?action=dbstats',       method: 'GET',  label: 'MongoDB Stats',       description: 'Authenticated MongoDB storage stats endpoint', heavy: true  },
   { id: 'categories',       path: '/api/categories',                   method: 'GET',  label: 'Categories',          description: 'Journal category list',                  heavy: false },
+  { id: 'feedback-categories', path: '/api/categories?type=feedback',  method: 'GET',  label: 'Feedback Categories', description: 'Feedback module category taxonomy API',   heavy: false },
   { id: 'projects',         path: '/api/projects',                     method: 'GET',  label: 'Projects',            description: 'Portfolio project index',                heavy: false },
   { id: 'timeline',         path: '/api/timeline',                     method: 'GET',  label: 'Timeline',            description: 'Journey timeline milestones',             heavy: false },
   { id: 'links',            path: '/api/links',                        method: 'GET',  label: 'Links',               description: 'Curated link collection',                heavy: false },
