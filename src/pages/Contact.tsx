@@ -116,6 +116,7 @@ const TICKET_TYPES: TicketTemplate[] = [
 
 type SupportType = (typeof TICKET_TYPES)[number]['key'];
 const STORAGE_KEY = 'dd_comment_user';
+const GOOGLE_OAUTH_CTX_STORAGE_KEY = 'dd_google_oauth_ctx';
 const NON_LOGIN_SERVICE_KEY = 'NON LOGIN USER';
 
 interface GoogleUser {
@@ -156,6 +157,20 @@ function getDisplayNameFromEmail(email?: string | null): string {
     .replace(/[._-]+/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase())
     .trim();
+}
+
+function parseJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    const payload = JSON.parse(window.atob(padded));
+    return payload && typeof payload === 'object' ? payload : null;
+  } catch (error) {
+    console.warn('Unable to parse Google ID token payload:', error);
+    return null;
+  }
 }
 
 export default function Contact() {
@@ -206,10 +221,11 @@ export default function Contact() {
     const params = new URLSearchParams(location.search);
     if (!params.has('googleAuth')) return;
 
-    const hashRaw = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
+    const hashRaw = location.hash.replace(/^#/, '');
     const hashParams = new URLSearchParams(hashRaw);
     const idToken = String(hashParams.get('id_token') || '').trim();
     const authError = String(hashParams.get('error') || '').trim();
+    const returnedState = String(hashParams.get('state') || '').trim();
     const intent = params.get('intent') === 'signup' ? 'signup' : 'login';
 
     setGoogleIntentText(intent === 'signup' ? 'signup_with' : 'signin_with');
@@ -226,6 +242,36 @@ export default function Contact() {
       return;
     }
 
+    const oauthCtxRaw = sessionStorage.getItem(GOOGLE_OAUTH_CTX_STORAGE_KEY);
+    let expectedState = '';
+    let expectedNonce = '';
+    if (oauthCtxRaw) {
+      try {
+        const parsed = JSON.parse(oauthCtxRaw) as { state?: string; nonce?: string };
+        expectedState = String(parsed?.state || '').trim();
+        expectedNonce = String(parsed?.nonce || '').trim();
+      } catch {
+        expectedState = '';
+        expectedNonce = '';
+      }
+    }
+    if (!expectedState || !returnedState || expectedState !== returnedState) {
+      sessionStorage.removeItem(GOOGLE_OAUTH_CTX_STORAGE_KEY);
+      setStatusMessage('Google auth session validation failed. Please try login/signup again.');
+      navigate('/contact', { replace: true });
+      return;
+    }
+
+    const tokenPayload = parseJwtPayload(idToken);
+    const tokenNonce = String(tokenPayload?.nonce || '').trim();
+    if (!expectedNonce || !tokenNonce || expectedNonce !== tokenNonce) {
+      sessionStorage.removeItem(GOOGLE_OAUTH_CTX_STORAGE_KEY);
+      setStatusMessage('Google auth nonce validation failed. Please retry.');
+      navigate('/contact', { replace: true });
+      return;
+    }
+
+    sessionStorage.removeItem(GOOGLE_OAUTH_CTX_STORAGE_KEY);
     setRedirectToProfileAfterAuth(true);
     setCurrentUser({ credential: idToken });
     navigate('/contact', { replace: true });
@@ -240,14 +286,27 @@ export default function Contact() {
 
     const redirectToGoogleAuth = async (intent: 'signup' | 'login') => {
       try {
-        const response = await fetch(`/api/auth?action=google-url&intent=${intent}&origin=${encodeURIComponent(window.location.origin)}`);
+        const response = await fetch(`/api/auth?action=google-url&intent=${intent}`);
         const payload = await response.json().catch(() => ({}));
         if (response.ok && payload?.ok && payload?.url) {
+          if (payload?.state && payload?.nonce) {
+            window.sessionStorage.setItem(
+              GOOGLE_OAUTH_CTX_STORAGE_KEY,
+              JSON.stringify({
+                state: String(payload.state),
+                nonce: String(payload.nonce),
+                intent,
+                createdAt: Date.now(),
+              }),
+            );
+          }
           window.location.assign(String(payload.url));
           return true;
         }
       } catch {
-        // fallback handled by caller
+        if (!cancelled) {
+          setStatusMessage('Network issue while preparing Google auth redirect. Please try again.');
+        }
       }
       return false;
     };

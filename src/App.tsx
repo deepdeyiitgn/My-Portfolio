@@ -39,6 +39,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 const MIN_LOADER_MS = 3000;
 const PROGRESS_UPDATE_INTERVAL_MS = 120;
 const COMMENT_USER_STORAGE_KEY = 'dd_comment_user';
+const GOOGLE_OAUTH_CTX_STORAGE_KEY = 'dd_google_oauth_ctx';
 
 /**
  * AnimatedRoutes Component
@@ -64,9 +65,15 @@ function AnimatedRoutes() {
 
   useEffect(() => {
     if (location.pathname !== '/') return;
-    if (processedShortcutSearchRef.current === location.search) return;
-    processedShortcutSearchRef.current = location.search;
     const params = new URLSearchParams(location.search);
+    const shortcutSignature = [
+      params.has('signup') ? '1' : '0',
+      params.has('login') ? '1' : '0',
+      params.has('logout') ? '1' : '0',
+      params.get('password') || '',
+    ].join('|');
+    if (processedShortcutSearchRef.current === shortcutSignature) return;
+    processedShortcutSearchRef.current = shortcutSignature;
 
     if (params.has('logout')) {
       let cancelled = false;
@@ -92,11 +99,22 @@ function AnimatedRoutes() {
       const runGoogleAuthShortcut = async () => {
         try {
           const response = await fetch(
-            `/api/auth?action=google-url&intent=${intent}&origin=${encodeURIComponent(window.location.origin)}`,
+            `/api/auth?action=google-url&intent=${intent}`,
           );
           const payload = await response.json().catch(() => ({}));
           if (cancelled) return;
           if (response.ok && payload?.ok && payload?.url) {
+            if (payload?.state && payload?.nonce) {
+              window.sessionStorage.setItem(
+                GOOGLE_OAUTH_CTX_STORAGE_KEY,
+                JSON.stringify({
+                  state: String(payload.state),
+                  nonce: String(payload.nonce),
+                  intent,
+                  createdAt: Date.now(),
+                }),
+              );
+            }
             window.location.assign(String(payload.url));
             return;
           }

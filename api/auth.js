@@ -55,15 +55,6 @@ function getRequestUrl(req) {
   return new URL(req.url || '/', `${proto}://${host}`);
 }
 
-function isAllowedOrigin(origin) {
-  try {
-    const parsed = new URL(origin);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
-
 const LOGIN_WINDOW_MS = 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 5;
 const FIRST_LOCK_MS = 2 * 60 * 1000;
@@ -130,12 +121,9 @@ module.exports = async (req, res) => {
           return json(res, 503, { ok: false, message: 'Google auth not configured. Set GOOGLE_CLIENT_ID.' });
         }
 
-        const requestedOrigin = String(requestUrl.searchParams.get('origin') || '').trim();
-        const baseOrigin = isAllowedOrigin(requestedOrigin)
-          ? requestedOrigin
-          : `${requestUrl.protocol}//${requestUrl.host}`;
+        const baseOrigin = `${requestUrl.protocol}//${requestUrl.host}`;
         const redirectUri = `${baseOrigin}/contact?googleAuth=1&intent=${intent}`;
-        const state = toBase64Url(JSON.stringify({ intent, ts: Date.now() }));
+        const state = toBase64Url(JSON.stringify({ intent, ts: Date.now(), rand: randomBytes(16).toString('hex') }));
         const nonce = randomBytes(16).toString('hex');
         const authParams = new URLSearchParams({
           client_id: clientId,
@@ -146,7 +134,13 @@ module.exports = async (req, res) => {
           state,
           prompt: 'select_account',
         });
-        return json(res, 200, { ok: true, intent, url: `https://accounts.google.com/o/oauth2/v2/auth?${authParams.toString()}` });
+        return json(res, 200, {
+          ok: true,
+          intent,
+          state,
+          nonce,
+          url: `https://accounts.google.com/o/oauth2/v2/auth?${authParams.toString()}`,
+        });
       }
 
       const cookies = parseCookies(req.headers['cookie']);
