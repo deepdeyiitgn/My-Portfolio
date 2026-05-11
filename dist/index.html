@@ -69,17 +69,24 @@
         ]
       }
     </script>
-    <script type="module" crossorigin src="/assets/index-BsaiDW_J.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-I0EEMfz5.css">
+    <script type="module" crossorigin src="/assets/index-Y2zrpJQe.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-B7nhsYyF.css">
   </head>
   <body>
 
 <!-- =========== Ai Chat Bot Script [START] ============-->
-<script
-    chatbot_id="69f34e5a2ed14b89f290d904"
-    data-type="default"
-    src="https://app.thinkstack.ai/bot/thinkstackai-loader.min.js"
-></script>
+<script>
+  (function bootLiveChat() {
+    var isJournalEmbed = /^\/journal\/embed(\/|$)/.test(window.location.pathname);
+    if (isJournalEmbed) return;
+    var script = document.createElement('script');
+    script.src = 'https://app.thinkstack.ai/bot/thinkstackai-loader.min.js';
+    script.setAttribute('chatbot_id', '69f34e5a2ed14b89f290d904');
+    script.setAttribute('data-type', 'default');
+    script.async = true;
+    document.body.appendChild(script);
+  })();
+</script>
 
     <!-- =========== Ai Chat Bot Script [END] ============-->
     
