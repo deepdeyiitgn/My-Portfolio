@@ -99,20 +99,21 @@ export default function Home() {
           .map((script) => script.textContent || '')
           .join('\n');
 
-        const quotesMatch = scriptContent.match(/const\s+quotes\s*=\s*\[([\s\S]*?)\];/);
-        const quotes = (quotesMatch?.[1].match(/"((?:\\.|[^"\\])*)"/g) || [])
+        const quotesMatch = scriptContent.match(/\[\s*(?:"(?:\\.|[^"\\])*"\s*,?\s*)+\]/s);
+        const quotes = (quotesMatch?.[0].match(/"((?:\\.|[^"\\])*)"/g) || [])
           .map((entry) => entry.slice(1, -1).replace(/\\"/g, '"'));
 
-        const startDateMatch = scriptContent.match(/let\s+startDate\s*=\s*new\s+Date\("([^"]+)"\)/);
-        const targetDateMatch = scriptContent.match(/let\s+targetDate\s*=\s*new\s+Date\("([^"]+)"\)/);
+        const dateMatches = Array.from(scriptContent.matchAll(/new\s+Date\("([^"]+)"\)/g)).map((match) => match[1]);
+        const startDateSource = dateMatches[0];
+        const targetDateSource = dateMatches[1];
 
-        const startDate = startDateMatch?.[1] ? new Date(startDateMatch[1]) : new Date();
+        const startDate = startDateSource ? new Date(startDateSource) : new Date();
         const today = new Date();
         const dayDiff = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
         const quoteIndex = quotes.length > 0 ? ((dayDiff % quotes.length) + quotes.length) % quotes.length : 0;
         const quote = quotes[quoteIndex] || 'Dream big, work hard, stay focused.';
 
-        const parsedTargetDate = targetDateMatch?.[1] ? new Date(targetDateMatch[1]).getTime() : null;
+        const parsedTargetDate = targetDateSource ? new Date(targetDateSource).getTime() : null;
 
         setHomeCountdown({
           heading,
@@ -133,9 +134,10 @@ export default function Home() {
       setCountdownText('Countdown unavailable right now.');
       return;
     }
+    const targetDate = homeCountdown.targetDate;
 
     const updateCountdown = () => {
-      const distance = homeCountdown.targetDate! - Date.now();
+      const distance = targetDate - Date.now();
       const safeDistance = Math.max(distance, 0);
       const days = Math.floor(safeDistance / (1000 * 60 * 60 * 24));
       const hours = Math.floor((safeDistance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
