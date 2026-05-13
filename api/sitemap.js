@@ -10,7 +10,6 @@ let sitemapRefreshPromise = null;
 
 const DOMAIN = 'https://deepdey.vercel.app';
 const PROJECT_ROOT = process.cwd();
-const FEATURE_CONTENT_DIR = path.resolve(PROJECT_ROOT, 'src/features/content');
 
 function resolveStableFallbackDate() {
   const fallbackSources = ['package.json', 'src/App.tsx', 'api/sitemap.js'];
@@ -90,7 +89,7 @@ const STATIC_ROUTE_SOURCES = {
   '/me': ['src/pages/Me.tsx'],
   '/contact': ['src/pages/Contact.tsx'],
   '/faq': ['src/pages/FAQ.tsx', 'src/data/faqData.ts'],
-  '/feature': ['src/pages/Features.tsx', 'src/pages/FeatureDetail.tsx', 'src/features/index.ts'],
+  '/feature': ['src/pages/Features.tsx'],
   '/portfolio': ['src/pages/Portfolio.tsx'],
   '/links': ['src/pages/Links.tsx'],
   '/proof': ['src/pages/Proof.tsx'],
@@ -112,7 +111,6 @@ const STATIC_ROUTE_SOURCES = {
 };
 
 const PROJECT_DETAIL_SOURCES = ['src/pages/ProjectDetail.tsx', 'src/data/projectsData.ts'];
-const FEATURE_DETAIL_SOURCES = ['src/pages/FeatureDetail.tsx', 'src/features/index.ts', 'src/features/types.ts'];
 
 function latestMtimeDate(sourcePaths) {
   let latest = 0;
@@ -125,28 +123,6 @@ function latestMtimeDate(sourcePaths) {
     }
   }
   return latest > 0 ? formatDate(new Date(latest)) : STATIC_PAGE_LASTMOD_FALLBACK;
-}
-
-function listFeatureRouteEntries() {
-  if (!fs.existsSync(FEATURE_CONTENT_DIR)) return [];
-  const items = fs.readdirSync(FEATURE_CONTENT_DIR, { withFileTypes: true });
-  return items
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
-    .map((entry) => {
-      const fullPath = path.join(FEATURE_CONTENT_DIR, entry.name);
-      const slug = path.basename(entry.name, '.json');
-      let lastmod = STATIC_PAGE_LASTMOD_FALLBACK;
-      try {
-        const stat = fs.statSync(fullPath);
-        lastmod = formatDate(new Date(stat.mtimeMs));
-      } catch {
-        // ignore mtime issues per file
-      }
-      return {
-        loc: `/feature/${encodeURIComponent(slug)}`,
-        lastmod,
-      };
-    });
 }
 
 function buildXml(routes) {
@@ -291,18 +267,6 @@ async function buildSitemap(baseUrl) {
   addRoute({ loc: '/404', lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES['/404']), changefreq: 'monthly', priority: '0.2' });
   addRoute({ loc: '/user/owner', lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES['/user/owner']), changefreq: 'weekly', priority: '0.5' });
   addRoute({ loc: '/user/owner?tab=comments', lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES['/user/owner']), changefreq: 'weekly', priority: '0.5' });
-
-  // Feature detail pages from local feature content directory
-  const featureRoutes = listFeatureRouteEntries();
-  const featureLastmodFallback = latestMtimeDate(FEATURE_DETAIL_SOURCES);
-  for (const featureRoute of featureRoutes) {
-    addDynamicRoute({
-      loc: featureRoute.loc,
-      lastmod: featureRoute.lastmod || featureLastmodFallback,
-      changefreq: 'weekly',
-      priority: '0.7',
-    });
-  }
 
   // Dynamic routes from DB
   const [journalsResult, usersResult] = await Promise.all([

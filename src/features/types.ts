@@ -1,52 +1,33 @@
-export interface FeatureLogo {
-  symbol: string;
-  accent: string;
-  background: string;
+export interface FeatureListItem {
+  title: string;
+  summary: string;
+  link: string;
 }
 
 export interface FeatureDiagramNode {
   id: string;
   label: string;
-  detail: string;
-}
-
-export interface FeatureDiagramEdge {
-  from: string;
-  to: string;
-  label: string;
+  x: number;
+  y: number;
 }
 
 export interface FeatureVisualization {
   title: string;
-  summary: string;
-  points: string[];
+  metric: string;
+  detail: string;
 }
 
-export interface FeatureFaq {
-  question: string;
-  answer: string;
-}
-
-export interface FeatureDoc {
-  slug: string;
+export interface FeaturePageContent {
   title: string;
-  summary: string;
+  route: string;
   description: string;
+  keywords: string;
   category: string;
-  logo: FeatureLogo;
-  narrative: string[];
-  keyPoints: string[];
+  summary: string;
+  schemaType?: 'TechArticle' | 'WebPage' | 'Article';
   workflow: string[];
-  architectureLayers: string[];
-  implementationNotes: string[];
-  qualityChecks: string[];
-  risks: string[];
-  roadmap: string[];
+  highlights: string[];
+  implementationPoints: string[];
   visualizations: FeatureVisualization[];
-  diagram: {
-    title: string;
-    nodes: FeatureDiagramNode[];
-    edges: FeatureDiagramEdge[];
-  };
-  faqs: FeatureFaq[];
+  diagramNodes: FeatureDiagramNode[];
 }

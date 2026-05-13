@@ -47,7 +47,7 @@ const communityCooldownByIp = new Map();
 const SERVICE_KEY_REGEX = /^\d{16}$/;
 const RENDER_BASE_URL = 'https://deepdey.vercel.app';
 const RENDER_DEFAULT_IMAGE = '/assets/images/myphoto.png';
-const FEATURE_CONTENT_DIR = path.join(process.cwd(), 'src', 'features', 'content');
+const FEATURE_LINKS_FILE = path.join(process.cwd(), 'src', 'features', 'feature-links.json');
 let cachedRenderFeatureMeta = null;
 let cachedRenderFeatureMetaMtime = 0;
 const RENDER_STATIC_PAGE_META = {
@@ -176,63 +176,40 @@ const RENDER_PROJECT_META = {
   },
 };
 
-function toFeaturePathnameFromFile(filePath) {
-  const fileName = path.basename(filePath, '.json');
-  const slug = String(fileName || '').trim();
-  if (!slug) return null;
-  return `/feature/${encodeURIComponent(slug)}`;
-}
-
-function listFeatureFilesForRender() {
-  try {
-    if (!fs.existsSync(FEATURE_CONTENT_DIR)) return [];
-    const entries = fs.readdirSync(FEATURE_CONTENT_DIR, { withFileTypes: true });
-    return entries
-      .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
-      .map((entry) => path.join(FEATURE_CONTENT_DIR, entry.name));
-  } catch {
-    return [];
-  }
-}
-
-function getFeatureFilesMtimeFingerprint(files) {
-  let latest = 0;
-  for (const file of files) {
-    try {
-      const mtime = fs.statSync(file).mtimeMs;
-      if (mtime > latest) latest = mtime;
-    } catch {
-      // ignore unreadable feature file
-    }
-  }
-  return latest;
-}
-
 function readFeatureMetaForRender() {
-  const files = listFeatureFilesForRender();
-  const fingerprint = getFeatureFilesMtimeFingerprint(files);
+  let fingerprint = 0;
+  try {
+    if (fs.existsSync(FEATURE_LINKS_FILE)) {
+      fingerprint = fs.statSync(FEATURE_LINKS_FILE).mtimeMs;
+    }
+  } catch {
+    fingerprint = 0;
+  }
   if (cachedRenderFeatureMeta && fingerprint <= cachedRenderFeatureMetaMtime) {
     return cachedRenderFeatureMeta;
   }
   const map = new Map();
-  for (const file of files) {
-    try {
-      const raw = fs.readFileSync(file, 'utf8');
+  try {
+    if (fs.existsSync(FEATURE_LINKS_FILE)) {
+      const raw = fs.readFileSync(FEATURE_LINKS_FILE, 'utf8');
       const parsed = JSON.parse(raw);
-      const slug = String(parsed?.slug || path.basename(file, '.json')).trim();
-      const title = String(parsed?.title || '').trim();
-      const summary = String(parsed?.summary || parsed?.description || '').trim();
-      if (!slug || !title) continue;
-      map.set(slug, {
-        title: `${title} | Feature Detail`,
-        description: summary || 'Detailed feature documentation page.',
-        image: `${RENDER_BASE_URL}${RENDER_DEFAULT_IMAGE}`,
-        path: `/feature/${encodeURIComponent(slug)}`,
-        type: 'article',
-      });
-    } catch {
-      // ignore malformed feature file
+      const entries = Array.isArray(parsed) ? parsed : [];
+      for (const entry of entries) {
+        const link = String(entry?.link || '').trim();
+        const title = String(entry?.title || '').trim();
+        const summary = String(entry?.summary || '').trim();
+        if (!link || !title || !link.startsWith('/feature/')) continue;
+        map.set(link, {
+          title: `${title} | Feature Detail`,
+          description: summary || 'Detailed feature documentation page.',
+          image: `${RENDER_BASE_URL}${RENDER_DEFAULT_IMAGE}`,
+          path: link,
+          type: 'article',
+        });
+      }
     }
+  } catch {
+    // ignore malformed feature links file
   }
   cachedRenderFeatureMeta = map;
   cachedRenderFeatureMetaMtime = fingerprint;
@@ -570,9 +547,8 @@ async function resolveRenderMeta(db, pathname, query) {
 
   const featureMatch = pathname.match(/^\/feature\/([^/]+)$/);
   if (featureMatch) {
-    const featureSlug = decodeURIComponent(featureMatch[1]);
     const featureMap = readFeatureMetaForRender();
-    const featureMeta = featureMap.get(featureSlug);
+    const featureMeta = featureMap.get(pathname);
     if (featureMeta) {
       return {
         ...featureMeta,
