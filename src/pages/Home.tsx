@@ -142,7 +142,10 @@ export default function Home() {
       const hours = Math.floor((safeDistance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((safeDistance % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((safeDistance % (1000 * 60)) / 1000);
-      setCountdownText(`Time Left: ${days} Days ${hours} Hours ${minutes} Minutes ${seconds} Seconds`);
+      const label = (value: number, singular: string, plural: string) => (value === 1 ? singular : plural);
+      setCountdownText(
+        `Time Left: ${days} ${label(days, 'Day', 'Days')} ${hours} ${label(hours, 'Hour', 'Hours')} ${minutes} ${label(minutes, 'Minute', 'Minutes')} ${seconds} ${label(seconds, 'Second', 'Seconds')}`
+      );
     };
 
     updateCountdown();
