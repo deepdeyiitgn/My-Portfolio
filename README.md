@@ -60,6 +60,9 @@ All while the author simultaneously prepares for **JEE Advanced 2027** targeting
 ### 🔭 Global Command Palette Search
 Full-stack search engine at `/search` with typewriter-animated suggestions, trending query tracking, localStorage history, and a TF-IDF ML fallback. Searches journals, projects, FAQs, social links, live status, plus community users and comment permalinks. Fully indexed in the sitemap.
 
+### 🧩 Dynamic Feature Atlas
+Route family `/feature` provides a feature atlas index plus 30+ individually coded TSX feature pages. The index card list is loaded from `src/features/feature-links.json` (title/summary/link), with long summaries truncated using `.......`. Each feature page is a custom file in `src/features/pages/`, includes diagrams (SVG), points, workflow, visualization blocks, animation transitions, route-specific SEO metadata, and explicit back-to-feature actions.
+
 ### 📡 Real-Time System Status Monitor
 Live status page at `/status` probes all website-critical API routes every 60 s (heavy endpoints every 5 min) and displays latency, HTTP status, and connection quality. Monitored endpoints include auth, journal listing/search/top feeds, user profile/activity/community APIs, categories, projects, timeline, links, FAQs, YouTube live feed, contact (GET + POST), sitemap, and upload proxy route metadata. To reduce serverless cold-start distortion, automatic probes/ping use a warm-up call followed by a measured second call. Includes a **Server Health** panel with a highlighted **System Specifications** card showing RAM, storage, CPU model/cores/speed, OS type and kernel, architecture, runtime version, server region, and hostname. A rate-limited **"Refresh Now"** button (global 20/min · per-IP 2/min) triggers a full health snapshot stored in MongoDB for historical tracking.
 
@@ -303,6 +306,8 @@ Feedback and moderation features are implemented by extending existing handlers 
 | `/now` | What I'm working on right now |
 | `/projects` | Full project listing grid |
 | `/projects/:id` | Individual project deep-dive detail |
+| `/feature` | Dynamic feature atlas with summary cards |
+| `/feature/<feature-slug>` | Individually routed custom TSX feature page |
 | `/portfolio` | 3D PDF architectural blueprint viewer |
 | `/proof` | Proof of work and achievements |
 | `/links` | Link-in-bio ecosystem hub (30+ nodes) |
@@ -415,6 +420,8 @@ If you want to turn this project into your own portfolio site, follow this check
 ### 2) Content and Data You Can Edit Quickly
 
 - Projects: `src/data/projectsData.ts`
+- Feature listing JSON: `src/features/feature-links.json`
+- Feature page files: `src/features/pages/*.tsx`
 - Timeline/Journey: `src/data/timelineData.ts`
 - Links hub: `src/data/linksData.ts`
 - FAQ: `src/data/faqData.ts`
@@ -428,6 +435,14 @@ These files are the fastest path for non-backend customization.
 - App route registration: `src/App.tsx`
 - Static crawler files:
   - `public/robots.txt`
+
+### 4) How to Add a New Feature Page (Manual Flow)
+
+1. Create a new TSX page file in `src/features/pages/` (copy any existing feature page format).
+2. Add its card metadata (`title`, `summary`, `link`) to `src/features/feature-links.json`.
+3. Add a lazy import in `src/App.tsx`.
+4. Add a new `<Route path=\"/feature/<your-slug>\" element={<YourFeaturePage />} />` in `src/App.tsx`.
+5. Ensure page includes the standard back-to-feature button (`/feature`) and SEO metadata block.
   - `public/sitemap.xml` (plus dynamic API sitemap via `/api/sitemap`)
 - Update canonical domain references if you deploy to a new domain.
 

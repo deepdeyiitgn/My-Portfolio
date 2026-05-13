@@ -9,6 +9,39 @@ import LoadingScreen from './components/LoadingScreen';
 const Home = lazy(() => import('./pages/Home'));
 const Projects = lazy(() => import('./pages/Projects'));
 const ProjectDetail = lazy(() => import('./pages/ProjectDetail'));
+const Features = lazy(() => import('./pages/Features'));
+const FeatureSystemCore = lazy(() => import('./features/pages/FeatureSystemCore'));
+const FeatureAtlasNavigation = lazy(() => import('./features/pages/FeatureAtlasNavigation'));
+const FeatureSchemaGovernance = lazy(() => import('./features/pages/FeatureSchemaGovernance'));
+const FeatureRenderPipeline = lazy(() => import('./features/pages/FeatureRenderPipeline'));
+const FeatureDiagramEngine = lazy(() => import('./features/pages/FeatureDiagramEngine'));
+const FeatureWorkflowSequencer = lazy(() => import('./features/pages/FeatureWorkflowSequencer'));
+const FeatureRiskRegister = lazy(() => import('./features/pages/FeatureRiskRegister'));
+const FeatureQualityGates = lazy(() => import('./features/pages/FeatureQualityGates'));
+const FeatureRoadmapTracks = lazy(() => import('./features/pages/FeatureRoadmapTracks'));
+const FeatureFaqKnowledge = lazy(() => import('./features/pages/FeatureFaqKnowledge'));
+const FeatureSeoContracts = lazy(() => import('./features/pages/FeatureSeoContracts'));
+const FeatureSitemapIntegration = lazy(() => import('./features/pages/FeatureSitemapIntegration'));
+const FeatureHeaderEntrypoint = lazy(() => import('./features/pages/FeatureHeaderEntrypoint'));
+const FeatureSummaryTruncation = lazy(() => import('./features/pages/FeatureSummaryTruncation'));
+const FeatureContentDensity = lazy(() => import('./features/pages/FeatureContentDensity'));
+const FeatureDiagramReadability = lazy(() => import('./features/pages/FeatureDiagramReadability'));
+const FeatureVisualizationPanels = lazy(() => import('./features/pages/FeatureVisualizationPanels'));
+const FeatureArchitectureLayers = lazy(() => import('./features/pages/FeatureArchitectureLayers'));
+const FeatureImplementationNotes = lazy(() => import('./features/pages/FeatureImplementationNotes'));
+const FeatureBackNavigation = lazy(() => import('./features/pages/FeatureBackNavigation'));
+const FeatureDynamicDiscovery = lazy(() => import('./features/pages/FeatureDynamicDiscovery'));
+const FeatureRoutingContract = lazy(() => import('./features/pages/FeatureRoutingContract'));
+const FeatureDataOwnership = lazy(() => import('./features/pages/FeatureDataOwnership'));
+const FeatureChangeImpact = lazy(() => import('./features/pages/FeatureChangeImpact'));
+const FeatureCompatibilityGuard = lazy(() => import('./features/pages/FeatureCompatibilityGuard'));
+const FeatureMaintenanceMode = lazy(() => import('./features/pages/FeatureMaintenanceMode'));
+const FeatureObservabilityHooks = lazy(() => import('./features/pages/FeatureObservabilityHooks'));
+const FeatureSecurityPosture = lazy(() => import('./features/pages/FeatureSecurityPosture'));
+const FeaturePerformanceBudget = lazy(() => import('./features/pages/FeaturePerformanceBudget'));
+const FeatureAuthoringStandards = lazy(() => import('./features/pages/FeatureAuthoringStandards'));
+const FeatureReleaseReadiness = lazy(() => import('./features/pages/FeatureReleaseReadiness'));
+const FeatureFutureExpansion = lazy(() => import('./features/pages/FeatureFutureExpansion'));
 const About = lazy(() => import('./pages/About'));
 const Me = lazy(() => import('./pages/Me'));
 const Contact = lazy(() => import('./pages/Contact'));
@@ -327,6 +360,39 @@ function AnimatedRoutes() {
             <Route path="/" element={<Home />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
+            <Route path="/feature" element={<Features />} />
+            <Route path="/feature/feature-system-core" element={<FeatureSystemCore />} />
+            <Route path="/feature/feature-atlas-navigation" element={<FeatureAtlasNavigation />} />
+            <Route path="/feature/feature-schema-governance" element={<FeatureSchemaGovernance />} />
+            <Route path="/feature/feature-render-pipeline" element={<FeatureRenderPipeline />} />
+            <Route path="/feature/feature-diagram-engine" element={<FeatureDiagramEngine />} />
+            <Route path="/feature/feature-workflow-sequencer" element={<FeatureWorkflowSequencer />} />
+            <Route path="/feature/feature-risk-register" element={<FeatureRiskRegister />} />
+            <Route path="/feature/feature-quality-gates" element={<FeatureQualityGates />} />
+            <Route path="/feature/feature-roadmap-tracks" element={<FeatureRoadmapTracks />} />
+            <Route path="/feature/feature-faq-knowledge" element={<FeatureFaqKnowledge />} />
+            <Route path="/feature/feature-seo-contracts" element={<FeatureSeoContracts />} />
+            <Route path="/feature/feature-sitemap-integration" element={<FeatureSitemapIntegration />} />
+            <Route path="/feature/feature-header-entrypoint" element={<FeatureHeaderEntrypoint />} />
+            <Route path="/feature/feature-summary-truncation" element={<FeatureSummaryTruncation />} />
+            <Route path="/feature/feature-content-density" element={<FeatureContentDensity />} />
+            <Route path="/feature/feature-diagram-readability" element={<FeatureDiagramReadability />} />
+            <Route path="/feature/feature-visualization-panels" element={<FeatureVisualizationPanels />} />
+            <Route path="/feature/feature-architecture-layers" element={<FeatureArchitectureLayers />} />
+            <Route path="/feature/feature-implementation-notes" element={<FeatureImplementationNotes />} />
+            <Route path="/feature/feature-back-navigation" element={<FeatureBackNavigation />} />
+            <Route path="/feature/feature-dynamic-discovery" element={<FeatureDynamicDiscovery />} />
+            <Route path="/feature/feature-routing-contract" element={<FeatureRoutingContract />} />
+            <Route path="/feature/feature-data-ownership" element={<FeatureDataOwnership />} />
+            <Route path="/feature/feature-change-impact" element={<FeatureChangeImpact />} />
+            <Route path="/feature/feature-compatibility-guard" element={<FeatureCompatibilityGuard />} />
+            <Route path="/feature/feature-maintenance-mode" element={<FeatureMaintenanceMode />} />
+            <Route path="/feature/feature-observability-hooks" element={<FeatureObservabilityHooks />} />
+            <Route path="/feature/feature-security-posture" element={<FeatureSecurityPosture />} />
+            <Route path="/feature/feature-performance-budget" element={<FeaturePerformanceBudget />} />
+            <Route path="/feature/feature-authoring-standards" element={<FeatureAuthoringStandards />} />
+            <Route path="/feature/feature-release-readiness" element={<FeatureReleaseReadiness />} />
+            <Route path="/feature/feature-future-expansion" element={<FeatureFutureExpansion />} />
             <Route path="/about" element={<About />} />
             <Route path="/me" element={<Me />} />
             <Route path="/contact" element={<Contact />} />

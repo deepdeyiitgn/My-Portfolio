@@ -47,6 +47,9 @@ const communityCooldownByIp = new Map();
 const SERVICE_KEY_REGEX = /^\d{16}$/;
 const RENDER_BASE_URL = 'https://deepdey.vercel.app';
 const RENDER_DEFAULT_IMAGE = '/assets/images/myphoto.png';
+const FEATURE_LINKS_FILE = path.join(process.cwd(), 'src', 'features', 'feature-links.json');
+let cachedRenderFeatureMeta = null;
+let cachedRenderFeatureMetaMtime = 0;
 const RENDER_STATIC_PAGE_META = {
   '/': {
     title: 'Deep Dey | Software Architect & JEE 2027 Aspirant',
@@ -75,6 +78,10 @@ const RENDER_STATIC_PAGE_META = {
   '/faq': {
     title: 'Frequently Asked Questions | Deep Dey',
     description: 'Find answers to common questions about Deep Dey\'s projects, his JEE Advanced 2027 goals, and his AI-assisted development methodology.',
+  },
+  '/feature': {
+    title: 'Feature Atlas | Deep Dey',
+    description: 'Dynamic feature pages with architecture, workflows, visualizations, risk notes, and detailed implementation summaries.',
   },
   '/feedback': {
     title: 'Feedback | Deep Dey',
@@ -168,6 +175,46 @@ const RENDER_PROJECT_META = {
     image: '/69eb01798f30a15224010404.png',
   },
 };
+
+function readFeatureMetaForRender() {
+  let fingerprint = 0;
+  try {
+    if (fs.existsSync(FEATURE_LINKS_FILE)) {
+      fingerprint = fs.statSync(FEATURE_LINKS_FILE).mtimeMs;
+    }
+  } catch {
+    fingerprint = 0;
+  }
+  if (cachedRenderFeatureMeta && fingerprint <= cachedRenderFeatureMetaMtime) {
+    return cachedRenderFeatureMeta;
+  }
+  const map = new Map();
+  try {
+    if (fs.existsSync(FEATURE_LINKS_FILE)) {
+      const raw = fs.readFileSync(FEATURE_LINKS_FILE, 'utf8');
+      const parsed = JSON.parse(raw);
+      const entries = Array.isArray(parsed) ? parsed : [];
+      for (const entry of entries) {
+        const link = String(entry?.link || '').trim();
+        const title = String(entry?.title || '').trim();
+        const summary = String(entry?.summary || '').trim();
+        if (!link || !title || !link.startsWith('/feature/')) continue;
+        map.set(link, {
+          title: `${title} | Feature Detail`,
+          description: summary || 'Detailed feature documentation page.',
+          image: `${RENDER_BASE_URL}${RENDER_DEFAULT_IMAGE}`,
+          path: link,
+          type: 'article',
+        });
+      }
+    }
+  } catch {
+    // ignore malformed feature links file
+  }
+  cachedRenderFeatureMeta = map;
+  cachedRenderFeatureMetaMtime = fingerprint;
+  return map;
+}
 
 async function getDb() {
   if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI not set');
@@ -493,6 +540,18 @@ async function resolveRenderMeta(db, pathname, query) {
       return {
         ...project,
         image: toAbsoluteRenderUrl(project.image || RENDER_DEFAULT_IMAGE),
+        path: pathname,
+      };
+    }
+  }
+
+  const featureMatch = pathname.match(/^\/feature\/([^/]+)$/);
+  if (featureMatch) {
+    const featureMap = readFeatureMetaForRender();
+    const featureMeta = featureMap.get(pathname);
+    if (featureMeta) {
+      return {
+        ...featureMeta,
         path: pathname,
       };
     }

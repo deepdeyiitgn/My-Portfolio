@@ -9,6 +9,7 @@ const dictionary: Dict = {
   'nav.about': { en: 'About', bn: 'আমার সম্পর্কে', hi: 'परिचय' },
   'nav.me': { en: 'Me', bn: 'আমি', hi: 'मैं' },
   'nav.projects': { en: 'Projects', bn: 'প্রজেক্ট', hi: 'प्रोजेक्ट्स' },
+  'nav.feature': { en: 'Feature', bn: 'ফিচার', hi: 'फीचर' },
   'nav.portfolio': { en: 'Portfolio', bn: 'পোর্টফোলিও', hi: 'पोर्टफोलियो' },
   'nav.links': { en: 'Links', bn: 'লিংকস', hi: 'लिंक्स' },
   'nav.proof': { en: 'Proof', bn: 'প্রুফ', hi: 'प्रूफ' },
