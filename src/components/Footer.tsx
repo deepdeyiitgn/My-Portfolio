@@ -52,7 +52,7 @@ const formatGmtOffset = (offsetMinutes: number) => {
   return `GMT ${sign}${pad2(hours)}:${pad2(minutes)}`;
 };
 
-const getTimeZoneFallbackLabel = (timeZone: string) => {
+const extractTimeZoneRegionName = (timeZone: string) => {
   const regionCode = timeZone.split('/')[1]?.split('_').join(' ') || timeZone;
   return regionCode;
 };
@@ -60,7 +60,7 @@ const getTimeZoneFallbackLabel = (timeZone: string) => {
 const getTimeZoneRegionCode = (timeZone: string) => TIME_ZONE_TO_REGION[timeZone] || null;
 
 const getLocalCountryLabel = (timeZone: string) => {
-  const fallbackLabel = getTimeZoneFallbackLabel(timeZone);
+  const fallbackLabel = extractTimeZoneRegionName(timeZone);
   try {
     const locale = Intl.DateTimeFormat().resolvedOptions().locale || 'en-US';
     const displayName = new Intl.DisplayNames([locale], { type: 'region' });
