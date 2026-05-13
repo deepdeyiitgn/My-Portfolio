@@ -33,6 +33,13 @@ interface FeedbackItem {
   isPinned: boolean;
   isOwner?: boolean;
   createdAt: string;
+  reactionSummary?: {
+    likes: number;
+    dislikes: number;
+    total: number;
+  };
+  reactionTotal?: number;
+  viewerReaction?: 'like' | 'dislike' | null;
 }
 
 interface Pagination {
@@ -68,6 +75,15 @@ function timeAgo(d?: string | null) {
   return new Date(d).toLocaleDateString('en-IN');
 }
 
+function getFeedbackSessionId() {
+  const key = 'feedback-session-id';
+  const existing = sessionStorage.getItem(key);
+  if (existing) return existing;
+  const generated = `f-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  sessionStorage.setItem(key, generated);
+  return generated;
+}
+
 export default function Feedback() {
   const [categories, setCategories] = useState<FeedbackCategory[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
@@ -100,6 +116,7 @@ export default function Feedback() {
   ]);
 
   const [expandedFeedback, setExpandedFeedback] = useState<FeedbackItem | null>(null);
+  const [reactingFeedbackId, setReactingFeedbackId] = useState<string | null>(null);
 
   const totalSummaryCount = useMemo(
     () => ratingSummary.reduce((sum, row) => sum + Number(row.count || 0), 0),
@@ -150,6 +167,7 @@ export default function Feedback() {
         page: String(nextPage),
         limit: '20',
         sort: nextSort,
+        session: getFeedbackSessionId(),
       });
       if (nextSubject) params.set('subject', nextSubject);
       if (nextSub) params.set('subSubject', nextSub);
@@ -290,6 +308,41 @@ export default function Feedback() {
       setFormMessage({ text: 'Network error. Please try again.', type: 'err' });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const applyReactionUpdate = (feedbackId: string, nextReaction: 'like' | 'dislike' | null, summary: { likes: number; dislikes: number; total: number }) => {
+    setFeedbacks((prev) => prev.map((item) => (
+      item._id === feedbackId ? { ...item, viewerReaction: nextReaction, reactionSummary: summary, reactionTotal: summary.total } : item
+    )));
+    setExpandedFeedback((prev) => (
+      prev && prev._id === feedbackId ? { ...prev, viewerReaction: nextReaction, reactionSummary: summary, reactionTotal: summary.total } : prev
+    ));
+  };
+
+  const handleFeedbackReaction = async (feedbackId: string, nextReaction: 'like' | 'dislike') => {
+    const current = feedbacks.find((item) => item._id === feedbackId)?.viewerReaction || (expandedFeedback?._id === feedbackId ? expandedFeedback.viewerReaction : null) || null;
+    const clear = current === nextReaction;
+    setReactingFeedbackId(feedbackId);
+    try {
+      const r = await fetch('/api/journal?action=feedback-reaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feedbackId,
+          session: getFeedbackSessionId(),
+          reaction: clear ? null : nextReaction,
+          clear,
+        }),
+      });
+      const d = await r.json();
+      if (d.ok && d.reactionSummary) {
+        applyReactionUpdate(feedbackId, d.viewerReaction || null, d.reactionSummary);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setReactingFeedbackId(null);
     }
   };
 
@@ -497,7 +550,8 @@ export default function Feedback() {
                     key={item._id}
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4"
+                    className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 cursor-pointer hover:border-amber-500/30 transition-colors"
+                    onClick={() => setExpandedFeedback(item)}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
@@ -523,7 +577,7 @@ export default function Feedback() {
                     <p className="text-zinc-400 text-sm mt-1 whitespace-pre-wrap break-words">{preview}</p>
                     {long && (
                       <button
-                        onClick={() => setExpandedFeedback(item)}
+                        onClick={(e) => { e.stopPropagation(); setExpandedFeedback(item); }}
                         className="mt-2 text-amber-400 text-xs font-bold hover:text-amber-300"
                       >
                         See More
@@ -586,6 +640,41 @@ export default function Feedback() {
                 <span className="text-zinc-500 text-xs">by {expandedFeedback.userName}</span>
               </div>
               <p className="mt-4 text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap break-words">{expandedFeedback.text}</p>
+              <div className="mt-5 space-y-3 border-t border-zinc-800 pt-4">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleFeedbackReaction(expandedFeedback._id, 'like')}
+                    disabled={reactingFeedbackId === expandedFeedback._id}
+                    className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${
+                      expandedFeedback.viewerReaction === 'like'
+                        ? 'border-emerald-500/60 text-emerald-300 bg-emerald-500/10'
+                        : 'border-zinc-700 text-zinc-300 hover:border-emerald-500/40 hover:text-emerald-300'
+                    }`}
+                  >
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" aria-hidden="true">
+                      <path d="M2 21h4V9H2v12Zm20-11.2c0-1-.8-1.8-1.8-1.8h-5.7l.9-4.3.03-.3c0-.42-.17-.8-.44-1.08L13.9 1 7.6 7.3c-.36.36-.6.86-.6 1.4V19c0 1.1.9 2 2 2h7.5c.8 0 1.52-.48 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73V9.8Z" />
+                    </svg>
+                    Like
+                  </button>
+                  <button
+                    onClick={() => handleFeedbackReaction(expandedFeedback._id, 'dislike')}
+                    disabled={reactingFeedbackId === expandedFeedback._id}
+                    className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${
+                      expandedFeedback.viewerReaction === 'dislike'
+                        ? 'border-rose-500/60 text-rose-300 bg-rose-500/10'
+                        : 'border-zinc-700 text-zinc-300 hover:border-rose-500/40 hover:text-rose-300'
+                    }`}
+                  >
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" aria-hidden="true">
+                      <path d="M22 3h-4v12h4V3ZM2 14.2c0 1 .8 1.8 1.8 1.8h5.7L8.6 20.3l-.03.3c0 .42.17.8.44 1.08L10.1 23l6.3-6.3c.36-.36.6-.86.6-1.4V5c0-1.1-.9-2-2-2H7.5c-.8 0-1.52.48-1.84 1.22L2.64 11.27c-.09.23-.14.47-.14.73v2.2Z" />
+                    </svg>
+                    Unlike
+                  </button>
+                </div>
+                <p className="text-zinc-500 text-xs">
+                  {Number(expandedFeedback.reactionSummary?.likes || 0)} out of {Number(expandedFeedback.reactionSummary?.total || expandedFeedback.reactionTotal || 0)} liked this feedback
+                </p>
+              </div>
             </motion.div>
           </div>
         )}

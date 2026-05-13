@@ -19,6 +19,7 @@
  * POST ?action=comment-pin                              → pin/unpin comment (auth required)
  * POST ?action=blacklist                                → add blacklist word (auth required)
  * POST ?action=feedback                                 → add feedback (Google token or owner cookie)
+ * POST ?action=feedback-reaction                        → like/dislike feedback by session
  * POST ?action=feedback-pin                             → pin/unpin feedback (auth required)
  * POST                                                  → create journal (auth required)
  * PUT  ?action=comment                                  → edit own comment (Google token or owner cookie)
@@ -1033,6 +1034,30 @@ function normalizeFeedbackRating(value) {
   return Math.max(1, Math.min(5, Math.round(n)));
 }
 
+function normalizeFeedbackReaction(value) {
+  const token = String(value || '').trim().toLowerCase();
+  if (token === 'like' || token === 'dislike') return token;
+  return null;
+}
+
+function getFeedbackReactionSummary(value) {
+  const likes = Math.max(0, Number(value?.likes || 0));
+  const dislikes = Math.max(0, Number(value?.dislikes || 0));
+  const total = likes + dislikes;
+  return { likes, dislikes, total };
+}
+
+function getFeedbackReactionSessions(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const sessions = {};
+  for (const [session, reaction] of Object.entries(value)) {
+    const normalizedReaction = normalizeFeedbackReaction(reaction);
+    if (!normalizedReaction) continue;
+    sessions[String(session)] = normalizedReaction;
+  }
+  return sessions;
+}
+
 async function getFeedbackCategoriesMap(db) {
   const categories = await db.collection('feedback_categories').find({ type: 'feedback' }).toArray();
   const map = new Map();
@@ -1522,6 +1547,7 @@ module.exports = async (req, res) => {
       if (action === 'feedback-list') {
         const page = Math.max(1, parseInt(getParam(req, 'page') || '1', 10));
         const limit = Math.min(FEEDBACK_DEFAULT_LIMIT, Math.max(1, parseInt(getParam(req, 'limit') || String(FEEDBACK_DEFAULT_LIMIT), 10)));
+        const session = String(getParam(req, 'session') || '').trim();
         const subject = String(getParam(req, 'subject') || '').trim().toLowerCase();
         const subSubject = String(getParam(req, 'subSubject') || '').trim().toLowerCase();
         const sort = normalizeFeedbackSort(getParam(req, 'sort'));
@@ -1548,14 +1574,27 @@ module.exports = async (req, res) => {
               createdAt: 1,
               updatedAt: 1,
               isOwner: 1,
+              reactionSummary: 1,
+              reactionSessions: 1,
             },
           }).sort(getFeedbackSort(sort)).skip((page - 1) * limit).limit(limit).toArray(),
           buildFeedbackRatingSummary(db, visibleFilter),
         ]);
 
+        const feedbacksWithReaction = feedbacks.map((item) => {
+          const reactionSummary = getFeedbackReactionSummary(item.reactionSummary);
+          const reactionSessions = getFeedbackReactionSessions(item.reactionSessions);
+          return {
+            ...item,
+            reactionSummary,
+            viewerReaction: session ? normalizeFeedbackReaction(reactionSessions[session]) : null,
+            reactionTotal: reactionSummary.total,
+          };
+        });
+
         return json(res, 200, {
           ok: true,
-          feedbacks,
+          feedbacks: feedbacksWithReaction,
           ratingSummary,
           pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
         });
@@ -1564,6 +1603,7 @@ module.exports = async (req, res) => {
       // --- Pinned feedback for homepage (public) ---
       if (action === 'feedback-pinned') {
         const limit = Math.min(200, Math.max(1, parseInt(getParam(req, 'limit') || '80', 10)));
+        const session = String(getParam(req, 'session') || '').trim();
         const visiblePinnedFilter = await applyVisibleFeedbackUserFilter(db, { isPinned: true });
         const feedbacks = await db.collection('feedbacks').find(
           visiblePinnedFilter,
@@ -1578,10 +1618,22 @@ module.exports = async (req, res) => {
               rating: 1,
               createdAt: 1,
               isOwner: 1,
+              reactionSummary: 1,
+              reactionSessions: 1,
             },
           },
         ).sort({ createdAt: -1 }).limit(limit).toArray();
-        return json(res, 200, { ok: true, feedbacks });
+        const feedbacksWithReaction = feedbacks.map((item) => {
+          const reactionSummary = getFeedbackReactionSummary(item.reactionSummary);
+          const reactionSessions = getFeedbackReactionSessions(item.reactionSessions);
+          return {
+            ...item,
+            reactionSummary,
+            viewerReaction: session ? normalizeFeedbackReaction(reactionSessions[session]) : null,
+            reactionTotal: reactionSummary.total,
+          };
+        });
+        return json(res, 200, { ok: true, feedbacks: feedbacksWithReaction });
       }
 
       // --- Feedback list for owner dashboard (auth) ---
@@ -2347,6 +2399,8 @@ module.exports = async (req, res) => {
           hasAbuse,
           rating,
           isPinned: false,
+          reactionSummary: { likes: 0, dislikes: 0, total: 0 },
+          reactionSessions: {},
           createdAt: now,
           updatedAt: now,
         };
@@ -2385,6 +2439,54 @@ module.exports = async (req, res) => {
         }
 
         return json(res, 201, { ok: true, feedback: { ...doc, _id: result.insertedId } });
+      }
+
+      // --- Feedback reaction: like/dislike by session ---
+      if (action === 'feedback-reaction') {
+        const body = await readBody(req);
+        const feedbackId = String(body.feedbackId || body.id || '').trim();
+        const session = String(body.session || '').trim();
+        const reaction = normalizeFeedbackReaction(body.reaction);
+        const isClear = body.clear === true || reaction === null;
+        if (!feedbackId || !ObjectId.isValid(feedbackId)) return json(res, 400, { ok: false, message: 'feedbackId required' });
+        if (!/^[a-zA-Z0-9_-]{6,120}$/.test(session)) return json(res, 400, { ok: false, message: 'Valid session required' });
+
+        const feedbackCol = db.collection('feedbacks');
+        const existing = await feedbackCol.findOne({ _id: new ObjectId(feedbackId) });
+        if (!existing) return json(res, 404, { ok: false, message: 'Feedback not found' });
+
+        const existingSessions = getFeedbackReactionSessions(existing.reactionSessions);
+        const previousReaction = normalizeFeedbackReaction(existingSessions[session]);
+
+        if (isClear) {
+          delete existingSessions[session];
+        } else {
+          existingSessions[session] = reaction;
+        }
+
+        const entries = Object.entries(existingSessions).slice(-5000);
+        const nextSessions = Object.fromEntries(entries);
+        let likes = 0;
+        let dislikes = 0;
+        for (const value of Object.values(nextSessions)) {
+          if (value === 'like') likes += 1;
+          if (value === 'dislike') dislikes += 1;
+        }
+        const reactionSummary = { likes, dislikes, total: likes + dislikes };
+
+        await feedbackCol.updateOne(
+          { _id: new ObjectId(feedbackId) },
+          { $set: { reactionSessions: nextSessions, reactionSummary, updatedAt: new Date() } },
+        );
+
+        return json(res, 200, {
+          ok: true,
+          feedbackId,
+          previousReaction: previousReaction || null,
+          viewerReaction: normalizeFeedbackReaction(nextSessions[session]),
+          reactionSummary,
+          reactionTotal: reactionSummary.total,
+        });
       }
 
       // --- Feedback pin/unpin (admin only, unlimited) ---

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Target, Lightbulb, GraduationCap, ArrowRight, Zap, History, Milestone, Lock, Activity, BookOpen, Heart, Eye, Clock, Tag, Users, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -45,6 +45,7 @@ export default function Home() {
 
   // Timeline — default is local data; replaced with MongoDB items when mode='custom'
   const [activeTimeline, setActiveTimeline] = useState<TimelineItem[]>(timelineData);
+  const infiniteProjectItems = useMemo(() => [...projectsData, ...projectsData], []);
 
   useEffect(() => {
     // Detect if device has a precise pointing device (mouse)
@@ -368,18 +369,25 @@ export default function Home() {
               to="/projects"
               className="shrink-0 px-6 py-3 bg-amber-500 text-black font-black uppercase tracking-widest rounded-2xl hover:bg-amber-400 transition-all active:scale-95 text-xs flex items-center gap-2"
             >
-              View More <ArrowRight size={14} />
+              All Projects <ArrowRight size={14} />
             </Link>
           </div>
 
-          <div className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory">
-            {projectsData.map((project, index) => (
+          <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40">
+            <style>{`@keyframes ddProjectsInfinite { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
+            <div
+              className="flex gap-5 w-max px-5 py-5"
+              style={{
+                animation: 'ddProjectsInfinite 80s linear infinite',
+              }}
+            >
+            {infiniteProjectItems.map((project, index) => (
               <motion.article
-                key={project.id}
+                key={`${project.id}-${index}`}
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.05 }}
+                transition={{ delay: (index % projectsData.length) * 0.05 }}
                 className="group min-w-[280px] md:min-w-[340px] snap-start p-6 rounded-3xl border border-zinc-800 bg-zinc-900/30 hover:bg-zinc-900/50 hover:border-amber-500/30 transition-all space-y-4"
               >
                 <div className="flex items-start justify-between gap-4">
@@ -394,7 +402,7 @@ export default function Home() {
                 <p className="text-zinc-400 text-sm line-clamp-3">{project.shortDescription}</p>
                 <div className="flex items-center justify-between pt-2">
                   <Link to={`/projects/${project.id}`} className="text-xs font-bold uppercase tracking-widest text-amber-500 hover:text-amber-400 transition-colors">
-                    Open Project
+                    View More
                   </Link>
                   <a
                     href={project.liveUrl}
@@ -407,6 +415,7 @@ export default function Home() {
                 </div>
               </motion.article>
             ))}
+            </div>
           </div>
 
           <div className="flex justify-center">
