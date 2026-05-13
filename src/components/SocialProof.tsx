@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageSquareQuote, Users, Star, X } from 'lucide-react';
+import {
+  getOrCreateFeedbackSessionId,
+  patchFeedbackReactionInItem,
+  patchFeedbackReactionInList,
+  type FeedbackReactionSummary,
+} from '../utils/feedback';
 
 interface FeedbackCard {
   _id: string;
@@ -43,15 +49,6 @@ export default function SocialProof() {
   const [openCard, setOpenCard] = useState<FeedbackCard | null>(null);
   const [reactingFeedbackId, setReactingFeedbackId] = useState<string | null>(null);
 
-  const getSessionId = () => {
-    const key = 'feedback-session-id';
-    const existing = sessionStorage.getItem(key);
-    if (existing) return existing;
-    const generated = `f-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-    sessionStorage.setItem(key, generated);
-    return generated;
-  };
-
   useEffect(() => {
     fetch('/api/journal?action=feedback-stats')
       .then((r) => r.json())
@@ -67,7 +64,7 @@ export default function SocialProof() {
       })
       .catch(() => {});
 
-    const session = getSessionId();
+    const session = getOrCreateFeedbackSessionId();
     fetch(`/api/journal?action=feedback-pinned&limit=120&session=${encodeURIComponent(session)}`)
       .then((r) => r.json())
       .then((d) => {
@@ -81,18 +78,14 @@ export default function SocialProof() {
   const marqueeItems = useMemo(() => [...feedbacks, ...feedbacks], [feedbacks]);
   const shouldPause = paused || Boolean(openCard);
 
-  const applyReactionUpdate = (feedbackId: string, nextReaction: 'like' | 'dislike' | null, summary: { likes: number; dislikes: number; total: number }) => {
-    setFeedbacks((prev) => prev.map((item) => (
-      item._id === feedbackId ? { ...item, viewerReaction: nextReaction, reactionSummary: summary, reactionTotal: summary.total } : item
-    )));
-    setOpenCard((prev) => (
-      prev && prev._id === feedbackId ? { ...prev, viewerReaction: nextReaction, reactionSummary: summary, reactionTotal: summary.total } : prev
-    ));
+  const applyReactionUpdate = (feedbackId: string, nextReaction: 'like' | 'dislike' | null, summary: FeedbackReactionSummary) => {
+    setFeedbacks((prev) => patchFeedbackReactionInList(prev, feedbackId, nextReaction, summary));
+    setOpenCard((prev) => patchFeedbackReactionInItem(prev, feedbackId, nextReaction, summary));
   };
 
   const handleReaction = async (feedbackId: string, next: 'like' | 'dislike') => {
     if (!feedbackId) return;
-    const session = getSessionId();
+    const session = getOrCreateFeedbackSessionId();
     const current = feedbacks.find((item) => item._id === feedbackId)?.viewerReaction || null;
     const clear = current === next;
     setReactingFeedbackId(feedbackId);
