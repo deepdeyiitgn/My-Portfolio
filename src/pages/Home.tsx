@@ -37,7 +37,7 @@ export default function Home() {
 
   const [topJournals, setTopJournals] = useState<TopJournal[]>([]);
   const [homeCountdown, setHomeCountdown] = useState<HomeCountdownContent>({
-    heading: 'JEE 2027 Ke Liye Time Hei...',
+    heading: 'JEE 2027 Ke Liye Time Hai...',
     quote: 'Dream big, work hard, stay focused.',
     targetDate: null,
   });
@@ -95,7 +95,7 @@ export default function Home() {
       .then((response) => response.text())
       .then((htmlText) => {
         const documentFromHtml = new DOMParser().parseFromString(htmlText, 'text/html');
-        const heading = documentFromHtml.getElementById('heading')?.textContent?.trim() || 'JEE 2027 Ke Liye Time Hei...';
+        const heading = documentFromHtml.getElementById('heading')?.textContent?.trim() || 'JEE 2027 Ke Liye Time Hai...';
         const scriptContent = Array.from(documentFromHtml.querySelectorAll('script'))
           .map((script) => script.textContent || '')
           .join('\n');

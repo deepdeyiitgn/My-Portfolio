@@ -2464,6 +2464,7 @@ module.exports = async (req, res) => {
           existingSessions[session] = reaction;
         }
 
+        // Keep a bounded reaction-session map so one feedback document cannot grow unbounded over time.
         const entries = Object.entries(existingSessions).slice(-5000);
         const nextSessions = Object.fromEntries(entries);
         let likes = 0;

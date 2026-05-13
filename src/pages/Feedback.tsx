@@ -668,7 +668,7 @@ export default function Feedback() {
                     <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" aria-hidden="true">
                       <path d="M22 3h-4v12h4V3ZM2 14.2c0 1 .8 1.8 1.8 1.8h5.7L8.6 20.3l-.03.3c0 .42.17.8.44 1.08L10.1 23l6.3-6.3c.36-.36.6-.86.6-1.4V5c0-1.1-.9-2-2-2H7.5c-.8 0-1.52.48-1.84 1.22L2.64 11.27c-.09.23-.14.47-.14.73v2.2Z" />
                     </svg>
-                    Unlike
+                    Dislike
                   </button>
                 </div>
                 <p className="text-zinc-500 text-xs">
