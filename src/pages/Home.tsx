@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Target, Lightbulb, GraduationCap, ArrowRight, Zap, History, Milestone, Lock, Activity, BookOpen, Heart, Eye, Clock, Tag, Users, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -6,6 +6,7 @@ import TechGalaxy from '../components/TechGalaxy';
 import JourneyMarquee from '../components/JourneyMarquee';
 import SEO from '../components/SEO';
 import { timelineData, type TimelineItem } from '../data/timelineData';
+import { projectsData } from '../data/projectsData';
 import SocialProof from '../components/SocialProof';
 import { useLanguage } from '../context/LanguageContext';
 import { renderIcon } from '../utils/iconMap';
@@ -23,15 +24,28 @@ interface TopJournal {
   publishedAtIST: string | null;
 }
 
+interface HomeCountdownContent {
+  heading: string;
+  quote: string;
+  targetDate: number | null;
+}
+
 export default function Home() {
   const [isHoverable, setIsHoverable] = useState(true);
   const currentYear = new Date().getFullYear();
   const { t } = useLanguage();
 
   const [topJournals, setTopJournals] = useState<TopJournal[]>([]);
+  const [homeCountdown, setHomeCountdown] = useState<HomeCountdownContent>({
+    heading: 'JEE 2027 Ke Liye Time Hai...',
+    quote: 'Dream big, work hard, stay focused.',
+    targetDate: null,
+  });
+  const [countdownText, setCountdownText] = useState('Loading countdown...');
 
   // Timeline — default is local data; replaced with MongoDB items when mode='custom'
   const [activeTimeline, setActiveTimeline] = useState<TimelineItem[]>(timelineData);
+  const infiniteProjectItems = useMemo(() => [...projectsData, ...projectsData], []);
 
   useEffect(() => {
     // Detect if device has a precise pointing device (mouse)
@@ -74,6 +88,71 @@ export default function Home() {
       .then(d => { if (d.ok && Array.isArray(d.journals)) setTopJournals(d.journals); })
       .catch(() => {});
   }, []);
+
+  // Load countdown content from public/countdown.html and render natively (no iframe)
+  useEffect(() => {
+    fetch('/countdown.html')
+      .then((response) => response.text())
+      .then((htmlText) => {
+        const documentFromHtml = new DOMParser().parseFromString(htmlText, 'text/html');
+        const heading = documentFromHtml.getElementById('heading')?.textContent?.trim() || 'JEE 2027 Ke Liye Time Hai...';
+        const scriptContent = Array.from(documentFromHtml.querySelectorAll('script'))
+          .map((script) => script.textContent || '')
+          .join('\n');
+
+        const extractDateLiteral = (source: string, variableName: string) => {
+          const marker = `${variableName} = new Date("`;
+          const startIndex = source.indexOf(marker);
+          if (startIndex < 0) return null;
+          const valueStart = startIndex + marker.length;
+          const valueEnd = source.indexOf('")', valueStart);
+          if (valueEnd <= valueStart) return null;
+          return source.slice(valueStart, valueEnd);
+        };
+
+        const targetDateSource = extractDateLiteral(scriptContent, 'targetDate');
+        const parsedTargetDate = targetDateSource
+          ? new Date(targetDateSource).getTime()
+          : new Date('June 30, 2027 23:59:59').getTime();
+
+        setHomeCountdown({
+          heading,
+          quote: 'Dream big, work hard, stay focused.',
+          targetDate: parsedTargetDate && !Number.isNaN(parsedTargetDate) ? parsedTargetDate : null,
+        });
+      })
+      .catch(() => {
+        setHomeCountdown((previous) => ({
+          ...previous,
+          targetDate: new Date('June 30, 2027 23:59:59').getTime(),
+        }));
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!homeCountdown.targetDate) {
+      setCountdownText('Countdown unavailable right now.');
+      return;
+    }
+    const targetDate = homeCountdown.targetDate;
+
+    const updateCountdown = () => {
+      const distance = targetDate - Date.now();
+      const safeDistance = Math.max(distance, 0);
+      const days = Math.floor(safeDistance / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((safeDistance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((safeDistance % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((safeDistance % (1000 * 60)) / 1000);
+      const label = (value: number, singular: string, plural: string) => (value === 1 ? singular : plural);
+      setCountdownText(
+        `Time Left: ${days} ${label(days, 'Day', 'Days')} ${hours} ${label(hours, 'Hour', 'Hours')} ${minutes} ${label(minutes, 'Minute', 'Minutes')} ${seconds} ${label(seconds, 'Second', 'Seconds')}`
+      );
+    };
+
+    updateCountdown();
+    const intervalId = window.setInterval(updateCountdown, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [homeCountdown.targetDate]);
 
   return (
     <div className="space-y-32 mb-20 overflow-hidden">
@@ -268,6 +347,86 @@ export default function Home() {
         className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6"
       >
         <SocialProof />
+      </motion.section>
+
+      {/* ── Projects Horizontal Showcase ───────────────────────────────────── */}
+      <motion.section
+        initial={{ opacity: 0, y: 35 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.15 }}
+        className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6"
+      >
+        <div className="space-y-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div className="space-y-3">
+              <h2 className="text-amber-500 font-mono tracking-[0.4em] uppercase text-[10px] font-black">Projects</h2>
+              <h3 className="text-4xl md:text-5xl font-black tracking-tighter text-white">BUILT SYSTEMS.</h3>
+              <p className="text-zinc-500 max-w-xl text-sm">
+                Explore practical projects in a quick horizontal feed before opening the full projects page.
+              </p>
+            </div>
+            <Link
+              to="/projects"
+              className="shrink-0 px-6 py-3 bg-amber-500 text-black font-black uppercase tracking-widest rounded-2xl hover:bg-amber-400 transition-all active:scale-95 text-xs flex items-center gap-2"
+            >
+              All Projects <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40">
+            <style>{`@keyframes ddProjectsInfinite { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
+            <div
+              className="flex gap-5 w-max px-5 py-5"
+              style={{
+                animation: 'ddProjectsInfinite 80s linear infinite',
+              }}
+            >
+            {infiniteProjectItems.map((project, index) => (
+              <motion.article
+                key={`${project.id}-${index}`}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: (index % projectsData.length) * 0.05 }}
+                className="group min-w-[280px] md:min-w-[340px] snap-start p-6 rounded-3xl border border-zinc-800 bg-zinc-900/30 hover:bg-zinc-900/50 hover:border-amber-500/30 transition-all space-y-4"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="w-14 h-14 bg-zinc-950 rounded-2xl border border-zinc-800 p-2 overflow-hidden flex items-center justify-center">
+                    <img src={project.logoUrl} alt={project.title} className="w-full h-full object-contain" />
+                  </div>
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 bg-zinc-950 px-3 py-1 rounded-full border border-zinc-900">
+                    {project.category}
+                  </span>
+                </div>
+                <h4 className="text-xl font-bold text-white tracking-tight">{project.title}</h4>
+                <p className="text-zinc-400 text-sm line-clamp-3">{project.shortDescription}</p>
+                <div className="flex items-center justify-between pt-2">
+                  <Link to={`/projects/${project.id}`} className="text-xs font-bold uppercase tracking-widest text-amber-500 hover:text-amber-400 transition-colors">
+                    View More
+                  </Link>
+                  <a
+                    href={project.liveUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-amber-500 transition-colors"
+                  >
+                    Live
+                  </a>
+                </div>
+              </motion.article>
+            ))}
+            </div>
+          </div>
+
+          <div className="flex justify-center">
+            <Link
+              to="/projects"
+              className="inline-flex items-center gap-2 px-6 py-3 border border-amber-500/30 text-amber-500 text-sm font-bold rounded-2xl hover:bg-amber-500/10 transition-colors"
+            >
+              Go to Projects Page <ArrowRight size={14} />
+            </Link>
+          </div>
+        </div>
       </motion.section>
 
       {/* ── Journal Spotlight Section ─────────────────────────────────────── */}
@@ -492,6 +651,22 @@ export default function Home() {
               </div>
             </Link>
           </div>
+        </div>
+      </motion.section>
+
+      {/* Countdown Section loaded from /countdown.html */}
+      <motion.section
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6"
+      >
+        <div className="relative overflow-hidden bg-zinc-950 border border-amber-500/60 rounded-3xl p-8 md:p-10 space-y-4">
+          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-transparent pointer-events-none" />
+          <p className="relative z-10 text-[10px] font-mono text-amber-500 uppercase tracking-[0.4em]">Countdown</p>
+          <h3 className="relative z-10 text-2xl md:text-3xl font-black text-white tracking-tight">{homeCountdown.heading}</h3>
+          <p className="relative z-10 text-zinc-300 text-sm md:text-base">{homeCountdown.quote}</p>
+          <p className="relative z-10 text-amber-500 text-lg md:text-2xl font-black tracking-tight">{countdownText}</p>
         </div>
       </motion.section>
 
