@@ -9,6 +9,8 @@ import LoadingScreen from './components/LoadingScreen';
 const Home = lazy(() => import('./pages/Home'));
 const Projects = lazy(() => import('./pages/Projects'));
 const ProjectDetail = lazy(() => import('./pages/ProjectDetail'));
+const Features = lazy(() => import('./pages/Features'));
+const FeatureDetail = lazy(() => import('./pages/FeatureDetail'));
 const About = lazy(() => import('./pages/About'));
 const Me = lazy(() => import('./pages/Me'));
 const Contact = lazy(() => import('./pages/Contact'));
@@ -327,6 +329,8 @@ function AnimatedRoutes() {
             <Route path="/" element={<Home />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
+            <Route path="/feature" element={<Features />} />
+            <Route path="/feature/:slug" element={<FeatureDetail />} />
             <Route path="/about" element={<About />} />
             <Route path="/me" element={<Me />} />
             <Route path="/contact" element={<Contact />} />

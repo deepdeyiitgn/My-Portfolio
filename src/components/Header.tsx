@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { key: 'nav.about', path: '/about' },
   { key: 'nav.me', path: '/me' },
   { key: 'nav.projects', path: '/projects' },
+  { key: 'nav.feature', path: '/feature' },
   { key: 'nav.portfolio', path: '/portfolio' },
   { key: 'nav.links', path: '/links' },
   { key: 'nav.proof', path: '/proof' },

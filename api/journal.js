@@ -47,6 +47,9 @@ const communityCooldownByIp = new Map();
 const SERVICE_KEY_REGEX = /^\d{16}$/;
 const RENDER_BASE_URL = 'https://deepdey.vercel.app';
 const RENDER_DEFAULT_IMAGE = '/assets/images/myphoto.png';
+const FEATURE_CONTENT_DIR = path.join(process.cwd(), 'src', 'features', 'content');
+let cachedRenderFeatureMeta = null;
+let cachedRenderFeatureMetaMtime = 0;
 const RENDER_STATIC_PAGE_META = {
   '/': {
     title: 'Deep Dey | Software Architect & JEE 2027 Aspirant',
@@ -75,6 +78,10 @@ const RENDER_STATIC_PAGE_META = {
   '/faq': {
     title: 'Frequently Asked Questions | Deep Dey',
     description: 'Find answers to common questions about Deep Dey\'s projects, his JEE Advanced 2027 goals, and his AI-assisted development methodology.',
+  },
+  '/feature': {
+    title: 'Feature Atlas | Deep Dey',
+    description: 'Dynamic feature pages with architecture, workflows, visualizations, risk notes, and detailed implementation summaries.',
   },
   '/feedback': {
     title: 'Feedback | Deep Dey',
@@ -168,6 +175,69 @@ const RENDER_PROJECT_META = {
     image: '/69eb01798f30a15224010404.png',
   },
 };
+
+function toFeaturePathnameFromFile(filePath) {
+  const fileName = path.basename(filePath, '.json');
+  const slug = String(fileName || '').trim();
+  if (!slug) return null;
+  return `/feature/${encodeURIComponent(slug)}`;
+}
+
+function listFeatureFilesForRender() {
+  try {
+    if (!fs.existsSync(FEATURE_CONTENT_DIR)) return [];
+    const entries = fs.readdirSync(FEATURE_CONTENT_DIR, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+      .map((entry) => path.join(FEATURE_CONTENT_DIR, entry.name));
+  } catch {
+    return [];
+  }
+}
+
+function getFeatureFilesMtimeFingerprint(files) {
+  let latest = 0;
+  for (const file of files) {
+    try {
+      const mtime = fs.statSync(file).mtimeMs;
+      if (mtime > latest) latest = mtime;
+    } catch {
+      // ignore unreadable feature file
+    }
+  }
+  return latest;
+}
+
+function readFeatureMetaForRender() {
+  const files = listFeatureFilesForRender();
+  const fingerprint = getFeatureFilesMtimeFingerprint(files);
+  if (cachedRenderFeatureMeta && fingerprint <= cachedRenderFeatureMetaMtime) {
+    return cachedRenderFeatureMeta;
+  }
+  const map = new Map();
+  for (const file of files) {
+    try {
+      const raw = fs.readFileSync(file, 'utf8');
+      const parsed = JSON.parse(raw);
+      const slug = String(parsed?.slug || path.basename(file, '.json')).trim();
+      const title = String(parsed?.title || '').trim();
+      const summary = String(parsed?.summary || parsed?.description || '').trim();
+      if (!slug || !title) continue;
+      map.set(slug, {
+        title: `${title} | Feature Detail`,
+        description: summary || 'Detailed feature documentation page.',
+        image: `${RENDER_BASE_URL}${RENDER_DEFAULT_IMAGE}`,
+        path: `/feature/${encodeURIComponent(slug)}`,
+        type: 'article',
+      });
+    } catch {
+      // ignore malformed feature file
+    }
+  }
+  cachedRenderFeatureMeta = map;
+  cachedRenderFeatureMetaMtime = fingerprint;
+  return map;
+}
 
 async function getDb() {
   if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI not set');
@@ -493,6 +563,19 @@ async function resolveRenderMeta(db, pathname, query) {
       return {
         ...project,
         image: toAbsoluteRenderUrl(project.image || RENDER_DEFAULT_IMAGE),
+        path: pathname,
+      };
+    }
+  }
+
+  const featureMatch = pathname.match(/^\/feature\/([^/]+)$/);
+  if (featureMatch) {
+    const featureSlug = decodeURIComponent(featureMatch[1]);
+    const featureMap = readFeatureMetaForRender();
+    const featureMeta = featureMap.get(featureSlug);
+    if (featureMeta) {
+      return {
+        ...featureMeta,
         path: pathname,
       };
     }
