@@ -5,6 +5,42 @@ import { useLanguage } from '../context/LanguageContext';
 
 const INDIA_TIME_ZONE = 'Asia/Kolkata';
 const INDIA_GMT_LABEL = 'GMT +05:30';
+const TIME_ZONE_TO_REGION: Record<string, string> = {
+  'Asia/Kolkata': 'IN',
+  'Asia/Calcutta': 'IN',
+};
+
+type FooterNavItem = {
+  name: string;
+  path: string;
+  external?: boolean;
+};
+
+const ARCHITECTURE_LINKS: ReadonlyArray<FooterNavItem> = [
+  { name: 'Home Node', path: '/' },
+  { name: 'Projects Ledger', path: '/projects' },
+  { name: 'Proof Dashboard', path: '/proof' },
+  { name: 'Build Journal', path: '/journal' },
+  { name: 'Now / Roadmap', path: '/now' },
+  { name: 'System Status', path: '/status' },
+  { name: 'Contact Engine', path: '/contact' },
+  { name: 'Portfolio V2', path: 'https://qlynk.vercel.app/v2/portfolio', external: true },
+] as const;
+
+const COMPLIANCE_LINKS = [
+  { name: 'Legal Hub', path: '/legal' },
+  { name: 'Terms of Service', path: '/terms' },
+  { name: 'Privacy Policy', path: '/privacy' },
+  { name: 'DMCA Policy', path: '/dmca' },
+  { name: 'License Documentation', path: '/copyright' },
+] as const;
+
+const SOCIAL_LINKS = [
+  { name: 'Insta', icon: Instagram, path: 'https://instagram.com/deepdey.official' },
+  { name: 'GitHub', icon: Github, path: 'https://github.com/deepdeyiitgn' },
+  { name: 'YouTube', icon: Youtube, path: 'https://youtube.com/@deepdeyiit' },
+  { name: 'Discord', icon: MessageCircle, path: 'https://discord.com/invite/t6ZKNw556n' },
+] as const;
 
 const pad2 = (value: number) => String(value).padStart(2, '0');
 
@@ -16,48 +52,64 @@ const formatGmtOffset = (offsetMinutes: number) => {
   return `GMT ${sign}${pad2(hours)}:${pad2(minutes)}`;
 };
 
-const getLocalCountryLabel = (timeZone: string) => {
+const getTimeZoneFallbackLabel = (timeZone: string) => {
   const regionCode = timeZone.split('/')[1]?.split('_').join(' ') || timeZone;
+  return regionCode;
+};
+
+const getTimeZoneRegionCode = (timeZone: string) => TIME_ZONE_TO_REGION[timeZone] || null;
+
+const getLocalCountryLabel = (timeZone: string) => {
+  const fallbackLabel = getTimeZoneFallbackLabel(timeZone);
   try {
     const locale = Intl.DateTimeFormat().resolvedOptions().locale || 'en-US';
     const displayName = new Intl.DisplayNames([locale], { type: 'region' });
-    const maybeRegion = new Intl.Locale(locale).region;
-    if (maybeRegion) {
-      return displayName.of(maybeRegion) || regionCode;
+    const timezoneRegion = getTimeZoneRegionCode(timeZone);
+    if (timezoneRegion) {
+      return displayName.of(timezoneRegion) || fallbackLabel;
+    }
+
+    const localeRegion = new Intl.Locale(locale).region;
+    if (localeRegion) {
+      return displayName.of(localeRegion) || fallbackLabel;
     }
   } catch {
     // Ignore and fallback to timezone segment.
   }
-  return regionCode;
+  return fallbackLabel;
 };
 
-const formatClockLine = (date: Date, timeZone: string, zoneLabel: string) => {
-  const datePart = new Intl.DateTimeFormat('en-GB', {
+const createClockFormatters = (timeZone: string) => ({
+  date: new Intl.DateTimeFormat('en-GB', {
     timeZone,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-  }).format(date);
-
-  const dayPart = new Intl.DateTimeFormat('en-US', {
+  }),
+  day: new Intl.DateTimeFormat('en-US', {
     timeZone,
     weekday: 'long',
-  }).format(date).toUpperCase();
-
-  const time12h = new Intl.DateTimeFormat('en-US', {
+  }),
+  time12h: new Intl.DateTimeFormat('en-US', {
     timeZone,
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: true,
-  }).format(date);
-
-  const time24h = new Intl.DateTimeFormat('en-GB', {
+  }),
+  time24h: new Intl.DateTimeFormat('en-GB', {
     timeZone,
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  }).format(date);
+  }),
+});
+
+const formatClockLine = (date: Date, zoneLabel: string, formatters: ReturnType<typeof createClockFormatters>) => {
+  const datePart = formatters.date.format(date);
+  const dayPart = formatters.day.format(date).toUpperCase();
+  const time12h = formatters.time12h.format(date);
+  const time24h = formatters.time24h.format(date);
 
   return `${datePart} | ${dayPart} | ${time12h} | ${time24h} | (${zoneLabel})`;
 };
@@ -71,6 +123,8 @@ export default function Footer() {
     [],
   );
   const localCountry = useMemo(() => getLocalCountryLabel(localTimeZone), [localTimeZone]);
+  const indiaClockFormatters = useMemo(() => createClockFormatters(INDIA_TIME_ZONE), []);
+  const localClockFormatters = useMemo(() => createClockFormatters(localTimeZone), [localTimeZone]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -79,10 +133,10 @@ export default function Footer() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const indiaTimeLine = formatClockLine(now, INDIA_TIME_ZONE, `IST [${INDIA_GMT_LABEL}]`);
+  const indiaTimeLine = formatClockLine(now, `IST [${INDIA_GMT_LABEL}]`, indiaClockFormatters);
   const localOffsetMinutes = -now.getTimezoneOffset();
   const localZoneLabel = `${localCountry} [${formatGmtOffset(localOffsetMinutes)}]`;
-  const localTimeLine = formatClockLine(now, localTimeZone, localZoneLabel);
+  const localTimeLine = formatClockLine(now, localZoneLabel, localClockFormatters);
 
   return (
     <footer className="w-full border-t border-zinc-900 bg-zinc-950/80 backdrop-blur-md pt-24 pb-12 px-6 overflow-hidden relative">
@@ -107,16 +161,7 @@ export default function Footer() {
           <div className="space-y-6">
             <h4 className="text-xs font-mono text-zinc-300 uppercase tracking-[0.4em] font-black">Architecture</h4>
             <ul className="space-y-4">
-              {[
-                { name: 'Home Node', path: '/' },
-                { name: 'Projects Ledger', path: '/projects' },
-                { name: 'Proof Dashboard', path: '/proof' },
-                { name: 'Build Journal', path: '/journal' },
-                { name: 'Now / Roadmap', path: '/now' },
-                { name: 'System Status', path: '/status' },
-                { name: 'Contact Engine', path: '/contact' },
-                { name: 'Portfolio V2', path: 'https://qlynk.vercel.app/v2/portfolio', external: true },
-              ].map((item) => (
+              {ARCHITECTURE_LINKS.map((item) => (
                 <li key={item.name}>
                   {item.external ? (
                     <a
@@ -141,13 +186,7 @@ export default function Footer() {
           <div className="space-y-6">
             <h4 className="text-xs font-mono text-zinc-300 uppercase tracking-[0.4em] font-black">Compliance</h4>
             <ul className="space-y-4">
-              {[
-                { name: 'Legal Hub', path: '/legal' },
-                { name: 'Terms of Service', path: '/terms' },
-                { name: 'Privacy Policy', path: '/privacy' },
-                { name: 'DMCA Policy', path: '/dmca' },
-                { name: 'License Documentation', path: '/copyright' },
-              ].map((item) => (
+              {COMPLIANCE_LINKS.map((item) => (
                 <li key={item.name}>
                   <Link to={item.path} className="text-zinc-500 hover:text-amber-500 transition-colors text-sm font-light">
                     {item.name}
@@ -164,12 +203,7 @@ export default function Footer() {
           <div className="space-y-6">
             <h4 className="text-xs font-mono text-zinc-300 uppercase tracking-[0.4em] font-black">Network Nodes</h4>
             <div className="grid grid-cols-2 gap-4">
-              {[
-                { name: 'Insta', icon: <Instagram size={18} />, path: 'https://instagram.com/deepdey.official' },
-                { name: 'GitHub', icon: <Github size={18} />, path: 'https://github.com/deepdeyiitgn' },
-                { name: 'YouTube', icon: <Youtube size={18} />, path: 'https://youtube.com/@deepdeyiit' },
-                { name: 'Discord', icon: <MessageCircle size={18} />, path: 'https://discord.com/invite/t6ZKNw556n' },
-              ].map((social) => (
+              {SOCIAL_LINKS.map((social) => (
                 <a
                   key={social.name}
                   href={social.path}
@@ -178,7 +212,7 @@ export default function Footer() {
                   className="flex items-center justify-center p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl hover:border-amber-500/40 text-zinc-500 hover:text-amber-500 transition-all"
                   title={social.name}
                 >
-                  {social.icon}
+                  <social.icon size={18} />
                 </a>
               ))}
             </div>
