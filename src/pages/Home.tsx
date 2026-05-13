@@ -99,25 +99,24 @@ export default function Home() {
           .map((script) => script.textContent || '')
           .join('\n');
 
-        const quotesMatch = scriptContent.match(/\[\s*(?:"(?:\\.|[^"\\])*"\s*,?\s*)+\]/s);
-        const quotes = (quotesMatch?.[0].match(/"((?:\\.|[^"\\])*)"/g) || [])
-          .map((entry) => entry.slice(1, -1).replace(/\\"/g, '"'));
+        const extractDateLiteral = (source: string, variableName: string) => {
+          const marker = `${variableName} = new Date("`;
+          const startIndex = source.indexOf(marker);
+          if (startIndex < 0) return null;
+          const valueStart = startIndex + marker.length;
+          const valueEnd = source.indexOf('")', valueStart);
+          if (valueEnd <= valueStart) return null;
+          return source.slice(valueStart, valueEnd);
+        };
 
-        const dateMatches = Array.from(scriptContent.matchAll(/new\s+Date\("([^"]+)"\)/g)).map((match) => match[1]);
-        const startDateSource = dateMatches[0];
-        const targetDateSource = dateMatches[1];
-
-        const startDate = startDateSource ? new Date(startDateSource) : new Date();
-        const today = new Date();
-        const dayDiff = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-        const quoteIndex = quotes.length > 0 ? ((dayDiff % quotes.length) + quotes.length) % quotes.length : 0;
-        const quote = quotes[quoteIndex] || 'Dream big, work hard, stay focused.';
-
-        const parsedTargetDate = targetDateSource ? new Date(targetDateSource).getTime() : null;
+        const targetDateSource = extractDateLiteral(scriptContent, 'targetDate');
+        const parsedTargetDate = targetDateSource
+          ? new Date(targetDateSource).getTime()
+          : new Date('June 30, 2027 23:59:59').getTime();
 
         setHomeCountdown({
           heading,
-          quote,
+          quote: 'Dream big, work hard, stay focused.',
           targetDate: parsedTargetDate && !Number.isNaN(parsedTargetDate) ? parsedTargetDate : null,
         });
       })
