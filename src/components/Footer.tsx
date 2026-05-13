@@ -25,7 +25,7 @@ const ARCHITECTURE_LINKS: ReadonlyArray<FooterNavItem> = [
   { name: 'System Status', path: '/status' },
   { name: 'Contact Engine', path: '/contact' },
   { name: 'Portfolio V2', path: 'https://qlynk.vercel.app/v2/portfolio', external: true },
-] as const;
+];
 
 const COMPLIANCE_LINKS = [
   { name: 'Legal Hub', path: '/legal' },
@@ -33,14 +33,14 @@ const COMPLIANCE_LINKS = [
   { name: 'Privacy Policy', path: '/privacy' },
   { name: 'DMCA Policy', path: '/dmca' },
   { name: 'License Documentation', path: '/copyright' },
-] as const;
+];
 
 const SOCIAL_LINKS = [
   { name: 'Insta', icon: Instagram, path: 'https://instagram.com/deepdey.official' },
   { name: 'GitHub', icon: Github, path: 'https://github.com/deepdeyiitgn' },
   { name: 'YouTube', icon: Youtube, path: 'https://youtube.com/@deepdeyiit' },
   { name: 'Discord', icon: MessageCircle, path: 'https://discord.com/invite/t6ZKNw556n' },
-] as const;
+];
 
 const pad2 = (value: number) => String(value).padStart(2, '0');
 
