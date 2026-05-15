@@ -136,7 +136,7 @@ export default function SocialProof() {
         ))}
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {feedbacks.length === 0 ? (
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900/25 p-10 text-center text-zinc-600 text-sm">
             No pinned feedback yet.
