@@ -718,7 +718,7 @@ function inferHostingProvider(hostname, serverHeader) {
   if (source.includes('amazon') || source.includes('aws')) return 'aws';
   if (source.includes('google') || source.includes('gcp')) return 'gcp';
   if (source.includes('github')) return 'github';
-  if (source.includes('fly.io') || source.includes('fly')) return 'fly';
+  if (host === 'fly.io' || host.endsWith('.fly.io') || host.endsWith('.fly.dev') || server.includes('fly')) return 'fly';
   return host || 'unknown';
 }
 
