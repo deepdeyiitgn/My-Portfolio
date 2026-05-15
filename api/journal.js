@@ -4,6 +4,7 @@
  * GET  ?slug=<slug>|id=<id>&countView=true              → single journal entry
  * GET  ?action=html-file&slug=<slug>|id=<id>            → full HTML document for html posts
  * GET  ?action=third-party-status&provider=<id>          → third-party provider status aggregation
+ * GET  ?action=status-monitor-config                      → status-page monitor mode config
  * GET  ?action=status                                   → FETCH LIVE STATUS & HISTORY
  * GET  ?action=comments&journalId=X&page=1&sort=top     → paginated comments (top-level or replies)
  * GET  ?action=comment-count&journalIds=X,Y             → comment counts for multiple journals
@@ -13,6 +14,7 @@
  * GET  ?action=feedback-stats                             → feedback stats summary (public)
  * GET  ?action=feedback-pinned                            → pinned feedback for homepage (public)
  * POST ?action=like&id=<id>&session=<sessionId>         → like a journal once/session
+ * POST ?action=status-monitor-config                    → update status-page monitor mode (auth required)
  * POST ?action=status                                   → CREATE LIVE STATUS (auth required)
  * POST ?action=comment                                  → add comment (Google token or owner cookie)
  * POST ?action=comment-like&id=<id>&session=<s>         → like a comment once/session
@@ -36,6 +38,7 @@ const crypto = require('crypto');
 const he = require('he');
 const fs = require('fs');
 const path = require('path');
+const dns = require('dns').promises;
 
 let cachedClient = null;
 let cachedSpaTemplate = null;
@@ -50,6 +53,8 @@ const RENDER_DEFAULT_IMAGE = '/assets/images/myphoto.png';
 const FEATURE_LINKS_FILE = path.join(process.cwd(), 'src', 'features', 'feature-links.json');
 let cachedRenderFeatureMeta = null;
 let cachedRenderFeatureMetaMtime = 0;
+const STATUS_MONITOR_CONFIG_ID = 'status_monitor_config';
+const STATUS_MONITOR_MODES = ['live', 'stop', 'maintenance', 'hiatus'];
 const RENDER_STATIC_PAGE_META = {
   '/': {
     title: 'Deep Dey | Software Architect & JEE 2027 Aspirant',
@@ -673,13 +678,102 @@ function buildModerationMessage(scope, state) {
 }
 
 const THIRD_PARTY_PROVIDERS = {
-  vercel: { id: 'vercel', name: 'Vercel', endpoint: 'https://www.vercel-status.com/api/v2/status.json', type: 'statuspage' },
-  netlify: { id: 'netlify', name: 'Netlify', endpoint: 'https://www.netlifystatus.com/api/v2/status.json', type: 'statuspage' },
-  cloudflare: { id: 'cloudflare', name: 'Cloudflare DNS', endpoint: 'https://www.cloudflarestatus.com/api/v2/status.json', type: 'statuspage' },
-  aws: { id: 'aws', name: 'AWS', endpoint: 'https://status.aws.amazon.com/data.json', type: 'aws' },
-  gcp: { id: 'gcp', name: 'Google Cloud', endpoint: 'https://status.cloud.google.com/incidents.json', type: 'gcp' },
-  github: { id: 'github', name: 'GitHub', endpoint: 'https://www.githubstatus.com/api/v2/status.json', type: 'statuspage' },
+  vercel: { id: 'vercel', name: 'Vercel', endpoint: 'https://www.vercel-status.com/api/v2/status.json', type: 'statuspage', statusPageUrl: 'https://www.vercel-status.com' },
+  netlify: { id: 'netlify', name: 'Netlify', endpoint: 'https://www.netlifystatus.com/api/v2/status.json', type: 'statuspage', statusPageUrl: 'https://www.netlifystatus.com' },
+  cloudflare: { id: 'cloudflare', name: 'Cloudflare DNS', endpoint: 'https://www.cloudflarestatus.com/api/v2/status.json', type: 'statuspage', statusPageUrl: 'https://www.cloudflarestatus.com' },
+  aws: { id: 'aws', name: 'AWS', endpoint: 'https://status.aws.amazon.com/data.json', type: 'aws', statusPageUrl: 'https://status.aws.amazon.com' },
+  gcp: { id: 'gcp', name: 'Google Cloud', endpoint: 'https://status.cloud.google.com/incidents.json', type: 'gcp', statusPageUrl: 'https://status.cloud.google.com' },
+  github: { id: 'github', name: 'GitHub', endpoint: 'https://www.githubstatus.com/api/v2/status.json', type: 'statuspage', statusPageUrl: 'https://www.githubstatus.com' },
 };
+
+function normalizeStatusMonitorMode(mode) {
+  const value = String(mode || '').trim().toLowerCase();
+  return STATUS_MONITOR_MODES.includes(value) ? value : 'live';
+}
+
+function defaultStatusMonitorConfig() {
+  return {
+    mode: 'live',
+    updatedAt: null,
+    updatedAtIST: null,
+  };
+}
+
+function detectOwnHostingProvider() {
+  if (process.env.VERCEL) return 'vercel';
+  if (process.env.NETLIFY) return 'netlify';
+  if (process.env.AWS_REGION || process.env.AWS_EXECUTION_ENV || process.env.AWS_LAMBDA_FUNCTION_NAME) return 'aws';
+  if (process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || process.env.K_SERVICE) return 'gcp';
+  if (process.env.FLY_REGION) return 'fly';
+  return 'unknown';
+}
+
+function inferHostingProvider(hostname, serverHeader) {
+  const host = String(hostname || '').toLowerCase();
+  const server = String(serverHeader || '').toLowerCase();
+  const source = `${host} ${server}`;
+  if (source.includes('vercel')) return 'vercel';
+  if (source.includes('netlify')) return 'netlify';
+  if (source.includes('cloudflare')) return 'cloudflare';
+  if (source.includes('amazon') || source.includes('aws')) return 'aws';
+  if (source.includes('google') || source.includes('gcp')) return 'gcp';
+  if (source.includes('github')) return 'github';
+  if (host === 'fly.io' || host.endsWith('.fly.io') || host.endsWith('.fly.dev') || server.includes('fly')) return 'fly';
+  return host || 'unknown';
+}
+
+function normalizeEventMessage(input, fallback = 'No details shared') {
+  const raw = String(input || '').trim();
+  if (!raw) return fallback;
+  return raw.length > 220 ? `${raw.slice(0, 217)}...` : raw;
+}
+
+function toMsTime(value) {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function pickLatestEvent(events = []) {
+  if (!Array.isArray(events) || events.length === 0) return null;
+  return [...events]
+    .filter(Boolean)
+    .sort((a, b) => {
+      const aTime = toMsTime(a.updatedAt || a.createdAt || a.scheduledFor || a.start || a.begin);
+      const bTime = toMsTime(b.updatedAt || b.createdAt || b.scheduledFor || b.start || b.begin);
+      return bTime - aTime;
+    })[0] || null;
+}
+
+async function resolveHostNetworkInfo(url) {
+  try {
+    const hostname = new URL(url).hostname;
+    const looked = await dns.lookup(hostname, { all: true });
+    const addresses = Array.isArray(looked) ? looked.map((x) => x.address).filter(Boolean) : [];
+    return {
+      hostname,
+      serverIp: addresses[0] || null,
+      serverIps: addresses,
+    };
+  } catch {
+    return {
+      hostname: null,
+      serverIp: null,
+      serverIps: [],
+    };
+  }
+}
+
+async function readStatusMonitorConfig(db) {
+  const configCol = db.collection('config');
+  const doc = await configCol.findOne({ _id: STATUS_MONITOR_CONFIG_ID });
+  if (!doc) return defaultStatusMonitorConfig();
+  return {
+    mode: normalizeStatusMonitorMode(doc.mode),
+    updatedAt: doc.updatedAt || null,
+    updatedAtIST: doc.updatedAtIST || null,
+  };
+}
 
 function mapThirdPartyIndicatorToStatus(indicator) {
   const value = String(indicator || '').toLowerCase();
@@ -690,13 +784,33 @@ function mapThirdPartyIndicatorToStatus(indicator) {
 }
 
 async function fetchThirdPartyProviderStatus(provider) {
-  const started = Date.now();
+  const ownHostingProvider = detectOwnHostingProvider();
+  const networkInfo = await resolveHostNetworkInfo(provider.endpoint);
+  const basePayload = {
+    id: provider.id,
+    name: provider.name,
+    mainEndpoint: provider.endpoint,
+    statusPageUrl: provider.statusPageUrl || null,
+    serverHost: networkInfo.hostname,
+    serverIp: networkInfo.serverIp,
+    serverIps: networkInfo.serverIps,
+    ownHostingProvider,
+  };
+
   try {
+    // Warm-up ping: ignore first response to reduce cold-start skew.
+    await fetch(provider.endpoint, { method: 'GET', headers: { Accept: 'application/json' } }).catch(() => {});
+
+    const started = Date.now();
     const response = await fetch(provider.endpoint, {
       method: 'GET',
       headers: { Accept: 'application/json' },
     });
     const latencyMs = Date.now() - started;
+    const serverHeader = response.headers.get('server') || '';
+    const hostingProvider = inferHostingProvider(networkInfo.hostname, serverHeader);
+    const isLikelyOwnInfrastructure = ownHostingProvider !== 'unknown' && hostingProvider === ownHostingProvider;
+
     let data = null;
     try {
       data = await response.json();
@@ -706,45 +820,119 @@ async function fetchThirdPartyProviderStatus(provider) {
 
     if (!response.ok) {
       return {
-        id: provider.id,
-        name: provider.name,
-        mainEndpoint: provider.endpoint,
+        ...basePayload,
         status: 'down',
         indicator: 'http_error',
         description: `HTTP ${response.status}`,
+        providerMessage: `Provider status endpoint returned HTTP ${response.status}.`,
         httpStatus: response.status,
         latencyMs,
+        hostingProvider,
+        isLikelyOwnInfrastructure,
+        hasOngoingIncident: true,
+        hasOngoingMaintenance: false,
+        latestIncident: { title: `HTTP ${response.status}`, message: 'Status endpoint is not returning successful response.', severity: 'major', updatedAt: null, moreInfoUrl: provider.statusPageUrl || null },
+        latestMaintenance: null,
         lastUpdated: null,
       };
     }
 
     if (provider.type === 'statuspage') {
       const indicator = data?.status?.indicator || 'unknown';
+      const status = mapThirdPartyIndicatorToStatus(indicator);
+      const statusPageRoot = provider.statusPageUrl || (() => {
+        try {
+          const origin = new URL(provider.endpoint).origin;
+          return origin;
+        } catch {
+          return null;
+        }
+      })();
+
+      const incidentsEndpoint = statusPageRoot ? `${statusPageRoot}/api/v2/incidents/unresolved.json` : null;
+      const maintenanceEndpoint = statusPageRoot ? `${statusPageRoot}/api/v2/scheduled-maintenances/active.json` : null;
+
+      const [incidentsPayload, maintPayload] = await Promise.all([
+        incidentsEndpoint
+          ? fetch(incidentsEndpoint, { headers: { Accept: 'application/json' } }).then((r) => r.json()).catch(() => null)
+          : Promise.resolve(null),
+        maintenanceEndpoint
+          ? fetch(maintenanceEndpoint, { headers: { Accept: 'application/json' } }).then((r) => r.json()).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+
+      const unresolvedIncidents = Array.isArray(incidentsPayload?.incidents)
+        ? incidentsPayload.incidents.map((incident) => ({
+            id: String(incident?.id || ''),
+            title: String(incident?.name || incident?.title || 'Ongoing incident').trim(),
+            message: normalizeEventMessage(incident?.incident_updates?.[0]?.body || incident?.shortlink || incident?.impact_override || incident?.status || 'Provider reported an incident.'),
+            severity: String(incident?.impact || 'minor').toLowerCase(),
+            updatedAt: incident?.updated_at || incident?.created_at || null,
+            moreInfoUrl: incident?.shortlink || statusPageRoot,
+          }))
+        : [];
+      const activeMaintenances = Array.isArray(maintPayload?.scheduled_maintenances)
+        ? maintPayload.scheduled_maintenances.map((maintenance) => ({
+            id: String(maintenance?.id || ''),
+            title: String(maintenance?.name || 'Scheduled maintenance').trim(),
+            message: normalizeEventMessage(maintenance?.incident_updates?.[0]?.body || maintenance?.status || 'Provider scheduled maintenance in progress.'),
+            severity: String(maintenance?.impact || 'maintenance').toLowerCase(),
+            updatedAt: maintenance?.updated_at || maintenance?.scheduled_for || null,
+            scheduledFor: maintenance?.scheduled_for || null,
+            moreInfoUrl: maintenance?.shortlink || statusPageRoot,
+          }))
+        : [];
+
+      const latestIncident = pickLatestEvent(unresolvedIncidents);
+      const latestMaintenance = pickLatestEvent(activeMaintenances);
+      const hasOngoingIncident = unresolvedIncidents.length > 0;
+      const hasOngoingMaintenance = activeMaintenances.length > 0;
+      const providerMessage = hasOngoingIncident
+        ? `Active incident: ${latestIncident?.title || 'Reported by provider'}.`
+        : hasOngoingMaintenance
+          ? `Maintenance: ${latestMaintenance?.title || 'Provider maintenance ongoing'}.`
+          : data?.status?.description || 'All systems are operating normally.';
+
       return {
-        id: provider.id,
-        name: provider.name,
-        mainEndpoint: provider.endpoint,
-        status: mapThirdPartyIndicatorToStatus(indicator),
+        ...basePayload,
+        status,
         indicator,
         description: data?.status?.description || 'Status data available',
+        providerMessage,
         httpStatus: response.status,
         latencyMs,
-        lastUpdated: data?.page?.updated_at || data?.status?.updated_at || null,
+        hostingProvider,
+        isLikelyOwnInfrastructure,
+        hasOngoingIncident,
+        hasOngoingMaintenance,
+        latestIncident,
+        latestMaintenance,
+        incidentCount: unresolvedIncidents.length,
+        maintenanceCount: activeMaintenances.length,
+        lastUpdated: data?.page?.updated_at || data?.status?.updated_at || latestIncident?.updatedAt || latestMaintenance?.updatedAt || null,
       };
     }
 
     if (provider.type === 'aws') {
       const indicator = data?.current?.status ?? data?.status ?? '0';
       const description = data?.current?.summary || data?.current?.description || 'Service is operating normally';
+      const hasOngoingMaintenance = Boolean(String(description || '').toLowerCase().includes('maintenance'));
+      const status = mapThirdPartyIndicatorToStatus(indicator);
+      const hasOngoingIncident = status !== 'operational' || /incident|disruption|outage/i.test(String(description || ''));
       return {
-        id: provider.id,
-        name: provider.name,
-        mainEndpoint: provider.endpoint,
-        status: mapThirdPartyIndicatorToStatus(indicator),
+        ...basePayload,
+        status,
         indicator: String(indicator ?? ''),
         description,
+        providerMessage: normalizeEventMessage(description, 'AWS status available.'),
         httpStatus: response.status,
         latencyMs,
+        hostingProvider,
+        isLikelyOwnInfrastructure,
+        hasOngoingIncident,
+        hasOngoingMaintenance,
+        latestIncident: hasOngoingIncident ? { title: 'AWS Service Advisory', message: normalizeEventMessage(description), severity: status === 'down' ? 'major' : 'minor', updatedAt: data?.current?.date || data?.current?.time || null, moreInfoUrl: provider.statusPageUrl || null } : null,
+        latestMaintenance: hasOngoingMaintenance ? { title: 'AWS Maintenance Notice', message: normalizeEventMessage(description), severity: 'maintenance', updatedAt: data?.current?.date || data?.current?.time || null, moreInfoUrl: provider.statusPageUrl || null } : null,
         lastUpdated: data?.current?.date || data?.current?.time || null,
       };
     }
@@ -753,40 +941,64 @@ async function fetchThirdPartyProviderStatus(provider) {
       const incidents = Array.isArray(data) ? data : [];
       const activeIncidents = incidents.filter((incident) => !String(incident?.end || '').trim());
       const activeCount = activeIncidents.length;
+      const latestIncidentData = pickLatestEvent(activeIncidents.map((incident) => ({
+        title: String(incident?.title || incident?.external_desc || 'Google Cloud incident').trim(),
+        message: normalizeEventMessage(incident?.external_desc || incident?.service_name || 'Service disruption reported by Google Cloud.'),
+        severity: String(incident?.severity || (incident?.status_impact || 'minor')).toLowerCase(),
+        updatedAt: incident?.modified || incident?.begin || null,
+        moreInfoUrl: provider.statusPageUrl || null,
+      })));
       return {
-        id: provider.id,
-        name: provider.name,
-        mainEndpoint: provider.endpoint,
+        ...basePayload,
         status: activeCount === 0 ? 'operational' : 'degraded',
         indicator: activeCount === 0 ? 'none' : 'minor',
         description: activeCount === 0 ? 'No active incidents reported' : `${activeCount} active incident${activeCount > 1 ? 's' : ''} reported`,
+        providerMessage: activeCount === 0 ? 'No active incidents reported by Google Cloud.' : normalizeEventMessage(latestIncidentData?.message || 'Google Cloud reported active incidents.'),
         httpStatus: response.status,
         latencyMs,
-        lastUpdated: activeIncidents[0]?.modified || incidents[0]?.modified || null,
+        hostingProvider,
+        isLikelyOwnInfrastructure,
+        hasOngoingIncident: activeCount > 0,
+        hasOngoingMaintenance: false,
+        latestIncident: latestIncidentData,
+        latestMaintenance: null,
+        incidentCount: activeCount,
+        maintenanceCount: 0,
+        lastUpdated: latestIncidentData?.updatedAt || activeIncidents[0]?.modified || incidents[0]?.modified || null,
       };
     }
 
     return {
-      id: provider.id,
-      name: provider.name,
-      mainEndpoint: provider.endpoint,
+      ...basePayload,
       status: 'degraded',
       indicator: 'unknown',
       description: 'Unknown provider format',
+      providerMessage: 'Provider format changed, status parser fallback is active.',
       httpStatus: response.status,
       latencyMs,
+      hostingProvider,
+      isLikelyOwnInfrastructure,
+      hasOngoingIncident: false,
+      hasOngoingMaintenance: false,
+      latestIncident: null,
+      latestMaintenance: null,
       lastUpdated: null,
     };
   } catch (error) {
     return {
-      id: provider.id,
-      name: provider.name,
-      mainEndpoint: provider.endpoint,
+      ...basePayload,
       status: 'down',
       indicator: 'fetch_error',
       description: error instanceof Error ? error.message : 'Failed to fetch provider status',
+      providerMessage: 'Unable to fetch provider status right now.',
       httpStatus: null,
       latencyMs: null,
+      hostingProvider: inferHostingProvider(networkInfo.hostname, ''),
+      isLikelyOwnInfrastructure: false,
+      hasOngoingIncident: true,
+      hasOngoingMaintenance: false,
+      latestIncident: { title: 'Fetch error', message: error instanceof Error ? normalizeEventMessage(error.message) : 'Provider status fetch failed.', severity: 'major', updatedAt: null, moreInfoUrl: provider.statusPageUrl || null },
+      latestMaintenance: null,
       lastUpdated: null,
     };
   }
@@ -1309,6 +1521,11 @@ module.exports = async (req, res) => {
         });
       }
 
+      if (action === 'status-monitor-config') {
+        const monitorConfig = await readStatusMonitorConfig(db);
+        return json(res, 200, { ok: true, ...monitorConfig, availableModes: STATUS_MONITOR_MODES });
+      }
+
       // --- NAYA: Live Status Fetch Logic ---
       if (action === 'third-party-status') {
         const requestedProvider = String(getParam(req, 'provider') || '').trim().toLowerCase();
@@ -1321,9 +1538,12 @@ module.exports = async (req, res) => {
         }
 
         const providers = await Promise.all(selectedProviders.map(fetchThirdPartyProviderStatus));
+        const monitorConfig = await readStatusMonitorConfig(db);
         return json(res, 200, {
           ok: true,
           checkedAt: Date.now(),
+          monitorConfig,
+          ownHostingProvider: detectOwnHostingProvider(),
           providers,
         });
       }
@@ -2252,6 +2472,25 @@ module.exports = async (req, res) => {
     // ==========================================
     if (req.method === 'POST') {
       const action = getParam(req, 'action');
+
+      if (action === 'status-monitor-config') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const body = await readBody(req);
+        const mode = normalizeStatusMonitorMode(body.mode);
+        const configCol = db.collection('config');
+        const updatedAt = new Date();
+        const updateDoc = {
+          mode,
+          updatedAt,
+          updatedAtIST: nowIST(),
+        };
+        await configCol.updateOne(
+          { _id: STATUS_MONITOR_CONFIG_ID },
+          { $set: updateDoc, $setOnInsert: { createdAt: updatedAt } },
+          { upsert: true },
+        );
+        return json(res, 200, { ok: true, ...updateDoc, availableModes: STATUS_MONITOR_MODES });
+      }
 
       // --- Manual Refresh: Rate-limited health snapshot (public) ---
       if (action === 'refresh') {
