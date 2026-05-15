@@ -106,7 +106,7 @@ A JSON-driven hub mapping 30+ internal/external nodes with dynamic inline SVG ic
 The milestone timeline uses `new Date().getFullYear()` to auto-highlight the current active phase with a glowing amber radar pulse (extends to 2035).
 
 ### 🔍 Max-Level SEO
-`react-helmet-async` drives per-route metadata injection: Canonical URLs, OpenGraph/Twitter cards, and `Schema.org` JSON-LD (Person, FAQPage, SoftwareApplication). A server-rendered HTML shell also injects the correct title/description/image for shared links, so WhatsApp, Twitter/X, Discord, and other unfurlers can read page-specific metadata before the SPA hydrates. Journal posts automatically use a random uploaded post image for share cards, with `/assets/images/myphoto.png` as the fallback when a post has no uploaded images. All routes including `/search`, `/user`, `/feedback`, and `/journal/comment` are included in the XML sitemap.
+`react-helmet-async` drives per-route metadata injection: Canonical URLs, full OpenGraph tags (`og:type`, `og:url`, `og:title`, `og:description`, `og:image`, `og:image:alt`, `og:site_name`, `og:locale`), complete Twitter Card tags (`twitter:card`, `twitter:url`, `twitter:title`, `twitter:description`, `twitter:image`, `twitter:image:alt`), and `Schema.org` JSON-LD (Person, FAQPage, SoftwareApplication). The static `index.html` entry point carries the same complete tag set as the global baseline so crawlers and unfurlers always find valid metadata even before the SPA hydrates. A server-rendered HTML shell also injects the correct title/description/image for shared links, so WhatsApp, Twitter/X, Discord, and other unfurlers can read page-specific metadata. Journal posts automatically use a random uploaded post image for share cards, with `/assets/images/myphoto.png` as the fallback when a post has no uploaded images. All routes including `/search`, `/user`, `/feedback`, and `/journal/comment` are included in the XML sitemap.
 
 ### 🌍 12-Language i18n
 Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · JA · KO · ZH via a custom React Context provider.
@@ -432,7 +432,8 @@ These files are the fastest path for non-backend customization.
 
 ### 3) SEO, Domain, and Public Metadata
 
-- Global/per-page SEO component: `src/components/SEO.tsx`
+- Global/per-page SEO component: `src/components/SEO.tsx` — injects full OG + Twitter Card tags on every route
+- Static baseline meta tags (OG + Twitter Card + JSON-LD) live in `index.html` — edit here for global fallback defaults
 - App route registration: `src/App.tsx`
 - Static crawler files:
   - `public/robots.txt`

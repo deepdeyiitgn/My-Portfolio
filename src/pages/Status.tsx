@@ -403,13 +403,18 @@ export default function Status() {
   };
 
   // ── Derived stats ──────────────────────────────────────────────────────────
-  const mapModeStatus = (status: EndpointResult['status']): EndpointResult['status'] => {
+  const mapEndpointModeStatus = (status: EndpointResult['status']): EndpointResult['status'] => {
     if (isMaintenanceMode) return 'degraded';
     if (isStopMode) return 'pending';
     return status;
   };
 
-  const allValues = (Object.values(results) as EndpointResult[]).map((r) => ({ ...r, status: mapModeStatus(r.status) }));
+  const mapThirdPartyModeStatus = (status: EndpointResult['status']): EndpointResult['status'] => {
+    if (isStopMode) return 'pending';
+    return status;
+  };
+
+  const allValues = (Object.values(results) as EndpointResult[]).map((r) => ({ ...r, status: mapEndpointModeStatus(r.status) }));
   const operationalCount = allValues.filter((r: EndpointResult) => r.status === 'operational').length;
   const degradedCount = allValues.filter((r: EndpointResult) => r.status === 'degraded').length;
   const downCount = allValues.filter((r: EndpointResult) => r.status === 'down').length;
@@ -584,7 +589,7 @@ export default function Status() {
                     </div>
                     <div className="text-center min-w-0">
                       <p className="text-zinc-600 text-[9px] font-mono uppercase tracking-widest mb-0.5">Status</p>
-                      <StatusBadge status={mapModeStatus(r.status)} />
+                      <StatusBadge status={mapEndpointModeStatus(r.status)} />
                     </div>
                     <div className="text-center hidden sm:block">
                       <p className="text-zinc-600 text-[9px] font-mono uppercase tracking-widest mb-0.5">Checked</p>
@@ -633,7 +638,7 @@ export default function Status() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap min-w-0">
                         <span className="text-zinc-100 font-bold">{provider.name}</span>
-                        <StatusBadge status={mapModeStatus(provider.status)} />
+                        <StatusBadge status={mapThirdPartyModeStatus(provider.status)} />
                         {provider.isLikelyOwnInfrastructure && (
                           <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">Our infra match</span>
                         )}
