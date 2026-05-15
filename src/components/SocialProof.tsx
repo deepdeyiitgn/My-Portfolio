@@ -69,7 +69,7 @@ export default function SocialProof() {
       .then((r) => r.json())
       .then((d) => {
         if (d.ok && Array.isArray(d.feedbacks)) {
-          setFeedbacks(shuffleArray(d.feedbacks));
+          setFeedbacks(shuffleArray<FeedbackCard>(d.feedbacks));
         }
       })
       .catch(() => {});
@@ -81,7 +81,7 @@ export default function SocialProof() {
     const targetTrackItems = Math.max(minTrackItems, feedbacks.length);
     const track: FeedbackCard[] = [];
     while (track.length < targetTrackItems) {
-      track.push(...shuffleArray(feedbacks));
+      track.push(...shuffleArray<FeedbackCard>(feedbacks));
     }
     const normalizedTrack = track.slice(0, targetTrackItems);
     return [...normalizedTrack, ...normalizedTrack];
