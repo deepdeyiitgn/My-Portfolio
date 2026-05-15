@@ -243,11 +243,6 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* Infinite Journey Marquee */}
-      <section className="py-10 border-y border-zinc-900 bg-zinc-950/20">
-        <JourneyMarquee />
-      </section>
-
       {/* Tech Galaxy Section */}
       <motion.section 
         initial={{ opacity: 0, y: 50 }}
@@ -257,6 +252,11 @@ export default function Home() {
       >
         <TechGalaxy />
       </motion.section>
+
+      {/* Infinite Journey Marquee */}
+      <section className="py-10 border-y border-zinc-900 bg-zinc-950/20">
+        <JourneyMarquee />
+      </section>
 
       {/* ── Projects Horizontal Showcase ───────────────────────────────────── */}
       <motion.section

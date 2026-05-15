@@ -1,14 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Github, Instagram, Youtube, MessageCircle, ExternalLink, ShieldCheck } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
-
-const INDIA_TIME_ZONE = 'Asia/Kolkata';
-const INDIA_GMT_LABEL = 'GMT +05:30';
-const TIME_ZONE_TO_REGION: Record<string, string> = {
-  'Asia/Kolkata': 'IN',
-  'Asia/Calcutta': 'IN',
-};
 
 type FooterNavItem = {
   name: string;
@@ -42,101 +34,9 @@ const SOCIAL_LINKS = [
   { name: 'Discord', icon: MessageCircle, path: 'https://discord.com/invite/t6ZKNw556n' },
 ];
 
-const pad2 = (value: number) => String(value).padStart(2, '0');
-
-const formatGmtOffset = (offsetMinutes: number) => {
-  const sign = offsetMinutes >= 0 ? '+' : '-';
-  const absolute = Math.abs(offsetMinutes);
-  const hours = Math.floor(absolute / 60);
-  const minutes = absolute % 60;
-  return `GMT ${sign}${pad2(hours)}:${pad2(minutes)}`;
-};
-
-const extractTimeZoneRegionName = (timeZone: string) => {
-  const regionCode = timeZone.split('/')[1]?.split('_').join(' ') || timeZone;
-  return regionCode;
-};
-
-const getTimeZoneRegionCode = (timeZone: string) => TIME_ZONE_TO_REGION[timeZone] || null;
-
-const getLocalCountryLabel = (timeZone: string) => {
-  const fallbackLabel = extractTimeZoneRegionName(timeZone);
-  try {
-    const locale = Intl.DateTimeFormat().resolvedOptions().locale || 'en-US';
-    const displayName = new Intl.DisplayNames([locale], { type: 'region' });
-    const timezoneRegion = getTimeZoneRegionCode(timeZone);
-    if (timezoneRegion) {
-      return displayName.of(timezoneRegion) || fallbackLabel;
-    }
-
-    const localeRegion = new Intl.Locale(locale).region;
-    if (localeRegion) {
-      return displayName.of(localeRegion) || fallbackLabel;
-    }
-  } catch {
-    // Ignore and fallback to timezone segment.
-  }
-  return fallbackLabel;
-};
-
-const createClockFormatters = (timeZone: string) => ({
-  date: new Intl.DateTimeFormat('en-GB', {
-    timeZone,
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }),
-  day: new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    weekday: 'long',
-  }),
-  time12h: new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true,
-  }),
-  time24h: new Intl.DateTimeFormat('en-GB', {
-    timeZone,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }),
-});
-
-const formatClockLine = (date: Date, zoneLabel: string, formatters: ReturnType<typeof createClockFormatters>) => {
-  const datePart = formatters.date.format(date);
-  const dayPart = formatters.day.format(date).toUpperCase();
-  const time12h = formatters.time12h.format(date);
-  const time24h = formatters.time24h.format(date);
-
-  return `${datePart} | ${dayPart} | ${time12h} | ${time24h} | (${zoneLabel})`;
-};
-
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   const { t } = useLanguage();
-  const [now, setNow] = useState(() => new Date());
-  const localTimeZone = useMemo(
-    () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-    [],
-  );
-  const localCountry = useMemo(() => getLocalCountryLabel(localTimeZone), [localTimeZone]);
-  const indiaClockFormatters = useMemo(() => createClockFormatters(INDIA_TIME_ZONE), []);
-  const localClockFormatters = useMemo(() => createClockFormatters(localTimeZone), [localTimeZone]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setNow(new Date());
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const indiaTimeLine = formatClockLine(now, `IST [${INDIA_GMT_LABEL}]`, indiaClockFormatters);
-  const localOffsetMinutes = -now.getTimezoneOffset();
-  const localZoneLabel = `${localCountry} [${formatGmtOffset(localOffsetMinutes)}]`;
-  const localTimeLine = formatClockLine(now, localZoneLabel, localClockFormatters);
 
   return (
     <footer className="w-full border-t border-zinc-900 bg-zinc-950/80 backdrop-blur-md pt-24 pb-12 px-6 overflow-hidden relative">
@@ -228,22 +128,14 @@ export default function Footer() {
         </div>
 
         <div className="pt-12 border-t border-zinc-900 flex flex-col gap-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="space-y-2 text-center md:text-left">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10">
+            <div className="space-y-2 text-center">
               <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">
                 © 2020 - {currentYear} Deep Dey | All Right Reserved.
               </p>
               <p className="text-[10px] text-zinc-800 uppercase tracking-widest leading-relaxed">
                 Architecting solutions across India & the Digital Frontier.
               </p>
-              <div className="pt-2 space-y-1">
-                <p className="text-[10px] font-mono text-zinc-500 tracking-wide break-all">
-                  {indiaTimeLine}
-                </p>
-                <p className="text-[10px] font-mono text-zinc-600 tracking-wide break-all">
-                  {localTimeLine}
-                </p>
-              </div>
             </div>
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2 group cursor-help">
