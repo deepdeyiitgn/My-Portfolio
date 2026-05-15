@@ -135,7 +135,12 @@ Key route files:
 Global components:
 - `src/components/Header.tsx`
 - `src/components/Footer.tsx`
-- `src/components/SEO.tsx`
+- `src/components/SEO.tsx` — injects per-route `<head>` tags via `react-helmet-async`:
+  - Open Graph: `og:type`, `og:url`, `og:title`, `og:description`, `og:image`, `og:image:alt`, `og:site_name`, `og:locale`
+  - Twitter Card: `twitter:card`, `twitter:url`, `twitter:title`, `twitter:description`, `twitter:image`, `twitter:image:alt`
+  - JSON-LD structured data (optional `schema` prop)
+  - Use this component in every page for correct social-preview metadata.
+- `index.html` — static baseline with the same complete OG + Twitter Card tag set for crawlers that read the shell before JS runs. Update here when changing global site name, domain, or default share image.
 
 ## Section 7 — How to Edit APIs
 

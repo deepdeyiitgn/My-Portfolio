@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Complete Twitter Card & Open Graph SEO in `index.html`:** Added `og:image:alt`, `og:site_name`, `og:locale`, and `twitter:image:alt` to the static HTML baseline so crawlers and link-unfurlers (Twitter/X, WhatsApp, Discord, Slack) receive the full recommended tag set even before the SPA hydrates.
+- **`SEO.tsx` full tag parity:** Per-route head injection via `react-helmet-async` now also emits `og:image:alt`, `og:site_name`, `og:locale`, and `twitter:image:alt` on every page, ensuring every shareable URL carries complete social-preview metadata.
 - **Professional Feedback Management System (`/feedback`):** Added a dedicated feedback page with interactive 5-star submissions, rating-distribution summary bars, subject/sub-subject taxonomy, strict one-feedback-per-subject-sub-subject enforcement, blacklist-filtered text persistence, sorting/filtering, 20-per-page pagination, and long-text see-more modal flow.
 - **Feedback APIs without new serverless files:** Extended existing handlers only:
   - `GET /api/journal?action=feedback-list|feedback-stats|feedback-pinned|feedback-admin-list`
