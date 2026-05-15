@@ -442,8 +442,8 @@ export default function Status() {
         </div>
 
         {/* ── API Endpoints ──────────────────────────────────────────────────── */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
+        <section className="overflow-x-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
             <h2 className="text-white font-black text-lg flex items-center gap-2">
               <Globe size={18} className="text-amber-500" />
               API Endpoints
@@ -477,12 +477,12 @@ export default function Status() {
                       <p className="text-zinc-500 text-[11px] mt-0.5">{ep.description}</p>
                     </div>
                   </div>
-                  <div className="flex w-full sm:w-auto flex-wrap sm:flex-nowrap items-center gap-4 sm:gap-6 sm:shrink-0">
-                    <div className="text-center">
+                  <div className="flex w-full sm:w-auto flex-wrap sm:flex-nowrap items-center gap-4 sm:gap-6 sm:shrink-0 min-w-0">
+                    <div className="text-center min-w-0">
                       <p className="text-zinc-600 text-[9px] font-mono uppercase tracking-widest mb-0.5">Latency</p>
                       <LatencyBar ms={r.latencyMs} />
                     </div>
-                    <div className="text-center">
+                    <div className="text-center min-w-0">
                       <p className="text-zinc-600 text-[9px] font-mono uppercase tracking-widest mb-0.5">Status</p>
                       <StatusBadge status={r.status} />
                     </div>

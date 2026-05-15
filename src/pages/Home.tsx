@@ -243,6 +243,11 @@ export default function Home() {
         </motion.div>
       </section>
 
+      {/* Infinite Journey Marquee */}
+      <section className="py-10 border-y border-zinc-900 bg-zinc-950/20">
+        <JourneyMarquee />
+      </section>
+
       {/* Tech Galaxy Section */}
       <motion.section 
         initial={{ opacity: 0, y: 50 }}
@@ -251,102 +256,6 @@ export default function Home() {
         className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6"
       >
         <TechGalaxy />
-      </motion.section>
-
-      {/* Infinite Journey Marquee */}
-      <section className="py-10 border-y border-zinc-900 bg-zinc-950/20">
-        <JourneyMarquee />
-      </section>
-
-      {/* Timeline Section */}
-      <motion.section 
-        initial={{ opacity: 0, y: 50 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.2 }}
-        className="max-w-4xl mx-auto px-6 relative"
-      >
-        <div className="text-center mb-24 space-y-4">
-          <h2 className="text-4xl md:text-6xl font-bold text-white tracking-tighter uppercase italic">The Origin Timeline</h2>
-          <div className="h-1.5 w-32 bg-amber-500 mx-auto rounded-full shadow-[0_0_15px_rgba(245,158,11,0.4)]"></div>
-          <p className="text-zinc-500 font-mono text-[10px] uppercase tracking-[0.4em] pt-4">Milestones & Pivot Points</p>
-        </div>
-
-        <div className="absolute left-1/2 md:left-1/2 w-0.5 bg-zinc-900 h-full -translate-x-1/2 z-0 hidden md:block opacity-50"></div>
-
-        <div className="space-y-24">
-          {activeTimeline.map((item, index) => {
-            const isActive = currentYear === item.year;
-            
-            return (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: 80 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.1 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                className={`relative flex items-center justify-between w-full z-10 ${
-                  index % 2 === 0 ? 'md:flex-row-reverse' : 'md:flex-row'
-                } flex-col`}
-              >
-                <div className="hidden md:block w-5/12"></div>
-                
-                <div className={`absolute left-1/2 -translate-x-1/2 w-5 h-5 bg-zinc-950 border-2 rounded-full z-20 hidden md:block ${
-                  isActive ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.8)] animate-pulse' : 'border-zinc-800'
-                }`}></div>
-                
-                <div className={`w-full md:w-5/12 p-10 bg-zinc-900/30 border rounded-[2.5rem] backdrop-blur-md transition-all group group relative ${
-                  isActive 
-                    ? 'border-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.15)] bg-zinc-900/50' 
-                    : 'border-zinc-800/50 hover:border-amber-500/30'
-                }`}>
-                   {/* Date Badge */}
-                  <div className={`absolute -top-4 left-8 px-4 py-1.5 font-black text-[10px] rounded-lg shadow-xl transform -rotate-1 z-30 transition-colors ${
-                    isActive ? 'bg-amber-500 text-black shadow-amber-500/30' : 'bg-zinc-800 text-zinc-400 shadow-black'
-                  }`}>
-                    {item.dateStr}
-                  </div>
-
-                  <div className="flex items-center space-x-4 mb-6">
-                    <div className={`p-3 bg-zinc-950 border rounded-2xl transition-transform group-hover:scale-110 ${
-                      isActive ? 'border-amber-500 text-amber-500' : 'border-zinc-800 text-zinc-500'
-                    }`}>
-                      {item.icon}
-                    </div>
-                    <h3 className={`text-2xl font-bold tracking-tight transition-colors ${
-                      isActive ? 'text-amber-500' : 'text-white group-hover:text-amber-500'
-                    }`}>{item.title}</h3>
-                  </div>
-                  
-                  <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-4 border-b border-zinc-800/50 pb-2 flex items-center gap-2">
-                     <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-amber-500 shadow-[0_0_5px_rgba(245,158,11,0.5)]' : 'bg-zinc-800'}`}></span>
-                     {item.school}
-                  </p>
-                  <p className="text-zinc-400 font-light leading-relaxed text-sm">{item.description}</p>
-                  
-                  {isActive && (
-                    <div className="absolute top-4 right-8 flex items-center gap-2">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                      </span>
-                      <span className="text-[9px] font-black uppercase tracking-tighter text-amber-500/80">Active Phase</span>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </motion.section>
-
-      {/* ── Feedback Spotlight (above Journal Top Post section) ───────────── */}
-      <motion.section
-        initial={{ opacity: 0, y: 35 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.15 }}
-        className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6"
-      >
-        <SocialProof />
       </motion.section>
 
       {/* ── Projects Horizontal Showcase ───────────────────────────────────── */}
@@ -426,6 +335,87 @@ export default function Home() {
               Go to Projects Page <ArrowRight size={14} />
             </Link>
           </div>
+        </div>
+      </motion.section>
+
+      {/* Timeline Section */}
+      <motion.section 
+        initial={{ opacity: 0, y: 50 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        className="max-w-4xl mx-auto px-6 relative"
+      >
+        <div className="text-center mb-24 space-y-4">
+          <h2 className="text-4xl md:text-6xl font-bold text-white tracking-tighter uppercase italic">The Origin Timeline</h2>
+          <div className="h-1.5 w-32 bg-amber-500 mx-auto rounded-full shadow-[0_0_15px_rgba(245,158,11,0.4)]"></div>
+          <p className="text-zinc-500 font-mono text-[10px] uppercase tracking-[0.4em] pt-4">Milestones & Pivot Points</p>
+        </div>
+
+        <div className="absolute left-1/2 md:left-1/2 w-0.5 bg-zinc-900 h-full -translate-x-1/2 z-0 hidden md:block opacity-50"></div>
+
+        <div className="space-y-24">
+          {activeTimeline.map((item, index) => {
+            const isActive = currentYear === item.year;
+            
+            return (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 80 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.1 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className={`relative flex items-center justify-between w-full z-10 ${
+                  index % 2 === 0 ? 'md:flex-row-reverse' : 'md:flex-row'
+                } flex-col`}
+              >
+                <div className="hidden md:block w-5/12"></div>
+                
+                <div className={`absolute left-1/2 -translate-x-1/2 w-5 h-5 bg-zinc-950 border-2 rounded-full z-20 hidden md:block ${
+                  isActive ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.8)] animate-pulse' : 'border-zinc-800'
+                }`}></div>
+                
+                <div className={`w-full md:w-5/12 p-10 bg-zinc-900/30 border rounded-[2.5rem] backdrop-blur-md transition-all group group relative ${
+                  isActive 
+                    ? 'border-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.15)] bg-zinc-900/50' 
+                    : 'border-zinc-800/50 hover:border-amber-500/30'
+                }`}>
+                   {/* Date Badge */}
+                  <div className={`absolute -top-4 left-8 px-4 py-1.5 font-black text-[10px] rounded-lg shadow-xl transform -rotate-1 z-30 transition-colors ${
+                    isActive ? 'bg-amber-500 text-black shadow-amber-500/30' : 'bg-zinc-800 text-zinc-400 shadow-black'
+                  }`}>
+                    {item.dateStr}
+                  </div>
+
+                  <div className="flex items-center space-x-4 mb-6">
+                    <div className={`p-3 bg-zinc-950 border rounded-2xl transition-transform group-hover:scale-110 ${
+                      isActive ? 'border-amber-500 text-amber-500' : 'border-zinc-800 text-zinc-500'
+                    }`}>
+                      {item.icon}
+                    </div>
+                    <h3 className={`text-2xl font-bold tracking-tight transition-colors ${
+                      isActive ? 'text-amber-500' : 'text-white group-hover:text-amber-500'
+                    }`}>{item.title}</h3>
+                  </div>
+                  
+                  <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-4 border-b border-zinc-800/50 pb-2 flex items-center gap-2">
+                     <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-amber-500 shadow-[0_0_5px_rgba(245,158,11,0.5)]' : 'bg-zinc-800'}`}></span>
+                     {item.school}
+                  </p>
+                  <p className="text-zinc-400 font-light leading-relaxed text-sm">{item.description}</p>
+                  
+                  {isActive && (
+                    <div className="absolute top-4 right-8 flex items-center gap-2">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                      </span>
+                      <span className="text-[9px] font-black uppercase tracking-tighter text-amber-500/80">Active Phase</span>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       </motion.section>
 
@@ -514,85 +504,22 @@ export default function Home() {
         </div>
       </motion.section>
 
-      {/* Call to Action Section */}
-      <motion.section 
-        initial={{ opacity: 0, y: 50 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.2 }}
-        className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-20"
-      >
-        <div className="relative group overflow-hidden bg-zinc-900/30 border border-zinc-800 rounded-[3rem] p-12 md:p-24 text-center space-y-10">
-          {/* Background Glow */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-amber-500/5 blur-[120px] rounded-full pointer-events-none"></div>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="space-y-4 relative z-10"
-          >
-            <h2 className="text-amber-500 font-mono tracking-[0.3em] uppercase text-xs">Collaboration</h2>
-            <h1 className="text-4xl md:text-7xl font-bold text-white tracking-tighter leading-tight">
-              Ready to build <br /> the future?
-            </h1>
-            <p className="text-zinc-500 max-w-xl mx-auto text-lg">
-              Architecting scalable solutions through advanced prompt engineering and system thinking.
-            </p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="relative z-10 flex justify-center"
-          >
-            <Link
-              to="/contact"
-              className="group relative px-12 py-6 bg-amber-500 text-black font-black text-xl rounded-2xl flex items-center gap-4 transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-amber-500/20"
-            >
-              <div className="absolute -inset-1 bg-amber-400 rounded-2xl blur opacity-0 group-hover:opacity-40 transition-opacity"></div>
-              <span>{t('home.cta.contact', 'Get in Touch')}</span>
-              <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform" />
-            </Link>
-          </motion.div>
-          <div className="relative z-10 flex flex-wrap justify-center gap-4">
-            <Link to="/proof" className="px-6 py-3 border border-zinc-700 rounded-xl text-zinc-200 hover:border-amber-500/50 hover:text-amber-500 transition-colors text-xs font-black uppercase tracking-widest">
-              {t('home.cta.proof', 'View Proof of Work')}
-            </Link>
-            <Link to="/journal" className="px-6 py-3 border border-zinc-700 rounded-xl text-zinc-200 hover:border-amber-500/50 hover:text-amber-500 transition-colors text-xs font-black uppercase tracking-widest">
-              {t('home.cta.journal', 'Read Build Journal')}
-            </Link>
-          </div>
-        </div>
-      </motion.section>
-
-      {/* System Status Banner */}
+      {/* ── Feedback Spotlight ──────────────────────────────────────────────── */}
       <motion.section
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 35 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.3 }}
+        viewport={{ once: true, amount: 0.15 }}
         className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6"
       >
-        <div className="relative overflow-hidden bg-zinc-950 border border-zinc-900 rounded-3xl p-6 md:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-transparent pointer-events-none" />
-          <div className="relative z-10 flex items-center gap-4">
-            <div className="p-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-emerald-400 shrink-0">
-              <Activity size={20} />
-            </div>
-            <div>
-              <p className="text-[10px] font-mono text-emerald-500 uppercase tracking-[0.4em] mb-0.5">Live Monitor</p>
-              <h3 className="text-lg font-black text-white tracking-tight">System Status</h3>
-              <p className="text-zinc-500 text-sm">Real-time API health, server metrics &amp; latency data</p>
-            </div>
+        <div className="space-y-8">
+          <div className="space-y-3">
+            <h2 className="text-amber-500 font-mono tracking-[0.4em] uppercase text-[10px] font-black">Community Feedback</h2>
+            <h3 className="text-4xl md:text-5xl font-black tracking-tighter text-white">WHAT PEOPLE ARE SAYING.</h3>
+            <p className="text-zinc-500 max-w-xl text-sm">
+              Real feedback from community members, pinned highlights, and rolling reactions from recent contributors.
+            </p>
           </div>
-          <Link
-            to="/status"
-            className="relative z-10 shrink-0 px-6 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 text-emerald-400 font-black uppercase tracking-widest rounded-2xl transition-all active:scale-95 text-xs flex items-center gap-2"
-          >
-            <Activity size={14} />
-            View Status
-          </Link>
+          <SocialProof />
         </div>
       </motion.section>
 
@@ -670,36 +597,121 @@ export default function Home() {
         </div>
       </motion.section>
 
-      {/* Owner-only Dashboard Access */}
+      {/* Call to Action Section */}
+      <motion.section 
+        initial={{ opacity: 0, y: 50 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-20"
+      >
+        <div className="relative group overflow-hidden bg-zinc-900/30 border border-zinc-800 rounded-[3rem] p-12 md:p-24 text-center space-y-10">
+          {/* Background Glow */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-amber-500/5 blur-[120px] rounded-full pointer-events-none"></div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="space-y-4 relative z-10"
+          >
+            <h2 className="text-amber-500 font-mono tracking-[0.3em] uppercase text-xs">Collaboration</h2>
+            <h1 className="text-4xl md:text-7xl font-bold text-white tracking-tighter leading-tight">
+              Ready to build <br /> the future?
+            </h1>
+            <p className="text-zinc-500 max-w-xl mx-auto text-lg">
+              Architecting scalable solutions through advanced prompt engineering and system thinking.
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="relative z-10 flex justify-center"
+          >
+            <Link
+              to="/contact"
+              className="group relative px-12 py-6 bg-amber-500 text-black font-black text-xl rounded-2xl flex items-center gap-4 transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-amber-500/20"
+            >
+              <div className="absolute -inset-1 bg-amber-400 rounded-2xl blur opacity-0 group-hover:opacity-40 transition-opacity"></div>
+              <span>{t('home.cta.contact', 'Get in Touch')}</span>
+              <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform" />
+            </Link>
+          </motion.div>
+          <div className="relative z-10 flex flex-wrap justify-center gap-4">
+            <Link to="/proof" className="px-6 py-3 border border-zinc-700 rounded-xl text-zinc-200 hover:border-amber-500/50 hover:text-amber-500 transition-colors text-xs font-black uppercase tracking-widest">
+              {t('home.cta.proof', 'View Proof of Work')}
+            </Link>
+            <Link to="/journal" className="px-6 py-3 border border-zinc-700 rounded-xl text-zinc-200 hover:border-amber-500/50 hover:text-amber-500 transition-colors text-xs font-black uppercase tracking-widest">
+              {t('home.cta.journal', 'Read Build Journal')}
+            </Link>
+          </div>
+        </div>
+      </motion.section>
+
+      {/* System Status + Owner Access */}
       <motion.section
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.3 }}
         className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 pb-20"
       >
-        <div className="relative overflow-hidden bg-zinc-950 border border-zinc-900 rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent pointer-events-none" />
-          <div className="relative z-10 flex items-center gap-5">
-            <div className="p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20 text-amber-500 shrink-0">
-              <Lock size={24} />
-            </div>
-            <div>
-              <p className="text-[10px] font-mono text-amber-500 uppercase tracking-[0.4em] mb-1">Owner Access</p>
-              <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">Are you Deep Dey?</h3>
-              <p className="text-zinc-500 text-sm mt-1">
-                Login to the content dashboard to manage journals, categories, and settings.
-              </p>
-            </div>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <h2 className="text-amber-500 font-mono tracking-[0.4em] uppercase text-[10px] font-black">Operations & Access</h2>
+            <h3 className="text-3xl md:text-4xl font-black tracking-tighter text-white">SYSTEM STATUS & OWNER DASHBOARD.</h3>
+            <p className="text-zinc-500 max-w-xl text-sm">
+              Track live API health and quickly jump to secure owner controls from one operational section.
+            </p>
           </div>
-          <Link
-            to="/dashboard"
-            className="relative z-10 shrink-0 px-8 py-4 bg-amber-500 text-black font-black uppercase tracking-widest rounded-2xl hover:bg-amber-400 transition-all active:scale-95 text-sm shadow-lg shadow-amber-500/20 flex items-center gap-2"
-          >
-            <Lock size={16} />
-            Login to Dashboard
-          </Link>
+
+          <div className="relative overflow-hidden bg-zinc-950 border border-zinc-900 rounded-3xl p-6 md:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-transparent pointer-events-none" />
+            <div className="relative z-10 flex items-center gap-4">
+              <div className="p-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-emerald-400 shrink-0">
+                <Activity size={20} />
+              </div>
+              <div>
+                <p className="text-[10px] font-mono text-emerald-500 uppercase tracking-[0.4em] mb-0.5">Live Monitor</p>
+                <h3 className="text-lg font-black text-white tracking-tight">System Status</h3>
+                <p className="text-zinc-500 text-sm">Real-time API health, server metrics &amp; latency data</p>
+              </div>
+            </div>
+            <Link
+              to="/status"
+              className="relative z-10 shrink-0 px-6 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 text-emerald-400 font-black uppercase tracking-widest rounded-2xl transition-all active:scale-95 text-xs flex items-center gap-2"
+            >
+              <Activity size={14} />
+              View Status
+            </Link>
+          </div>
+
+          <div className="relative overflow-hidden bg-zinc-950 border border-zinc-900 rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent pointer-events-none" />
+            <div className="relative z-10 flex items-center gap-5">
+              <div className="p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20 text-amber-500 shrink-0">
+                <Lock size={24} />
+              </div>
+              <div>
+                <p className="text-[10px] font-mono text-amber-500 uppercase tracking-[0.4em] mb-1">Owner Access</p>
+                <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">Are you Deep Dey?</h3>
+                <p className="text-zinc-500 text-sm mt-1">
+                  Login to the content dashboard to manage journals, categories, and settings.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/dashboard"
+              className="relative z-10 shrink-0 px-8 py-4 bg-amber-500 text-black font-black uppercase tracking-widest rounded-2xl hover:bg-amber-400 transition-all active:scale-95 text-sm shadow-lg shadow-amber-500/20 flex items-center gap-2"
+            >
+              <Lock size={16} />
+              Login to Dashboard
+            </Link>
+          </div>
         </div>
       </motion.section>
+
     </div>
   );
 }

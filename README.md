@@ -51,6 +51,7 @@ All while the author simultaneously prepares for **JEE Advanced 2027** targeting
 - `/api/live` supports no-key fallback mode plus richer YouTube stats/comments when API key is configured.
 - Root auth shortcut URLs are supported: `/?signup`, `/?login`, `/?logout`, and `/?password=<SPACE_PASSWORD>`.
 - Google shortcut callback on `/contact?googleAuth=1&intent=...` now persists session identity so login/signup both remain signed in consistently.
+- Home page section flow is ordered as: Hero → Journey Marquee → Tech Galaxy → Projects → Timeline → Top Reads → Feedback → Community → Countdown → Collaboration CTA → System Status & Owner Access.
 - Full self-setup documentation is available in **[`PORTFOLIO_SETUP_DEPLOYMENT_MANUAL.md`](./PORTFOLIO_SETUP_DEPLOYMENT_MANUAL.md)**.
 
 ---

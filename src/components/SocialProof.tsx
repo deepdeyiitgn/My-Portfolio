@@ -75,7 +75,17 @@ export default function SocialProof() {
       .catch(() => {});
   }, []);
 
-  const marqueeItems = useMemo(() => [...feedbacks, ...feedbacks], [feedbacks]);
+  const marqueeItems = useMemo(() => {
+    if (feedbacks.length === 0) return [];
+    const minTrackItems = 12;
+    const targetTrackItems = Math.max(minTrackItems, feedbacks.length);
+    const track: FeedbackCard[] = [];
+    while (track.length < targetTrackItems) {
+      track.push(...shuffleArray(feedbacks));
+    }
+    const normalizedTrack = track.slice(0, targetTrackItems);
+    return [...normalizedTrack, ...normalizedTrack];
+  }, [feedbacks]);
   const shouldPause = paused || Boolean(openCard);
 
   const applyReactionUpdate = (feedbackId: string, nextReaction: 'like' | 'dislike' | null, summary: FeedbackReactionSummary) => {
@@ -127,8 +137,6 @@ export default function SocialProof() {
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-2xl md:text-3xl font-black tracking-tight text-white">What people are saying about Deep Dey</h3>
-
         {feedbacks.length === 0 ? (
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900/25 p-10 text-center text-zinc-600 text-sm">
             No pinned feedback yet.
