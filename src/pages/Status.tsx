@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import {
   Activity, RefreshCw, CheckCircle2, AlertTriangle, XCircle,
   Clock, Server, Database, Cpu, HardDrive, MemoryStick,
-  Globe, Wifi, ChevronDown, ChevronUp, Zap, Radio,
+  Globe, Wifi, ChevronDown, ChevronUp, Zap, Radio, ExternalLink,
 } from 'lucide-react';
 import SEO from '../components/SEO';
 
@@ -54,13 +54,26 @@ interface ThirdPartyProviderStatus {
   id: string;
   name: string;
   mainEndpoint: string;
+  statusPageUrl?: string | null;
   status: EndpointResult['status'];
   indicator: string;
   description: string;
+  providerMessage?: string;
   httpStatus: number | null;
   latencyMs: number | null;
   lastUpdated: string | null;
+  hasOngoingIncident?: boolean;
+  hasOngoingMaintenance?: boolean;
+  latestIncident?: { title?: string; message?: string; severity?: string; updatedAt?: string | null; moreInfoUrl?: string | null } | null;
+  latestMaintenance?: { title?: string; message?: string; severity?: string; updatedAt?: string | null; moreInfoUrl?: string | null } | null;
+  serverHost?: string | null;
+  serverIp?: string | null;
+  hostingProvider?: string | null;
+  ownHostingProvider?: string | null;
+  isLikelyOwnInfrastructure?: boolean;
 }
+
+type StatusMonitorMode = 'live' | 'stop' | 'maintenance' | 'hiatus';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -138,6 +151,12 @@ function fmtDateTime(ts: string | null): string {
   return d.toLocaleString();
 }
 
+function normalizeMonitorMode(value: unknown): StatusMonitorMode {
+  const mode = String(value || '').toLowerCase();
+  if (mode === 'stop' || mode === 'maintenance' || mode === 'hiatus') return mode;
+  return 'live';
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: EndpointResult['status'] }) {
@@ -180,6 +199,8 @@ export default function Status() {
   const [healthLoading, setHealthLoading] = useState(false);
   const [thirdParty, setThirdParty] = useState<ThirdPartyProviderStatus[]>([]);
   const [thirdPartyLoading, setThirdPartyLoading] = useState(false);
+  const [monitorMode, setMonitorMode] = useState<StatusMonitorMode>('live');
+  const [monitorUpdatedAt, setMonitorUpdatedAt] = useState<string | null>(null);
 
   // Countdown to next light refresh
   const [lightCountdown, setLightCountdown] = useState(LIGHT_INTERVAL_MS / 1000);
@@ -195,9 +216,15 @@ export default function Status() {
   const lightRef = useRef<number>(LIGHT_INTERVAL_MS / 1000);
   const heavyRef = useRef<number>(HEAVY_INTERVAL_MS / 1000);
 
+  const isStopMode = monitorMode === 'stop';
+  const isMaintenanceMode = monitorMode === 'maintenance';
+  const isHiatusMode = monitorMode === 'hiatus';
+  const isManualRefreshAllowed = monitorMode === 'live';
+
   // ── Probe a single endpoint ────────────────────────────────────────────────
   // Calls twice: first call warms up Vercel cold start; second call measures real latency
   const probeEndpoint = useCallback(async (ep: EndpointDef) => {
+    if (isStopMode) return;
     try {
       // Warm-up call — discard result, just wake the serverless function
       await fetch(ep.path, { method: ep.method, cache: 'no-store' }).catch(() => {});
@@ -215,7 +242,7 @@ export default function Status() {
         [ep.id]: { latencyMs: null, status: 'down', httpStatus: null, lastChecked: Date.now() },
       }));
     }
-  }, []);
+  }, [isStopMode]);
 
   // ── Probe all light endpoints ──────────────────────────────────────────────
   const probeLight = useCallback(() => {
@@ -229,6 +256,7 @@ export default function Status() {
 
   // ── Fetch server health ────────────────────────────────────────────────────
   const fetchHealth = useCallback(async () => {
+    if (isStopMode) return;
     setHealthLoading(true);
     try {
       // Warm-up call for cold starts, then actual response fetch
@@ -238,26 +266,46 @@ export default function Status() {
       if (d.ok) setHealth(d as ServerHealth);
     } catch { /* ignore */ }
     finally { setHealthLoading(false); }
-  }, []);
+  }, [isStopMode]);
 
   // ── Fetch third-party provider statuses ────────────────────────────────────
   const fetchThirdPartyStatuses = useCallback(async () => {
+    if (isStopMode) return;
     setThirdPartyLoading(true);
     try {
       // Warm-up call for cold starts, then actual response fetch
       await fetch('/api/journal?action=third-party-status', { cache: 'no-store' }).catch(() => {});
       const r = await fetch('/api/journal?action=third-party-status', { cache: 'no-store' });
       const d = await r.json();
-      if (d?.ok && Array.isArray(d.providers)) setThirdParty(d.providers as ThirdPartyProviderStatus[]);
+      if (d?.ok) {
+        if (d.monitorConfig) {
+          setMonitorMode(normalizeMonitorMode(d.monitorConfig.mode));
+          setMonitorUpdatedAt(d.monitorConfig.updatedAtIST || d.monitorConfig.updatedAt || null);
+        }
+        if (Array.isArray(d.providers)) setThirdParty(d.providers as ThirdPartyProviderStatus[]);
+      }
     } catch {
       setThirdParty([]);
     } finally {
       setThirdPartyLoading(false);
     }
+  }, [isStopMode]);
+
+  const fetchMonitorConfig = useCallback(async () => {
+    try {
+      await fetch('/api/journal?action=status-monitor-config', { cache: 'no-store' }).catch(() => {});
+      const r = await fetch('/api/journal?action=status-monitor-config', { cache: 'no-store' });
+      const d = await r.json();
+      if (d?.ok) {
+        setMonitorMode(normalizeMonitorMode(d.mode));
+        setMonitorUpdatedAt(d.updatedAtIST || d.updatedAt || null);
+      }
+    } catch { /* ignore */ }
   }, []);
 
   // ── Measure client-side ping ───────────────────────────────────────────────
   const measureClientPing = useCallback(async () => {
+    if (isStopMode) return;
     try {
       // Warm-up call for cold starts, then measured ping call
       await fetch('/api/journal?action=health', { method: 'GET', cache: 'no-store' }).catch(() => {});
@@ -269,29 +317,34 @@ export default function Status() {
     // Connection type (if available)
     const nav = navigator as Navigator & { connection?: { effectiveType?: string } };
     if (nav.connection?.effectiveType) setConnectionType(nav.connection.effectiveType);
-  }, []);
+  }, [isStopMode]);
 
   // ── Initial load ───────────────────────────────────────────────────────────
   useEffect(() => {
-    probeLight();
-    probeHeavy();
-    fetchHealth();
-    fetchThirdPartyStatuses();
-    measureClientPing();
-  }, [probeLight, probeHeavy, fetchHealth, fetchThirdPartyStatuses, measureClientPing]);
+    fetchMonitorConfig();
+    if (!isStopMode) {
+      probeLight();
+      probeHeavy();
+      fetchHealth();
+      fetchThirdPartyStatuses();
+      measureClientPing();
+    }
+  }, [probeLight, probeHeavy, fetchHealth, fetchThirdPartyStatuses, measureClientPing, fetchMonitorConfig, isStopMode]);
 
   // ── Light interval ─────────────────────────────────────────────────────────
   useEffect(() => {
+    if (isStopMode) return () => {};
     const interval = setInterval(() => {
       probeLight();
       measureClientPing();
       lightRef.current = LIGHT_INTERVAL_MS / 1000;
     }, LIGHT_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [probeLight, measureClientPing]);
+  }, [probeLight, measureClientPing, isStopMode]);
 
   // ── Heavy interval ─────────────────────────────────────────────────────────
   useEffect(() => {
+    if (isStopMode) return () => {};
     const interval = setInterval(() => {
       probeHeavy();
       fetchHealth();
@@ -299,7 +352,14 @@ export default function Status() {
       heavyRef.current = HEAVY_INTERVAL_MS / 1000;
     }, HEAVY_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [probeHeavy, fetchHealth, fetchThirdPartyStatuses]);
+  }, [probeHeavy, fetchHealth, fetchThirdPartyStatuses, isStopMode]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchMonitorConfig();
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [fetchMonitorConfig]);
 
   // ── Countdown tickers ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -318,7 +378,7 @@ export default function Status() {
 
   // ── Manual full refresh ────────────────────────────────────────────────────
   const handleManualRefresh = async () => {
-    if (isRefreshing) return;
+    if (isRefreshing || !isManualRefreshAllowed) return;
     setIsRefreshing(true);
     setRateLimitErr(null);
     try {
@@ -343,13 +403,27 @@ export default function Status() {
   };
 
   // ── Derived stats ──────────────────────────────────────────────────────────
-  const allValues = Object.values(results) as EndpointResult[];
+  const mapModeStatus = (status: EndpointResult['status']): EndpointResult['status'] => {
+    if (isMaintenanceMode) return 'degraded';
+    if (isStopMode) return 'pending';
+    return status;
+  };
+
+  const allValues = (Object.values(results) as EndpointResult[]).map((r) => ({ ...r, status: mapModeStatus(r.status) }));
   const operationalCount = allValues.filter((r: EndpointResult) => r.status === 'operational').length;
   const degradedCount = allValues.filter((r: EndpointResult) => r.status === 'degraded').length;
   const downCount = allValues.filter((r: EndpointResult) => r.status === 'down').length;
   const checkedLatencies = allValues.filter((r: EndpointResult) => r.latencyMs !== null).map((r: EndpointResult) => r.latencyMs as number);
   const avgLatency = checkedLatencies.length ? Math.round(checkedLatencies.reduce((a: number, b: number) => a + b, 0) / checkedLatencies.length) : null;
-  const overallStatus: EndpointResult['status'] = downCount > 0 ? 'down' : degradedCount > 0 ? 'degraded' : operationalCount === ENDPOINTS.length ? 'operational' : 'pending';
+  const overallStatus: EndpointResult['status'] = isStopMode
+    ? 'pending'
+    : downCount > 0
+      ? 'down'
+      : degradedCount > 0
+        ? 'degraded'
+        : operationalCount === ENDPOINTS.length
+          ? 'operational'
+          : 'pending';
 
   const memUsedPct = health ? Math.round(((health.totalMemory - health.freeMemory) / health.totalMemory) * 100) : 0;
   const heapPct = health ? Math.round((health.processMemory.heapUsed / health.processMemory.heapTotal) * 100) : 0;
@@ -378,17 +452,40 @@ export default function Status() {
           <div className="flex flex-col items-end gap-1.5">
             <button
               onClick={handleManualRefresh}
-              disabled={isRefreshing}
+              disabled={isRefreshing || !isManualRefreshAllowed}
               className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 text-amber-500 rounded-xl transition-all text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
-              {isRefreshing ? 'Refreshing…' : 'Refresh Now'}
+              {isRefreshing ? 'Refreshing…' : isManualRefreshAllowed ? 'Refresh Now' : 'Refresh Disabled'}
             </button>
             {rateLimitErr && (
               <p className="text-red-400 text-[10px] font-mono max-w-[220px] text-right leading-tight">{rateLimitErr}</p>
             )}
+            {!isManualRefreshAllowed && !rateLimitErr && (
+              <p className="text-zinc-500 text-[10px] font-mono max-w-[240px] text-right leading-tight">
+                Refresh is disabled in {monitorMode} mode.
+              </p>
+            )}
           </div>
         </div>
+
+        {(isStopMode || isMaintenanceMode || isHiatusMode) && (
+          <div className={`rounded-2xl border p-4 ${
+            isStopMode
+              ? 'bg-zinc-900/60 border-zinc-700'
+              : isMaintenanceMode
+                ? 'bg-amber-500/10 border-amber-500/30'
+                : 'bg-blue-500/10 border-blue-500/30'
+          }`}>
+            <p className="text-xs font-mono uppercase tracking-widest text-zinc-400">Status Page Mode</p>
+            <p className="text-sm font-bold text-white mt-1">
+              {isStopMode && 'Stop mode: automatic pings paused and refresh disabled.'}
+              {isMaintenanceMode && 'Maintenance mode: auto checks run, but status is shown as maintenance.'}
+              {isHiatusMode && 'Hiatus mode: monitoring stays live, refresh is disabled, system shown as stable by default.'}
+            </p>
+            {monitorUpdatedAt && <p className="text-zinc-500 text-[11px] mt-1">Updated: {fmtDateTime(monitorUpdatedAt)}</p>}
+          </div>
+        )}
 
         {/* ── Overall Banner ─────────────────────────────────────────────────── */}
         <motion.div
@@ -407,10 +504,13 @@ export default function Status() {
           {overallStatus === 'pending'     && <Radio className="text-zinc-400 animate-pulse shrink-0" size={28} />}
           <div className="flex-1">
             <p className="font-black text-white text-lg">
-              {overallStatus === 'operational' && 'All Systems Operational'}
-              {overallStatus === 'degraded'    && 'Partial Service Degradation'}
-              {overallStatus === 'down'        && 'Service Disruption Detected'}
-              {overallStatus === 'pending'     && 'Running checks…'}
+              {isStopMode && 'Monitoring Paused'}
+              {!isStopMode && isMaintenanceMode && 'Maintenance Mode Active'}
+              {!isStopMode && !isMaintenanceMode && isHiatusMode && 'Hiatus Mode: Stable Monitoring'}
+              {!isStopMode && !isMaintenanceMode && !isHiatusMode && overallStatus === 'operational' && 'All Systems Operational'}
+              {!isStopMode && !isMaintenanceMode && !isHiatusMode && overallStatus === 'degraded'    && 'Partial Service Degradation'}
+              {!isStopMode && !isMaintenanceMode && !isHiatusMode && overallStatus === 'down'        && 'Service Disruption Detected'}
+              {!isStopMode && !isMaintenanceMode && !isHiatusMode && overallStatus === 'pending'     && 'Running checks…'}
             </p>
             <p className="text-zinc-500 text-xs font-mono mt-0.5">
               {operationalCount}/{ENDPOINTS.length} endpoints operational
@@ -484,7 +584,7 @@ export default function Status() {
                     </div>
                     <div className="text-center min-w-0">
                       <p className="text-zinc-600 text-[9px] font-mono uppercase tracking-widest mb-0.5">Status</p>
-                      <StatusBadge status={r.status} />
+                      <StatusBadge status={mapModeStatus(r.status)} />
                     </div>
                     <div className="text-center hidden sm:block">
                       <p className="text-zinc-600 text-[9px] font-mono uppercase tracking-widest mb-0.5">Checked</p>
@@ -499,12 +599,12 @@ export default function Status() {
 
         {/* ── Third-Party Apps Status ───────────────────────────────────────── */}
         <section>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between gap-2 mb-4">
             <h2 className="text-white font-black text-lg flex items-center gap-2">
               <Activity size={18} className="text-amber-500" />
               Third-Party Apps Status
             </h2>
-            <span className="text-zinc-600 text-[10px] font-mono">Fetched via provider main status endpoints</span>
+            <span className="text-zinc-600 text-[10px] font-mono text-right">Per-provider status, incidents, and maintenance</span>
           </div>
 
           {thirdPartyLoading && thirdParty.length === 0 && (
@@ -527,15 +627,27 @@ export default function Status() {
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.03 }}
-                  className="bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4 transition-colors"
+                  className="bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4 transition-colors max-w-full overflow-hidden"
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+                  <div className="flex flex-col gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
                         <span className="text-zinc-100 font-bold">{provider.name}</span>
-                        <StatusBadge status={provider.status} />
+                        <StatusBadge status={mapModeStatus(provider.status)} />
+                        {provider.isLikelyOwnInfrastructure && (
+                          <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">Our infra match</span>
+                        )}
+                        {provider.hasOngoingIncident && (
+                          <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-red-500/10 text-red-300 border border-red-500/30">Incident</span>
+                        )}
+                        {provider.hasOngoingMaintenance && (
+                          <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">Maintenance</span>
+                        )}
                       </div>
                       <p className="text-zinc-500 text-sm mt-1">{provider.description}</p>
+                      {provider.providerMessage && (
+                        <p className="text-zinc-400 text-xs mt-1 leading-relaxed break-words">{provider.providerMessage}</p>
+                      )}
                       <p className="text-zinc-600 text-[11px] font-mono mt-1 break-all [overflow-wrap:anywhere]">{provider.mainEndpoint}</p>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 min-w-0">
@@ -551,6 +663,61 @@ export default function Status() {
                         <p className="text-zinc-600 text-[9px] font-mono uppercase tracking-widest">Updated</p>
                         <p className="text-zinc-400 text-[11px] font-mono">{fmtDateTime(provider.lastUpdated)}</p>
                       </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                      <p className="text-zinc-500 font-mono break-all [overflow-wrap:anywhere]">Hosting: <span className="text-zinc-300">{provider.hostingProvider || 'unknown'}</span></p>
+                      <p className="text-zinc-500 font-mono break-all [overflow-wrap:anywhere]">IP: <span className="text-zinc-300">{provider.serverIp || '—'}</span></p>
+                    </div>
+                    {(provider.latestIncident || provider.latestMaintenance) && (
+                      <div className="space-y-2">
+                        {provider.latestIncident && (
+                          <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3">
+                            <p className="text-red-300 text-xs font-bold">Latest Incident: {provider.latestIncident.title || 'Incident'}</p>
+                            <p className="text-red-100/90 text-xs mt-1 break-words">{provider.latestIncident.message || 'Provider reported an incident.'}</p>
+                          </div>
+                        )}
+                        {provider.latestMaintenance && (
+                          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+                            <p className="text-amber-300 text-xs font-bold">Latest Maintenance: {provider.latestMaintenance.title || 'Maintenance'}</p>
+                            <p className="text-amber-100/90 text-xs mt-1 break-words">{provider.latestMaintenance.message || 'Provider maintenance update available.'}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {provider.statusPageUrl && (
+                        <a
+                          href={provider.statusPageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 hover:border-zinc-500 transition-colors"
+                        >
+                          More info
+                          <ExternalLink size={12} />
+                        </a>
+                      )}
+                      {provider.latestIncident?.moreInfoUrl && (
+                        <a
+                          href={provider.latestIncident.moreInfoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-red-500/10 border border-red-500/30 text-red-200 hover:border-red-400 transition-colors"
+                        >
+                          Incident details
+                          <ExternalLink size={12} />
+                        </a>
+                      )}
+                      {provider.latestMaintenance?.moreInfoUrl && (
+                        <a
+                          href={provider.latestMaintenance.moreInfoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 hover:border-amber-400 transition-colors"
+                        >
+                          Maintenance details
+                          <ExternalLink size={12} />
+                        </a>
+                      )}
                     </div>
                   </div>
                 </motion.div>
@@ -807,7 +974,7 @@ export default function Status() {
         {/* ── Refresh Footer ─────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-zinc-900">
           <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">
-            Light endpoints refresh every 60s · Heavy endpoints every 5min
+            {isStopMode ? 'Auto monitoring paused by owner control mode' : 'Light endpoints refresh every 60s · Heavy endpoints every 5min'}
           </p>
           <div className="flex items-center gap-3 text-zinc-600 text-[10px] font-mono">
             <span className="flex items-center gap-1"><Clock size={10} /> Light: {lightCountdown}s</span>

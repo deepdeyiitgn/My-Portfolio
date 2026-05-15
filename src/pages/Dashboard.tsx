@@ -44,6 +44,7 @@ interface Journal {
 }
 
 type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'status' | 'storage' | 'users' | 'feedback';
+type StatusMonitorMode = 'live' | 'stop' | 'maintenance' | 'hiatus';
 
 // ── Projects types ────────────────────────────────────────────────────────────
 export interface ProjectDB {
@@ -1333,6 +1334,8 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
 
   const [statusHistory, setStatusHistory] = useState<any[]>([]);
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
+  const [statusMonitorMode, setStatusMonitorMode] = useState<StatusMonitorMode>('live');
+  const [savingStatusMonitorMode, setSavingStatusMonitorMode] = useState(false);
 
   // ── Storage state ────────────────────────────────────────────────────────
   const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
@@ -1422,6 +1425,18 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       if (d.ok) {
         const all = d.current ? [d.current, ...d.history] : d.history;
         setStatusHistory(all);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  const fetchStatusMonitorMode = useCallback(async () => {
+    try {
+      const r = await fetch('/api/journal?action=status-monitor-config');
+      const d = await r.json();
+      if (d?.ok) {
+        const mode = String(d.mode || '').toLowerCase();
+        if (mode === 'stop' || mode === 'maintenance' || mode === 'hiatus') setStatusMonitorMode(mode);
+        else setStatusMonitorMode('live');
       }
     } catch { /* ignore */ }
   }, []);
@@ -1732,8 +1747,11 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
   };
 
   useEffect(() => {
-    if (tab === 'status' && authenticated) fetchStatusHistory();
-  }, [tab, authenticated, fetchStatusHistory]);
+    if (tab === 'status' && authenticated) {
+      fetchStatusHistory();
+      fetchStatusMonitorMode();
+    }
+  }, [tab, authenticated, fetchStatusHistory, fetchStatusMonitorMode]);
 
   useEffect(() => {
     if (tab === 'storage' && authenticated) fetchStorageStats();
@@ -1809,6 +1827,29 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
         showToast(d.message || 'Error deleting status', 'error');
       }
     } catch { showToast('Network error', 'error'); }
+  };
+
+  const handleStatusMonitorModeChange = async (mode: StatusMonitorMode) => {
+    if (savingStatusMonitorMode || mode === statusMonitorMode) return;
+    setSavingStatusMonitorMode(true);
+    try {
+      const r = await fetch('/api/journal?action=status-monitor-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode }),
+      });
+      const d = await r.json();
+      if (d?.ok) {
+        setStatusMonitorMode((String(d.mode || '').toLowerCase() as StatusMonitorMode) || mode);
+        showToast('Status page mode updated');
+      } else {
+        showToast(d.message || 'Error updating status page mode', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    } finally {
+      setSavingStatusMonitorMode(false);
+    }
   };
 
   const startEditStatus = (s: any) => {
@@ -2826,6 +2867,43 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
       {/* ── Live Status Tab ──────────────────────────────────────────────── */}
       {tab === 'status' && (
         <div className="space-y-6 max-w-2xl">
+          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h3 className="text-white font-bold text-sm">Status Page Control</h3>
+                <p className="text-zinc-500 text-[11px] mt-0.5">Control `/status` auto ping and refresh behavior.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { mode: 'live', label: 'Live' },
+                  { mode: 'stop', label: 'Stop' },
+                  { mode: 'maintenance', label: 'Maintenance' },
+                  { mode: 'hiatus', label: 'Hiatus' },
+                ] as Array<{ mode: StatusMonitorMode; label: string }>).map((item) => (
+                  <button
+                    key={item.mode}
+                    type="button"
+                    disabled={savingStatusMonitorMode}
+                    onClick={() => handleStatusMonitorModeChange(item.mode)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors disabled:opacity-50 ${
+                      statusMonitorMode === item.mode
+                        ? 'border-amber-500/50 bg-amber-500/15 text-amber-400'
+                        : 'border-zinc-700 bg-zinc-900 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="text-zinc-500 text-[11px] mt-3">
+              {statusMonitorMode === 'live' && 'Live: all pings and refresh stay enabled.'}
+              {statusMonitorMode === 'stop' && 'Stop: auto ping and manual refresh are paused.'}
+              {statusMonitorMode === 'maintenance' && 'Maintenance: auto ping runs, refresh disabled, status shows maintenance.'}
+              {statusMonitorMode === 'hiatus' && 'Hiatus: auto ping runs, refresh disabled, stable mode hint shown.'}
+            </p>
+          </div>
+
           <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6">
 
             <div className="flex justify-between items-start mb-6">
