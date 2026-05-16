@@ -103,7 +103,7 @@ const ENDPOINTS: EndpointDef[] = [
   { id: 'contact-submit',   path: '/api/contact',                      method: 'POST', label: 'Contact Submit',      description: 'Contact intake submission endpoint',      heavy: false },
   { id: 'sitemap',          path: '/api/sitemap',                      method: 'GET',  label: 'Sitemap',             description: 'XML sitemap generator',                  heavy: true  },
   { id: 'upload-image',     path: '/api/upload-image',                 method: 'POST', label: 'Upload Proxy',        description: 'Dashboard media upload proxy route',      heavy: true  },
-  { id: 'third-party-status', path: '/api/journal?action=third-party-status', method: 'GET', label: 'Third-Party Status Aggregator', description: 'Aggregated external provider status monitoring', heavy: true  },
+  { id: 'third-party-status', path: '/api/journal?action=third-party-status', method: 'GET', label: 'Third-Party Status Aggregator', description: 'Aggregated external provider status monitoring (ping measured from home server health)', heavy: true  },
 ];
 
 const LIGHT_INTERVAL_MS = 60_000;   // 60 s for light endpoints
@@ -221,16 +221,22 @@ export default function Status() {
   const isHiatusMode = monitorMode === 'hiatus';
   const isManualRefreshAllowed = monitorMode === 'live';
 
+  const getProbePath = useCallback((ep: EndpointDef): string => {
+    if (ep.id === 'third-party-status') return '/api/journal?action=health';
+    return ep.path;
+  }, []);
+
   // ── Probe a single endpoint ────────────────────────────────────────────────
   // Calls twice: first call warms up Vercel cold start; second call measures real latency
   const probeEndpoint = useCallback(async (ep: EndpointDef) => {
     if (isStopMode) return;
+    const probePath = getProbePath(ep);
     try {
       // Warm-up call — discard result, just wake the serverless function
-      await fetch(ep.path, { method: ep.method, cache: 'no-store' }).catch(() => {});
+      await fetch(probePath, { method: ep.method, cache: 'no-store' }).catch(() => {});
       // Actual latency measurement call
       const t0 = performance.now();
-      const r = await fetch(ep.path, { method: ep.method, cache: 'no-store' });
+      const r = await fetch(probePath, { method: ep.method, cache: 'no-store' });
       const latencyMs = Math.round(performance.now() - t0);
       setResults(prev => ({
         ...prev,
@@ -242,7 +248,7 @@ export default function Status() {
         [ep.id]: { latencyMs: null, status: 'down', httpStatus: null, lastChecked: Date.now() },
       }));
     }
-  }, [isStopMode]);
+  }, [getProbePath, isStopMode]);
 
   // ── Probe all light endpoints ──────────────────────────────────────────────
   const probeLight = useCallback(() => {
