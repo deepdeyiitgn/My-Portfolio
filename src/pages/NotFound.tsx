@@ -90,6 +90,7 @@ const COMMANDS: Record<string, CommandMeta> = {
   ls: { category: 'NAVIGATION', description: 'List core route directories.' },
   dir: { category: 'NAVIGATION', description: 'Alias of ls.' },
   'cd <path>': { category: 'NAVIGATION', description: 'Navigate instantly to a route.' },
+  'search <query?>': { category: 'NAVIGATION', description: 'Open search page with optional query.' },
   status: { category: 'SYSTEM', description: 'Fetch live Deep status via portfolio API.' },
   'ping deep': { category: 'SYSTEM', description: 'Alias for status command.' },
   links: { category: 'SYSTEM', description: 'Fetch and render live links registry.' },
@@ -422,6 +423,15 @@ function useTerminal(navigate: (path: string) => void): UseTerminalReturn {
 
         await appendText(`Routing -> ${resolved}`, 'success', { typed: false, pre: false });
         navigate(resolved);
+        return;
+      }
+
+      const searchMatch = trimmed.match(/^search(?:\s+(.+))?$/i);
+      if (searchMatch) {
+        const query = (searchMatch[1] || '').trim();
+        const target = query ? `/search?q=${encodeURIComponent(query)}` : '/search';
+        await appendText(`Routing -> ${target}`, 'success', { typed: false, pre: false });
+        navigate(target);
         return;
       }
 
