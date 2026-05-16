@@ -12,6 +12,7 @@ import SEO from '../components/SEO';
 interface EndpointDef {
   id: string;
   path: string;
+  probePath?: string;
   method: 'GET' | 'POST';
   label: string;
   description: string;
@@ -103,7 +104,7 @@ const ENDPOINTS: EndpointDef[] = [
   { id: 'contact-submit',   path: '/api/contact',                      method: 'POST', label: 'Contact Submit',      description: 'Contact intake submission endpoint',      heavy: false },
   { id: 'sitemap',          path: '/api/sitemap',                      method: 'GET',  label: 'Sitemap',             description: 'XML sitemap generator',                  heavy: true  },
   { id: 'upload-image',     path: '/api/upload-image',                 method: 'POST', label: 'Upload Proxy',        description: 'Dashboard media upload proxy route',      heavy: true  },
-  { id: 'third-party-status', path: '/api/journal?action=third-party-status', method: 'GET', label: 'Third-Party Status Aggregator', description: 'Aggregated external provider status monitoring (ping measured from home server health)', heavy: true  },
+  { id: 'third-party-status', path: '/api/journal?action=third-party-status', probePath: '/api/journal?action=health', method: 'GET', label: 'Third-Party Status Aggregator', description: 'Aggregated external provider status monitoring (ping measured from home server health)', heavy: true  },
 ];
 
 const LIGHT_INTERVAL_MS = 60_000;   // 60 s for light endpoints
@@ -222,8 +223,7 @@ export default function Status() {
   const isManualRefreshAllowed = monitorMode === 'live';
 
   const getProbePath = useCallback((ep: EndpointDef): string => {
-    if (ep.id === 'third-party-status') return '/api/journal?action=health';
-    return ep.path;
+    return ep.probePath || ep.path;
   }, []);
 
   // ── Probe a single endpoint ────────────────────────────────────────────────
