@@ -439,6 +439,7 @@
     /* ===================================================
        4. INJECT DEEP WATERMARK
     =================================================== */
+    var currentYear = new Date().getFullYear();
     var deepWatermarkDiv = document.createElement("div");
     deepWatermarkDiv.id = "deep-watermark-section";
     deepWatermarkDiv.innerHTML = ''
@@ -467,7 +468,7 @@
       + '      <br><i>Source-Available • Zero Data Collection • Always-On-Top</i>'
       + '    </p>'
       + '    <p style="font-size: 11px; color: #999; margin-top: 18px; border-top: 1px solid #eee; padding-top: 12px;">'
-      + '      &copy; ' + new Date().getFullYear() + ' Deep Dey | All Rights Reserved | QuickLink &times; Deep'
+      + '      &copy; ' + currentYear + ' Deep Dey | All Rights Reserved | QuickLink &times; Deep'
       + '    </p>'
       + '    <div class="deep-btn-container">'
       + '      <div onclick="openDeepLink(\'wiki\')" class="deep-cta-button deep-btn-wiki">More Info</div>'
@@ -484,7 +485,7 @@
     var copyrightBar = document.createElement("div");
     copyrightBar.id = "deep-copyright-bar";
     copyrightBar.style.cssText = "text-align:center; padding:18px 10px; font-size:12px; color:#888; background:#111; border-top:1px solid #222; letter-spacing:0.3px;";
-    copyrightBar.innerHTML = '&copy; ' + new Date().getFullYear() + ' Deep Dey | All Rights Reserved | QuickLink &times; Deep';
+    copyrightBar.innerHTML = '&copy; ' + currentYear + ' Deep Dey | All Rights Reserved | QuickLink &times; Deep';
 
     // Insert watermarks + copyright after footer
     if (footer) {

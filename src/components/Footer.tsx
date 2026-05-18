@@ -118,8 +118,7 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
   const { t } = useLanguage();
   const [now, setNow] = useState(() => new Date());
-  const [isQuickLinkModalOpen, setIsQuickLinkModalOpen] = useState(false);
-  const [isDeepModalOpen, setIsDeepModalOpen] = useState(false);
+  const [activeModal, setActiveModal] = useState<'quicklink' | 'deep' | null>(null);
   const localTimeZone = useMemo(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     [],
@@ -136,15 +135,16 @@ export default function Footer() {
   }, []);
 
   useEffect(() => {
+    if (!activeModal) return;
+
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      setIsQuickLinkModalOpen(false);
-      setIsDeepModalOpen(false);
+      setActiveModal(null);
     };
 
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, []);
+  }, [activeModal]);
 
   const indiaTimeLine = formatClockLine(now, `IST [${INDIA_GMT_LABEL}]`, indiaClockFormatters);
   const localOffsetMinutes = -now.getTimezoneOffset();
@@ -243,7 +243,8 @@ export default function Footer() {
         <div className="flex flex-col sm:flex-row items-stretch justify-center gap-4">
           <button
             type="button"
-            onClick={() => setIsQuickLinkModalOpen(true)}
+            onClick={() => setActiveModal('quicklink')}
+            aria-label="Learn more about QuickLink"
             className="flex-1 max-w-sm mx-auto sm:mx-0 p-4 border border-zinc-800 rounded-2xl bg-zinc-900/50 hover:border-amber-500/40 text-zinc-300 hover:text-amber-400 transition-all text-left"
           >
             <p className="text-sm font-black tracking-tight">Powered by QuickLink™</p>
@@ -251,7 +252,8 @@ export default function Footer() {
           </button>
           <button
             type="button"
-            onClick={() => setIsDeepModalOpen(true)}
+            onClick={() => setActiveModal('deep')}
+            aria-label="Learn more about Deep"
             className="flex-1 max-w-sm mx-auto sm:mx-0 p-4 border border-zinc-800 rounded-2xl bg-zinc-900/50 hover:border-amber-500/40 text-zinc-300 hover:text-amber-400 transition-all text-left"
           >
             <p className="text-sm font-black tracking-tight">Powered by Deep™</p>
@@ -304,23 +306,30 @@ export default function Footer() {
         </div>
       </div>
 
-      {isQuickLinkModalOpen && (
+      {activeModal === 'quicklink' && (
         <div
           className="fixed inset-0 z-[9998] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setIsQuickLinkModalOpen(false)}
+          onClick={() => setActiveModal(null)}
         >
           <div
             className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-950 p-6 sm:p-8 shadow-[0_20px_80px_rgba(0,0,0,0.6)]"
             onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') setActiveModal(null);
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="quicklink-modal-title"
+            tabIndex={-1}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">Powered by</p>
-                <h3 className="text-xl font-black text-amber-400 mt-1">QuickLink™</h3>
+                <h3 id="quicklink-modal-title" className="text-xl font-black text-amber-400 mt-1">QuickLink™</h3>
               </div>
               <button
                 type="button"
-                onClick={() => setIsQuickLinkModalOpen(false)}
+                onClick={() => setActiveModal(null)}
                 className="text-zinc-500 hover:text-amber-300 text-xl leading-none"
                 aria-label="Close QuickLink popup"
               >
@@ -371,23 +380,30 @@ export default function Footer() {
         </div>
       )}
 
-      {isDeepModalOpen && (
+      {activeModal === 'deep' && (
         <div
           className="fixed inset-0 z-[9998] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setIsDeepModalOpen(false)}
+          onClick={() => setActiveModal(null)}
         >
           <div
             className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-950 p-6 sm:p-8 shadow-[0_20px_80px_rgba(0,0,0,0.6)]"
             onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') setActiveModal(null);
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="deep-modal-title"
+            tabIndex={-1}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">Powered by</p>
-                <h3 className="text-xl font-black text-amber-400 mt-1">Deep™</h3>
+                <h3 id="deep-modal-title" className="text-xl font-black text-amber-400 mt-1">Deep™</h3>
               </div>
               <button
                 type="button"
-                onClick={() => setIsDeepModalOpen(false)}
+                onClick={() => setActiveModal(null)}
                 className="text-zinc-500 hover:text-amber-300 text-xl leading-none"
                 aria-label="Close Deep popup"
               >
