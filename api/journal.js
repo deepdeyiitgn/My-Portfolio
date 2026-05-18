@@ -1416,7 +1416,7 @@ async function fetchKlipyGifs({ appKey, q, page, perPage, customerId, locale }) 
   endpoint.searchParams.set('page', String(page));
   endpoint.searchParams.set('per_page', String(perPage));
   endpoint.searchParams.set('locale', locale);
-  endpoint.searchParams.set('format_filter', 'gif,jpg,webp');
+  endpoint.searchParams.set('format_filter', 'gif');
   if (customerId) endpoint.searchParams.set('customer_id', customerId);
   if (isSearch) {
     endpoint.searchParams.set('q', String(q).trim());

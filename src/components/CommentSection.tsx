@@ -918,7 +918,8 @@ export default function CommentSection({ journalId }: { journalId: string }) {
                 <button
                   onClick={() => {
                     const selectedUrl = selectedKlipy.url.trim();
-                    const nextText = commentText.trim() === selectedUrl ? '' : commentText;
+                    const trimmedCommentText = commentText.trim();
+                    const nextText = trimmedCommentText === selectedUrl ? '' : commentText;
                     setSelectedKlipy(null);
                     setCommentText(nextText);
                   }}
