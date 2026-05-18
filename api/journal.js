@@ -1337,7 +1337,8 @@ function normalizeKlipyMediaUrl(value) {
   try {
     const parsed = new URL(raw);
     if (!['http:', 'https:'].includes(parsed.protocol)) return '';
-    if (!String(parsed.hostname || '').toLowerCase().includes('klipy')) return '';
+    const host = String(parsed.hostname || '').toLowerCase();
+    if (!(host === 'klipy.com' || host.endsWith('.klipy.com'))) return '';
     return parsed.toString();
   } catch {
     return '';
@@ -1352,6 +1353,8 @@ function isKlipyMediaCommentText(text) {
 }
 
 function extractKlipyRawItems(payload) {
+  // Official KLIPY GIF API responses are shaped as { result, data: { data: [...] } }.
+  // Fallback branches keep compatibility with older/internal response wrappers.
   if (Array.isArray(payload?.data?.data)) return payload.data.data;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.results)) return payload.results;

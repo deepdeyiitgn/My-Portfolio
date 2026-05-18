@@ -916,7 +916,12 @@ export default function CommentSection({ journalId }: { journalId: string }) {
               </button>
               {selectedKlipy && (
                 <button
-                  onClick={() => { setSelectedKlipy(null); setCommentText(''); }}
+                  onClick={() => {
+                    const selectedUrl = selectedKlipy.url.trim();
+                    const nextText = commentText.trim() === selectedUrl ? '' : commentText;
+                    setSelectedKlipy(null);
+                    setCommentText(nextText);
+                  }}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-zinc-700 text-zinc-400 text-xs font-bold hover:text-red-400 hover:border-red-800 transition-colors"
                 >
                   <X size={12} /> Clear media
@@ -991,7 +996,7 @@ export default function CommentSection({ journalId }: { journalId: string }) {
               onChange={(e) => {
                 const next = e.target.value;
                 setCommentText(next);
-                if (selectedKlipy && next.trim() !== selectedKlipy.url.trim()) {
+                if (selectedKlipy && !next.includes(selectedKlipy.url)) {
                   setSelectedKlipy(null);
                 }
               }}
