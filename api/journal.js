@@ -6,7 +6,7 @@
  * GET  ?action=third-party-status&provider=<id>          → third-party provider status aggregation
  * GET  ?action=status-monitor-config                      → status-page monitor mode config
  * GET  ?action=status                                   → FETCH LIVE STATUS & HISTORY
- * GET  ?action=klipy-search&q=<query>&limit=18          → search Klipy GIF/sticker media
+ * GET  ?action=klipy-search&q=<query>&per_page=24        → fetch Klipy GIFs (search or trending)
  * GET  ?action=comments&journalId=X&page=1&sort=top     → paginated comments (top-level or replies)
  * GET  ?action=comment-count&journalIds=X,Y             → comment counts for multiple journals
  * GET  ?action=top-journals&limit=6                     → top N most-liked published journals
@@ -1352,17 +1352,20 @@ function isKlipyMediaCommentText(text) {
 }
 
 function extractKlipyRawItems(payload) {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.results)) return payload.results;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
   if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload?.items)) return payload.items;
-  if (Array.isArray(payload?.gifs)) return payload.gifs;
+  if (Array.isArray(payload?.results)) return payload.results;
+  if (Array.isArray(payload)) return payload;
   return [];
 }
 
 function normalizeKlipyResult(item, index) {
   const mediaUrl = normalizeKlipyMediaUrl(
-    item?.url
+    item?.file?.md?.gif?.url
+    || item?.file?.sm?.gif?.url
+    || item?.file?.hd?.gif?.url
+    || item?.file?.xs?.gif?.url
+    || item?.url
     || item?.mediaUrl
     || item?.media_url
     || item?.gif?.url
@@ -1372,7 +1375,11 @@ function normalizeKlipyResult(item, index) {
   );
   if (!mediaUrl) return null;
   const previewUrl = normalizeKlipyMediaUrl(
-    item?.previewUrl
+    item?.file?.xs?.gif?.url
+    || item?.file?.sm?.gif?.url
+    || item?.file?.xs?.jpg?.url
+    || item?.file?.sm?.jpg?.url
+    || item?.previewUrl
     || item?.preview_url
     || item?.thumbnail
     || item?.images?.preview?.url
@@ -1380,47 +1387,58 @@ function normalizeKlipyResult(item, index) {
     || mediaUrl,
   ) || mediaUrl;
   return {
-    id: String(item?.id || `${index}-${mediaUrl}`),
+    id: String(item?.id || item?.slug || `${index}-${mediaUrl}`),
+    slug: String(item?.slug || ''),
+    type: String(item?.type || 'gif'),
     title: String(item?.title || item?.name || 'Klipy media'),
     url: mediaUrl,
     previewUrl,
   };
 }
 
-async function fetchKlipySearchResults(query, limit, apiKey) {
-  const requestPlans = [
-    { path: '/v1/search', extraParams: { type: 'all' } },
-    { path: '/v1/gifs/search', extraParams: {} },
-    { path: '/v1/stickers/search', extraParams: {} },
-  ];
+function getKlipyLocale(req) {
+  const localeParam = String(getParam(req, 'locale') || '').trim();
+  const source = localeParam || String(req.headers['accept-language'] || '').split(',')[0].trim();
+  if (!source) return 'en_US';
+  const normalized = source.replace('-', '_');
+  const parts = normalized.split('_').filter(Boolean);
+  if (parts.length >= 2) return `${parts[0].toLowerCase()}_${parts[1].toUpperCase()}`;
+  if (parts.length === 1 && parts[0].length === 2) return `${parts[0].toLowerCase()}_${parts[0].toUpperCase()}`;
+  return 'en_US';
+}
 
-  for (const plan of requestPlans) {
-    try {
-      const endpoint = new URL(`${KLIPY_API_BASE}${plan.path}`);
-      endpoint.searchParams.set('q', query);
-      endpoint.searchParams.set('limit', String(limit));
-      Object.entries(plan.extraParams).forEach(([k, v]) => endpoint.searchParams.set(k, String(v)));
-
-      const response = await fetch(endpoint.toString(), {
-        headers: {
-          Accept: 'application/json',
-          'x-api-key': apiKey,
-          Authorization: `Bearer ${apiKey}`,
-        },
-      });
-      if (!response.ok) continue;
-      const payload = await response.json();
-      const items = extractKlipyRawItems(payload)
-        .map((item, index) => normalizeKlipyResult(item, index))
-        .filter(Boolean)
-        .slice(0, limit);
-      if (items.length) return items;
-    } catch {
-      // try next endpoint variation
-    }
+async function fetchKlipyGifs({ appKey, q, page, perPage, customerId, locale }) {
+  const isSearch = Boolean(String(q || '').trim());
+  const endpoint = new URL(`${KLIPY_API_BASE}/api/v1/${encodeURIComponent(appKey)}/gifs/${isSearch ? 'search' : 'trending'}`);
+  endpoint.searchParams.set('page', String(page));
+  endpoint.searchParams.set('per_page', String(perPage));
+  endpoint.searchParams.set('locale', locale);
+  endpoint.searchParams.set('format_filter', 'gif,jpg,webp');
+  if (customerId) endpoint.searchParams.set('customer_id', customerId);
+  if (isSearch) {
+    endpoint.searchParams.set('q', String(q).trim());
+    endpoint.searchParams.set('content_filter', 'low');
   }
 
-  return [];
+  const response = await fetch(endpoint.toString(), {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) throw new Error(`Klipy upstream returned HTTP ${response.status}`);
+
+  const payload = await response.json();
+  const results = extractKlipyRawItems(payload)
+    .map((item, index) => normalizeKlipyResult(item, index))
+    .filter(Boolean)
+    .filter((item) => item.type === 'gif')
+    .slice(0, perPage);
+
+  return {
+    mode: isSearch ? 'search' : 'trending',
+    currentPage: Number(payload?.data?.current_page || page || 1),
+    perPage: Number(payload?.data?.per_page || perPage),
+    hasNext: Boolean(payload?.data?.has_next),
+    results,
+  };
 }
 
 async function getFeedbackCategoriesMap(db) {
@@ -1477,15 +1495,21 @@ module.exports = async (req, res) => {
       const action = getParam(req, 'action');
 
       if (action === 'klipy-search') {
-        const apiKey = String(process.env.KLIPY_API || '').trim();
-        if (!apiKey) return json(res, 503, { ok: false, message: 'Klipy is not configured. Set KLIPY_API in environment variables.' });
+        const appKey = String(process.env.KLIPY_API || '').trim();
+        if (!appKey) return json(res, 503, { ok: false, message: 'Klipy is not configured. Set KLIPY_API in environment variables.' });
         const q = String(getParam(req, 'q') || '').trim();
-        if (!q) return json(res, 400, { ok: false, message: 'q is required' });
-        if (q.length < 2) return json(res, 400, { ok: false, message: 'q must be at least 2 characters' });
-        const limit = Math.min(30, Math.max(1, parseInt(String(getParam(req, 'limit') || '18'), 10) || 18));
-
-        const results = await fetchKlipySearchResults(q, limit, apiKey);
-        return json(res, 200, { ok: true, results });
+        if (q && q.length < 2) return json(res, 400, { ok: false, message: 'q must be at least 2 characters' });
+        const page = Math.max(1, parseInt(String(getParam(req, 'page') || '1'), 10) || 1);
+        const perPageRaw = parseInt(String(getParam(req, 'per_page') || getParam(req, 'limit') || '24'), 10) || 24;
+        const perPage = Math.min(50, Math.max(1, perPageRaw));
+        const customerId = String(getParam(req, 'customer_id') || '').trim();
+        const locale = getKlipyLocale(req);
+        try {
+          const data = await fetchKlipyGifs({ appKey, q, page, perPage, customerId, locale });
+          return json(res, 200, { ok: true, ...data });
+        } catch (err) {
+          return json(res, 502, { ok: false, message: err?.message || 'Failed to fetch Klipy GIFs' });
+        }
       }
 
       if (action === 'render-page') {

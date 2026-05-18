@@ -736,11 +736,11 @@ export default function CommentSection({ journalId }: { journalId: string }) {
 
   const searchKlipy = async () => {
     const q = klipyQuery.trim();
-    if (!q) return;
     setKlipyLoading(true);
     setKlipyError('');
     try {
-      const r = await fetch(`/api/journal?action=klipy-search&q=${encodeURIComponent(q)}&limit=18`);
+      const queryParams = q ? `q=${encodeURIComponent(q)}&` : '';
+      const r = await fetch(`/api/journal?action=klipy-search&${queryParams}per_page=24`);
       const d = await r.json();
       if (!d.ok) {
         setKlipyError(d.message || 'Failed to load Klipy results');
@@ -905,10 +905,14 @@ export default function CommentSection({ journalId }: { journalId: string }) {
           <div className="space-y-3 pt-2 border-t border-zinc-800">
             <div className="flex flex-wrap items-center gap-2">
               <button
-                onClick={() => setShowKlipyPicker(v => !v)}
+                onClick={() => {
+                  const next = !showKlipyPicker;
+                  setShowKlipyPicker(next);
+                  if (next) searchKlipy();
+                }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-300 text-xs font-bold hover:border-amber-500/50 hover:text-amber-400 transition-colors"
               >
-                <ImagePlus size={12} /> Klipy
+                <ImagePlus size={12} /> GIF
               </button>
               {selectedKlipy && (
                 <button
@@ -931,16 +935,16 @@ export default function CommentSection({ journalId }: { journalId: string }) {
                         searchKlipy();
                       }
                     }}
-                    placeholder="Search Klipy GIFs/stickers..."
+                    placeholder="Search GIFs..."
                     className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-amber-500/40"
                     maxLength={80}
                   />
                   <button
                     onClick={searchKlipy}
-                    disabled={klipyLoading || !klipyQuery.trim()}
+                    disabled={klipyLoading}
                     className="px-3 py-2 rounded-lg bg-amber-500 text-black text-xs font-black hover:bg-amber-400 disabled:opacity-50 transition-colors inline-flex items-center gap-1"
                   >
-                    {klipyLoading ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />} Search
+                    {klipyLoading ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />} {klipyQuery.trim() ? 'Search' : 'Trending'}
                   </button>
                 </div>
                 {klipyError && <p className="text-[11px] text-red-400">{klipyError}</p>}
@@ -987,7 +991,7 @@ export default function CommentSection({ journalId }: { journalId: string }) {
               onChange={(e) => {
                 const next = e.target.value;
                 setCommentText(next);
-                if (selectedKlipy && next.trim() !== selectedKlipy.url) {
+                if (selectedKlipy && next.trim() !== selectedKlipy.url.trim()) {
                   setSelectedKlipy(null);
                 }
               }}

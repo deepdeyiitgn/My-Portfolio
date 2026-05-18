@@ -135,9 +135,11 @@ function CommentRow({ comment }: { comment: Comment }) {
       </div>
       {repliesOpen && replies.length > 0 && (
         <div className="pl-4 border-l-2 border-zinc-800 space-y-2">
-          {replies.map(r => (
-            <Fragment key={r._id}>
-              <div className="border border-zinc-800/60 rounded-xl p-3 bg-zinc-950/40 space-y-1">
+          {replies.map(r => {
+            const replyKlipyUrl = extractKlipyMediaUrl(r.text);
+            return (
+              <Fragment key={r._id}>
+                <div className="border border-zinc-800/60 rounded-xl p-3 bg-zinc-950/40 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   {r.userId === 'owner' ? (
                     <img src="/assets/images/myphoto.png" alt="Deep Dey" className="w-6 h-6 rounded-full border border-amber-500/60 object-cover" />
@@ -153,17 +155,17 @@ function CommentRow({ comment }: { comment: Comment }) {
                   {r.userId !== 'owner' && r.isVerified && <span className="inline-flex items-center gap-0.5" title="Verified User"><VerifiedTickIcon className="w-[12px] h-[12px]" /></span>}
                   <span className="text-zinc-600 text-[10px] font-mono">{timeAgo(r.createdAt)}</span>
                 </div>
-                {extractKlipyMediaUrl(r.text) ? (
+                {replyKlipyUrl ? (
                   <div className="space-y-1.5">
                     <img
-                      src={extractKlipyMediaUrl(r.text) || ''}
+                      src={replyKlipyUrl}
                       alt="Klipy media"
                       className="max-w-full max-h-52 rounded-lg border border-zinc-800 bg-zinc-950 object-contain"
                       loading="lazy"
                       referrerPolicy="no-referrer"
                     />
                     <a
-                      href={extractKlipyMediaUrl(r.text) || '#'}
+                      href={replyKlipyUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[10px] text-amber-400 hover:text-amber-300 underline break-all"
@@ -176,7 +178,8 @@ function CommentRow({ comment }: { comment: Comment }) {
                 )}
               </div>
             </Fragment>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

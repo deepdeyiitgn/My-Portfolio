@@ -387,7 +387,7 @@ SPACE_PASSWORD=your_space_password_here
 # Optional but recommended: enforce audience check on Google identity token verification
 GOOGLE_CLIENT_ID=your_google_oauth_client_id
 
-# Optional but required for Klipy GIF/sticker search in comments
+# Optional but required for Klipy GIF search in comments
 KLIPY_API=your_klipy_api_key
 ```
 
