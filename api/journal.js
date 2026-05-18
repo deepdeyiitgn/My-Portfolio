@@ -1496,9 +1496,9 @@ module.exports = async (req, res) => {
 
       if (action === 'klipy-search') {
         const appKey = String(process.env.KLIPY_API || '').trim();
-        if (!appKey) return json(res, 503, { ok: false, message: 'Klipy is not configured. Set KLIPY_API in environment variables.' });
+        if (!appKey) return json(res, 503, { ok: false, message: 'Klipy service is not configured.' });
         const q = String(getParam(req, 'q') || '').trim();
-        if (q && q.length < 2) return json(res, 400, { ok: false, message: 'q must be at least 2 characters' });
+        if (q && q.length < 2) return json(res, 400, { ok: false, message: 'Search query must be at least 2 characters.' });
         const page = Math.max(1, parseInt(String(getParam(req, 'page') || '1'), 10) || 1);
         const perPageRaw = parseInt(String(getParam(req, 'per_page') || getParam(req, 'limit') || '24'), 10) || 24;
         const perPage = Math.min(50, Math.max(1, perPageRaw));
