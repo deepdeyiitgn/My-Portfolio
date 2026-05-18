@@ -371,41 +371,12 @@
     document.head.appendChild(widgetStyle);
 
     /* ===================================================
-       2. RESTRUCTURE FOOTER — add Uptodown widget on right
+       2. FOOTER LINK UPDATES
     =================================================== */
     var footer = document.querySelector("footer");
     if (footer) {
       var container = footer.querySelector(".container");
       if (container) {
-        // Wrap existing content in footer-left
-        var leftDiv = document.createElement("div");
-        leftDiv.className = "footer-left";
-        while (container.firstChild) {
-          leftDiv.appendChild(container.firstChild);
-        }
-
-        // Create right div with Uptodown widget
-        var rightDiv = document.createElement("div");
-        rightDiv.className = "footer-right";
-        rightDiv.innerHTML = '<div class="uptodown-item">'
-          + '<figure onclick="location.href=\'https://transparent-clock.en.uptodown.com/windows\';">'
-          + '<img width="100" height="100" alt="Transparent Clock icon" loading="lazy" class="app_card_img" '
-          + 'src="https://img.utdstc.com/icon/60a/7b6/60a7b6356f368e1c6408d9b1dd783bea44d625184e3022a95d6d83b60e2c75dd" '
-          + 'srcset="https://img.utdstc.com/icon/60a/7b6/60a7b6356f368e1c6408d9b1dd783bea44d625184e3022a95d6d83b60e2c75dd:100 1x, '
-          + 'https://img.utdstc.com/icon/60a/7b6/60a7b6356f368e1c6408d9b1dd783bea44d625184e3022a95d6d83b60e2c75dd:200 2x, '
-          + 'https://img.utdstc.com/icon/60a/7b6/60a7b6356f368e1c6408d9b1dd783bea44d625184e3022a95d6d83b60e2c75dd:300 3x">'
-          + '</figure>'
-          + '<div class="utd-name"><a href="https://transparent-clock.en.uptodown.com/windows" title="Download Transparent Clock">Transparent Clock</a></div>'
-          + '<div class="utd-desc">A clean always-on-top transparent clock &amp; focus utilities for Windows</div>'
-          + '</div>';
-
-        // Create wrapper
-        var wrapper = document.createElement("div");
-        wrapper.className = "footer-grid-wrapper";
-        wrapper.appendChild(leftDiv);
-        wrapper.appendChild(rightDiv);
-        container.appendChild(wrapper);
-
         // Add legal link to footer-links if not already present
         var footerLinks = container.querySelector(".footer-links");
         if (footerLinks && !footerLinks.querySelector('a[href*="legal"]')) {
@@ -496,7 +467,7 @@
       + '      <br><i>Source-Available • Zero Data Collection • Always-On-Top</i>'
       + '    </p>'
       + '    <p style="font-size: 11px; color: #999; margin-top: 18px; border-top: 1px solid #eee; padding-top: 12px;">'
-      + '      &copy; ' + new Date().getFullYear() + ' Deep Dey | All Rights Reserved | QuickLink &times; Transparent Clock'
+      + '      &copy; ' + new Date().getFullYear() + ' Deep Dey | All Rights Reserved | QuickLink &times; Deep'
       + '    </p>'
       + '    <div class="deep-btn-container">'
       + '      <div onclick="openDeepLink(\'wiki\')" class="deep-cta-button deep-btn-wiki">More Info</div>'
@@ -513,7 +484,7 @@
     var copyrightBar = document.createElement("div");
     copyrightBar.id = "deep-copyright-bar";
     copyrightBar.style.cssText = "text-align:center; padding:18px 10px; font-size:12px; color:#888; background:#111; border-top:1px solid #222; letter-spacing:0.3px;";
-    copyrightBar.innerHTML = '&copy; ' + new Date().getFullYear() + ' Deep Dey | All Rights Reserved | QuickLink &times; Transparent Clock';
+    copyrightBar.innerHTML = '&copy; ' + new Date().getFullYear() + ' Deep Dey | All Rights Reserved | QuickLink &times; Deep';
 
     // Insert watermarks + copyright after footer
     if (footer) {

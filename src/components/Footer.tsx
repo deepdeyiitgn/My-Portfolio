@@ -118,6 +118,8 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
   const { t } = useLanguage();
   const [now, setNow] = useState(() => new Date());
+  const [isQuickLinkModalOpen, setIsQuickLinkModalOpen] = useState(false);
+  const [isDeepModalOpen, setIsDeepModalOpen] = useState(false);
   const localTimeZone = useMemo(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     [],
@@ -131,6 +133,17 @@ export default function Footer() {
       setNow(new Date());
     }, 1000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setIsQuickLinkModalOpen(false);
+      setIsDeepModalOpen(false);
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
   }, []);
 
   const indiaTimeLine = formatClockLine(now, `IST [${INDIA_GMT_LABEL}]`, indiaClockFormatters);
@@ -227,6 +240,25 @@ export default function Footer() {
           </div>
         </div>
 
+        <div className="flex flex-col sm:flex-row items-stretch justify-center gap-4">
+          <button
+            type="button"
+            onClick={() => setIsQuickLinkModalOpen(true)}
+            className="flex-1 max-w-sm mx-auto sm:mx-0 p-4 border border-zinc-800 rounded-2xl bg-zinc-900/50 hover:border-amber-500/40 text-zinc-300 hover:text-amber-400 transition-all text-left"
+          >
+            <p className="text-sm font-black tracking-tight">Powered by QuickLink™</p>
+            <p className="text-[11px] text-zinc-500 uppercase tracking-[0.2em] mt-1">Smart URL &amp; QR Platform</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsDeepModalOpen(true)}
+            className="flex-1 max-w-sm mx-auto sm:mx-0 p-4 border border-zinc-800 rounded-2xl bg-zinc-900/50 hover:border-amber-500/40 text-zinc-300 hover:text-amber-400 transition-all text-left"
+          >
+            <p className="text-sm font-black tracking-tight">Powered by Deep™</p>
+            <p className="text-[11px] text-zinc-500 uppercase tracking-[0.2em] mt-1">AI &amp; Web Development Solutions</p>
+          </button>
+        </div>
+
         <div className="pt-12 border-t border-zinc-900 flex flex-col gap-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="space-y-2 text-center md:text-left">
@@ -271,6 +303,140 @@ export default function Footer() {
           </div>
         </div>
       </div>
+
+      {isQuickLinkModalOpen && (
+        <div
+          className="fixed inset-0 z-[9998] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setIsQuickLinkModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-950 p-6 sm:p-8 shadow-[0_20px_80px_rgba(0,0,0,0.6)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">Powered by</p>
+                <h3 className="text-xl font-black text-amber-400 mt-1">QuickLink™</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsQuickLinkModalOpen(false)}
+                className="text-zinc-500 hover:text-amber-300 text-xl leading-none"
+                aria-label="Close QuickLink popup"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-sm text-zinc-300 leading-relaxed mt-4">
+              QuickLink is a smart URL and dynamic QR platform built for clean sharing, controlled redirects, and performance tracking.
+            </p>
+            <p className="text-sm text-zinc-400 leading-relaxed mt-3">
+              Founder &amp; Creator: <span className="text-zinc-200 font-semibold">Deep Dey</span>
+            </p>
+            <div className="grid grid-cols-2 gap-3 mt-6">
+              <a
+                href="https://qlynk.vercel.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-3 rounded-xl bg-amber-500 text-black text-xs font-black uppercase tracking-widest text-center hover:bg-amber-400 transition-colors"
+              >
+                Website
+              </a>
+              <a
+                href="https://github.com/deepdeyiitgn"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-3 rounded-xl border border-zinc-700 text-zinc-200 text-xs font-black uppercase tracking-widest text-center hover:border-amber-500/40 hover:text-amber-400 transition-colors"
+              >
+                GitHub
+              </a>
+              <a
+                href="https://youtube.com/channel/UCrh1Mx5CTTbbkgW5O6iS2Tw/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-3 rounded-xl border border-zinc-700 text-zinc-200 text-xs font-black uppercase tracking-widest text-center hover:border-amber-500/40 hover:text-amber-400 transition-colors"
+              >
+                YouTube
+              </a>
+              <a
+                href="https://clock.qlynk.me"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-3 rounded-xl border border-zinc-700 text-zinc-200 text-xs font-black uppercase tracking-widest text-center hover:border-amber-500/40 hover:text-amber-400 transition-colors"
+              >
+                Study Clock
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDeepModalOpen && (
+        <div
+          className="fixed inset-0 z-[9998] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setIsDeepModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-950 p-6 sm:p-8 shadow-[0_20px_80px_rgba(0,0,0,0.6)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">Powered by</p>
+                <h3 className="text-xl font-black text-amber-400 mt-1">Deep™</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDeepModalOpen(false)}
+                className="text-zinc-500 hover:text-amber-300 text-xl leading-none"
+                aria-label="Close Deep popup"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-sm text-zinc-300 leading-relaxed mt-4">
+              I&apos;m Deep, a self-taught AI and web developer building high-performance digital systems for creators, students, and founders.
+            </p>
+            <p className="text-sm text-zinc-400 leading-relaxed mt-3">
+              I also created <span className="text-zinc-200 font-semibold">Transparent Clock</span>, a minimal always-on-top focus companion for Windows.
+            </p>
+            <div className="grid grid-cols-2 gap-3 mt-6">
+              <a
+                href="https://qlynk.vercel.app/wiki"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-3 rounded-xl bg-amber-500 text-black text-xs font-black uppercase tracking-widest text-center hover:bg-amber-400 transition-colors"
+              >
+                More Info
+              </a>
+              <a
+                href="https://www.instagram.com/deepdey.official"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-3 rounded-xl border border-zinc-700 text-zinc-200 text-xs font-black uppercase tracking-widest text-center hover:border-amber-500/40 hover:text-amber-400 transition-colors"
+              >
+                Instagram
+              </a>
+              <a
+                href="https://github.com/deepdeyiitgn"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-3 rounded-xl border border-zinc-700 text-zinc-200 text-xs font-black uppercase tracking-widest text-center hover:border-amber-500/40 hover:text-amber-400 transition-colors"
+              >
+                GitHub
+              </a>
+              <a
+                href="https://discord.com/invite/t6ZKNw556n"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-3 rounded-xl border border-zinc-700 text-zinc-200 text-xs font-black uppercase tracking-widest text-center hover:border-amber-500/40 hover:text-amber-400 transition-colors"
+              >
+                Discord
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </footer>
   );
 }
