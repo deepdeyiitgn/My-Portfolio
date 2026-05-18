@@ -5,9 +5,10 @@ import { GoogleLogin } from '@react-oauth/google';
 import {
   MessageSquare, Heart, Reply, Trash2, Edit3, Pin, PinOff, Send,
   ChevronDown, ChevronUp, AlertTriangle, X, LogOut, ExternalLink,
-  ChevronLeft, ChevronRight, Loader2, AlertCircle, ArrowDownUp, Link2, ShieldBan,
+  ChevronLeft, ChevronRight, Loader2, AlertCircle, ArrowDownUp, Link2, ShieldBan, Search, ImagePlus,
 } from 'lucide-react';
 import { CrownBadgeIcon, VerifiedTickIcon } from './IdentityBadges';
+import { extractKlipyMediaUrl, getSafeHttpUrl } from '../utils/commentMedia';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,13 @@ interface Pagination {
   limit: number;
   total: number;
   totalPages: number;
+}
+
+interface KlipyMediaResult {
+  id: string;
+  title: string;
+  url: string;
+  previewUrl: string;
 }
 
 // ── Storage key ───────────────────────────────────────────────────────────────
@@ -85,16 +93,6 @@ function timeAgo(dateString?: string | null): string {
 }
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
-
-function getSafeHttpUrl(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
-    return parsed.toString();
-  } catch {
-    return null;
-  }
-}
 
 // ── Link Warning Modal ────────────────────────────────────────────────────────
 
@@ -419,9 +417,35 @@ function CommentItem({
               </div>
             </div>
           ) : (
-            <p className="text-zinc-300 text-sm leading-relaxed">
-              <CommentText text={comment.text} onLinkClick={onLinkClick} trustedLinks={isVerifiedComment} />
-            </p>
+            (() => {
+              const klipyUrl = extractKlipyMediaUrl(comment.text);
+              if (klipyUrl) {
+                return (
+                  <div className="space-y-2">
+                    <img
+                      src={klipyUrl}
+                      alt="Klipy media"
+                      className="max-w-full max-h-72 rounded-xl border border-zinc-800 bg-zinc-950 object-contain"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                    <a
+                      href={klipyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-amber-400 hover:text-amber-300 underline break-all"
+                    >
+                      Open media in new tab
+                    </a>
+                  </div>
+                );
+              }
+              return (
+                <p className="text-zinc-300 text-sm leading-relaxed">
+                  <CommentText text={comment.text} onLinkClick={onLinkClick} trustedLinks={isVerifiedComment} />
+                </p>
+              );
+            })()
           )}
 
           {/* Actions */}
@@ -582,6 +606,12 @@ export default function CommentSection({ journalId }: { journalId: string }) {
 
   const [commentText, setCommentText] = useState('');
   const [posting, setPosting] = useState(false);
+  const [showKlipyPicker, setShowKlipyPicker] = useState(false);
+  const [klipyQuery, setKlipyQuery] = useState('');
+  const [klipyLoading, setKlipyLoading] = useState(false);
+  const [klipyError, setKlipyError] = useState('');
+  const [klipyResults, setKlipyResults] = useState<KlipyMediaResult[]>([]);
+  const [selectedKlipy, setSelectedKlipy] = useState<KlipyMediaResult | null>(null);
 
   const [warnUrl, setWarnUrl] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -672,7 +702,8 @@ export default function CommentSection({ journalId }: { journalId: string }) {
 
   const handlePost = async () => {
     if (!commentText.trim()) return;
-    if (commentText.trim().length < MIN_COMMENT_LENGTH) {
+    const klipyUrl = extractKlipyMediaUrl(commentText.trim());
+    if (!klipyUrl && commentText.trim().length < MIN_COMMENT_LENGTH) {
       alert(`Comment must be at least ${MIN_COMMENT_LENGTH} characters.`);
       return;
     }
@@ -689,6 +720,7 @@ export default function CommentSection({ journalId }: { journalId: string }) {
       const d = await r.json();
       if (d.ok) {
         setCommentText('');
+        setSelectedKlipy(null);
         setComments(prev => sort === 'new' ? [d.comment, ...prev] : [...prev, d.comment]);
         setPagination(prev => ({ ...prev, total: prev.total + 1 }));
       } else if (d.message?.includes('expired') || d.message?.includes('Invalid')) {
@@ -700,6 +732,28 @@ export default function CommentSection({ journalId }: { journalId: string }) {
     } catch {
       alert('Failed to post comment');
     } finally { setPosting(false); }
+  };
+
+  const searchKlipy = async () => {
+    const q = klipyQuery.trim();
+    if (!q) return;
+    setKlipyLoading(true);
+    setKlipyError('');
+    try {
+      const r = await fetch(`/api/journal?action=klipy-search&q=${encodeURIComponent(q)}&limit=18`);
+      const d = await r.json();
+      if (!d.ok) {
+        setKlipyError(d.message || 'Failed to load Klipy results');
+        setKlipyResults([]);
+      } else {
+        setKlipyResults(Array.isArray(d.results) ? d.results : []);
+      }
+    } catch {
+      setKlipyError('Failed to load Klipy results');
+      setKlipyResults([]);
+    } finally {
+      setKlipyLoading(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -849,11 +903,95 @@ export default function CommentSection({ journalId }: { journalId: string }) {
         {/* Comment input */}
         {(currentUser || isOwner) && !blockStatus.blocked && (
           <div className="space-y-3 pt-2 border-t border-zinc-800">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setShowKlipyPicker(v => !v)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-300 text-xs font-bold hover:border-amber-500/50 hover:text-amber-400 transition-colors"
+              >
+                <ImagePlus size={12} /> Klipy
+              </button>
+              {selectedKlipy && (
+                <button
+                  onClick={() => { setSelectedKlipy(null); setCommentText(''); }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-zinc-700 text-zinc-400 text-xs font-bold hover:text-red-400 hover:border-red-800 transition-colors"
+                >
+                  <X size={12} /> Clear media
+                </button>
+              )}
+            </div>
+            {showKlipyPicker && (
+              <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3 space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    value={klipyQuery}
+                    onChange={(e) => setKlipyQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        searchKlipy();
+                      }
+                    }}
+                    placeholder="Search Klipy GIFs/stickers..."
+                    className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-amber-500/40"
+                    maxLength={80}
+                  />
+                  <button
+                    onClick={searchKlipy}
+                    disabled={klipyLoading || !klipyQuery.trim()}
+                    className="px-3 py-2 rounded-lg bg-amber-500 text-black text-xs font-black hover:bg-amber-400 disabled:opacity-50 transition-colors inline-flex items-center gap-1"
+                  >
+                    {klipyLoading ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />} Search
+                  </button>
+                </div>
+                {klipyError && <p className="text-[11px] text-red-400">{klipyError}</p>}
+                {klipyResults.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-1">
+                    {klipyResults.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setSelectedKlipy(item);
+                          setCommentText(item.url);
+                          setShowKlipyPicker(false);
+                        }}
+                        className="relative rounded-lg overflow-hidden border border-zinc-800 hover:border-amber-500/60 transition-colors"
+                        title={item.title || 'Klipy media'}
+                      >
+                        <img
+                          src={item.previewUrl || item.url}
+                          alt={item.title || 'Klipy media'}
+                          className="w-full h-24 object-cover bg-zinc-900"
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {selectedKlipy && (
+              <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-2 inline-flex">
+                <img
+                  src={selectedKlipy.previewUrl || selectedKlipy.url}
+                  alt={selectedKlipy.title || 'Selected Klipy media'}
+                  className="w-28 h-20 rounded-lg object-cover"
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            )}
             <textarea
               ref={textareaRef}
               value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder="Write a comment... (plain text, links are supported)"
+              onChange={(e) => {
+                const next = e.target.value;
+                setCommentText(next);
+                if (selectedKlipy && next.trim() !== selectedKlipy.url) {
+                  setSelectedKlipy(null);
+                }
+              }}
+              placeholder="Write a comment... (plain text, links are supported; Klipy media can be posted directly)"
               className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-amber-500/50 resize-none transition-all"
               rows={3}
               maxLength={2000}
@@ -863,11 +1001,11 @@ export default function CommentSection({ journalId }: { journalId: string }) {
             />
             <div className="flex items-center justify-between">
               <span className="text-xs text-zinc-600">
-                {commentText.length}/2000 · min {MIN_COMMENT_LENGTH} chars · Ctrl+Enter to post
+                {commentText.length}/2000 · min {MIN_COMMENT_LENGTH} chars (Klipy media URL also allowed) · Ctrl+Enter to post
               </span>
               <button
                 onClick={handlePost}
-                disabled={posting || commentText.trim().length < MIN_COMMENT_LENGTH}
+                disabled={posting || (!extractKlipyMediaUrl(commentText.trim()) && commentText.trim().length < MIN_COMMENT_LENGTH)}
                 className="px-4 py-2 rounded-xl bg-amber-500 text-black text-xs font-black uppercase tracking-wider hover:bg-amber-400 disabled:opacity-50 transition-colors flex items-center gap-2"
               >
                 {posting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}

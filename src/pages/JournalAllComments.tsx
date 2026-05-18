@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import SEO from '../components/SEO';
 import { CrownBadgeIcon, VerifiedTickIcon } from '../components/IdentityBadges';
+import { extractKlipyMediaUrl } from '../utils/commentMedia';
 
 interface Comment {
   _id: string;
@@ -58,6 +59,7 @@ function CommentRow({ comment }: { comment: Comment }) {
   const [loadingReplies, setLoadingReplies] = useState(false);
   const isOwner = comment.userId === 'owner';
   const isVerified = isOwner || Boolean(comment.isVerified);
+  const klipyUrl = extractKlipyMediaUrl(comment.text);
 
   const loadReplies = useCallback(async () => {
     if (repliesOpen) { setRepliesOpen(false); return; }
@@ -94,7 +96,27 @@ function CommentRow({ comment }: { comment: Comment }) {
             <span className="text-zinc-600 text-[10px] font-mono">{timeAgo(comment.createdAt)}</span>
             {comment.editedAt && <span className="text-zinc-700 text-[9px] font-mono">(edited)</span>}
           </div>
-          <p className="text-zinc-300 text-sm mt-1 whitespace-pre-wrap break-words">{comment.text}</p>
+          {klipyUrl ? (
+            <div className="mt-1 space-y-1.5">
+              <img
+                src={klipyUrl}
+                alt="Klipy media"
+                className="max-w-full max-h-72 rounded-xl border border-zinc-800 bg-zinc-950 object-contain"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+              <a
+                href={klipyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-amber-400 hover:text-amber-300 underline break-all"
+              >
+                Open media in new tab
+              </a>
+            </div>
+          ) : (
+            <p className="text-zinc-300 text-sm mt-1 whitespace-pre-wrap break-words">{comment.text}</p>
+          )}
         </div>
       </div>
       <div className="flex items-center justify-between">
@@ -131,7 +153,27 @@ function CommentRow({ comment }: { comment: Comment }) {
                   {r.userId !== 'owner' && r.isVerified && <span className="inline-flex items-center gap-0.5" title="Verified User"><VerifiedTickIcon className="w-[12px] h-[12px]" /></span>}
                   <span className="text-zinc-600 text-[10px] font-mono">{timeAgo(r.createdAt)}</span>
                 </div>
-                <p className="text-zinc-400 text-xs whitespace-pre-wrap break-words">{r.text}</p>
+                {extractKlipyMediaUrl(r.text) ? (
+                  <div className="space-y-1.5">
+                    <img
+                      src={extractKlipyMediaUrl(r.text) || ''}
+                      alt="Klipy media"
+                      className="max-w-full max-h-52 rounded-lg border border-zinc-800 bg-zinc-950 object-contain"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                    <a
+                      href={extractKlipyMediaUrl(r.text) || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-amber-400 hover:text-amber-300 underline break-all"
+                    >
+                      Open media in new tab
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-zinc-400 text-xs whitespace-pre-wrap break-words">{r.text}</p>
+                )}
               </div>
             </Fragment>
           ))}

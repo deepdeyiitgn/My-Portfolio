@@ -112,7 +112,7 @@ The milestone timeline uses `new Date().getFullYear()` to auto-highlight the cur
 Full UI translated across EN · BN · HI · ES · FR · DE · AR · RU · PT · JA · KO · ZH via a custom React Context provider.
 
 ### 💬 Journal Comment System
-Readers can leave comments on any journal post using Google Sign-In — no password needed. Supports threaded replies, likes, and direct comment permalinks (`/journal/view/:id/comment/:commentId`). A full comment thread view (`/journal/view/:id/comments`) shows all comments with sort (top/new/old) and pagination. The `/journal/comment` community guide now covers both comments and feedback, including small preview demos showing how each content type appears on the website.
+Readers can leave comments on any journal post using Google Sign-In — no password needed. Supports threaded replies, likes, and direct comment permalinks (`/journal/view/:id/comment/:commentId`). A full comment thread view (`/journal/view/:id/comments`) shows all comments with sort (top/new/old) and pagination. The comment composer now includes Klipy media search; selecting a Klipy item posts it as a media comment URL. The `/journal/comment` community guide now covers both comments and feedback, including small preview demos showing how each content type appears on the website.
 
 ### ⭐ Professional Feedback Management System
 Dedicated public feedback page at `/feedback` with rating distribution bars, interactive 5-star submission, subject/sub-subject taxonomy, strict one-feedback-per-subject-sub-subject enforcement, and blacklist filtering that reuses the same `comment_blacklist` source as the journal comment system. Feedback text is only censored when a blacklist match is found; clean feedback stays unchanged. Owner dashboard includes full moderation (edit/delete), unlimited pinning, feedback category/sub-subject CRUD, and visibility of the original uncensored text for feedback entries flagged by blacklist filtering.
@@ -386,12 +386,16 @@ SPACE_PASSWORD=your_space_password_here
 
 # Optional but recommended: enforce audience check on Google identity token verification
 GOOGLE_CLIENT_ID=your_google_oauth_client_id
+
+# Optional but required for Klipy GIF/sticker search in comments
+KLIPY_API=your_klipy_api_key
 ```
 
 Where to find each value:
 - `MONGODB_URI`: MongoDB Atlas → **Database** → **Connect** → **Drivers** connection string URI.
 - `SPACE_PASSWORD`: from your `static.qlynk.me`/storage provider account credentials (the upload API secret you configure for `/api/upload-image`).
 - `GOOGLE_CLIENT_ID`: Google Cloud Console → **APIs & Services** → **Credentials** → OAuth 2.0 Client IDs.
+- `KLIPY_API` (optional): Klipy developer dashboard/API settings key used server-side by `/api/journal?action=klipy-search`.
 - `YOUTUBE_API_KEY` / `GOOGLE_API_KEY` (optional): Google Cloud Console → **APIs & Services** → **Credentials** → API key.  
   Also enable **YouTube Data API v3** in the same project under **Library**.
 

@@ -6,6 +6,7 @@
  * GET  ?action=third-party-status&provider=<id>          → third-party provider status aggregation
  * GET  ?action=status-monitor-config                      → status-page monitor mode config
  * GET  ?action=status                                   → FETCH LIVE STATUS & HISTORY
+ * GET  ?action=klipy-search&q=<query>&limit=18          → search Klipy GIF/sticker media
  * GET  ?action=comments&journalId=X&page=1&sort=top     → paginated comments (top-level or replies)
  * GET  ?action=comment-count&journalIds=X,Y             → comment counts for multiple journals
  * GET  ?action=top-journals&limit=6                     → top N most-liked published journals
@@ -53,6 +54,7 @@ const RENDER_DEFAULT_IMAGE = '/assets/images/myphoto.png';
 const FEATURE_LINKS_FILE = path.join(process.cwd(), 'src', 'features', 'feature-links.json');
 let cachedRenderFeatureMeta = null;
 let cachedRenderFeatureMetaMtime = 0;
+const KLIPY_API_BASE = 'https://api.klipy.com';
 const STATUS_MONITOR_CONFIG_ID = 'status_monitor_config';
 const STATUS_MONITOR_MODES = ['live', 'stop', 'maintenance', 'hiatus'];
 const RENDER_STATIC_PAGE_META = {
@@ -1329,6 +1331,98 @@ function getFeedbackReactionSessions(value) {
   return sessions;
 }
 
+function normalizeKlipyMediaUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+    if (!String(parsed.hostname || '').toLowerCase().includes('klipy')) return '';
+    return parsed.toString();
+  } catch {
+    return '';
+  }
+}
+
+function isKlipyMediaCommentText(text) {
+  const trimmed = String(text || '').trim();
+  if (!trimmed) return false;
+  if (/\s/.test(trimmed)) return false;
+  return Boolean(normalizeKlipyMediaUrl(trimmed));
+}
+
+function extractKlipyRawItems(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.results)) return payload.results;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.gifs)) return payload.gifs;
+  return [];
+}
+
+function normalizeKlipyResult(item, index) {
+  const mediaUrl = normalizeKlipyMediaUrl(
+    item?.url
+    || item?.mediaUrl
+    || item?.media_url
+    || item?.gif?.url
+    || item?.image?.url
+    || item?.images?.original?.url
+    || item?.images?.downsized?.url,
+  );
+  if (!mediaUrl) return null;
+  const previewUrl = normalizeKlipyMediaUrl(
+    item?.previewUrl
+    || item?.preview_url
+    || item?.thumbnail
+    || item?.images?.preview?.url
+    || item?.images?.fixed_width_small?.url
+    || mediaUrl,
+  ) || mediaUrl;
+  return {
+    id: String(item?.id || `${index}-${mediaUrl}`),
+    title: String(item?.title || item?.name || 'Klipy media'),
+    url: mediaUrl,
+    previewUrl,
+  };
+}
+
+async function fetchKlipySearchResults(query, limit, apiKey) {
+  const requestPlans = [
+    { path: '/v1/search', extraParams: { type: 'all' } },
+    { path: '/v1/gifs/search', extraParams: {} },
+    { path: '/v1/stickers/search', extraParams: {} },
+  ];
+
+  for (const plan of requestPlans) {
+    try {
+      const endpoint = new URL(`${KLIPY_API_BASE}${plan.path}`);
+      endpoint.searchParams.set('q', query);
+      endpoint.searchParams.set('limit', String(limit));
+      Object.entries(plan.extraParams).forEach(([k, v]) => endpoint.searchParams.set(k, String(v)));
+
+      const response = await fetch(endpoint.toString(), {
+        headers: {
+          Accept: 'application/json',
+          'x-api-key': apiKey,
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
+      if (!response.ok) continue;
+      const payload = await response.json();
+      const items = extractKlipyRawItems(payload)
+        .map((item, index) => normalizeKlipyResult(item, index))
+        .filter(Boolean)
+        .slice(0, limit);
+      if (items.length) return items;
+    } catch {
+      // try next endpoint variation
+    }
+  }
+
+  return [];
+}
+
 async function getFeedbackCategoriesMap(db) {
   const categories = await db.collection('feedback_categories').find({ type: 'feedback' }).toArray();
   const map = new Map();
@@ -1381,6 +1475,18 @@ module.exports = async (req, res) => {
     // ==========================================
     if (req.method === 'GET') {
       const action = getParam(req, 'action');
+
+      if (action === 'klipy-search') {
+        const apiKey = String(process.env.KLIPY_API || '').trim();
+        if (!apiKey) return json(res, 503, { ok: false, message: 'Klipy is not configured. Set KLIPY_API in environment variables.' });
+        const q = String(getParam(req, 'q') || '').trim();
+        if (!q) return json(res, 400, { ok: false, message: 'q is required' });
+        if (q.length < 2) return json(res, 400, { ok: false, message: 'q must be at least 2 characters' });
+        const limit = Math.min(30, Math.max(1, parseInt(String(getParam(req, 'limit') || '18'), 10) || 18));
+
+        const results = await fetchKlipySearchResults(q, limit, apiKey);
+        return json(res, 200, { ok: true, results });
+      }
 
       if (action === 'render-page') {
         try {
@@ -2835,7 +2941,8 @@ module.exports = async (req, res) => {
 
         const text = String(body.text || '').trim();
         if (!text) return json(res, 400, { ok: false, message: 'Comment text is required' });
-        if (text.length < MIN_COMMUNITY_TEXT_LENGTH) return json(res, 400, { ok: false, message: `Comment must be at least ${MIN_COMMUNITY_TEXT_LENGTH} characters.` });
+        const isKlipyMediaComment = isKlipyMediaCommentText(text);
+        if (!isKlipyMediaComment && text.length < MIN_COMMUNITY_TEXT_LENGTH) return json(res, 400, { ok: false, message: `Comment must be at least ${MIN_COMMUNITY_TEXT_LENGTH} characters.` });
         if (text.length > 2000) return json(res, 400, { ok: false, message: 'Comment too long (max 2000 chars)' });
 
         const parentIdParam = body.parentId ? String(body.parentId) : null;

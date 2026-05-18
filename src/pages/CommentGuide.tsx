@@ -18,7 +18,7 @@ const commentSteps = [
   {
     icon: Send,
     title: 'Write & Submit',
-    body: 'Type your thoughts (up to 2,000 characters) in the text box and press "Post". Your name and avatar from Google will be shown.',
+    body: 'Type your thoughts (up to 2,000 characters) in the text box, or pick Klipy media from the composer, then press "Post". Your name and avatar from Google will be shown.',
   },
   {
     icon: Reply,

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, MessageSquare, Heart, Loader2, AlertCircle, ExternalLink, User } from 'lucide-react';
 import SEO from '../components/SEO';
 import { CrownBadgeIcon, VerifiedTickIcon } from '../components/IdentityBadges';
+import { extractKlipyMediaUrl } from '../utils/commentMedia';
 
 interface Comment {
   _id: string;
@@ -52,6 +53,7 @@ function CommentCard({
 }) {
   const isOwner = comment.userId === 'owner';
   const isVerified = isOwner || Boolean(comment.isVerified);
+  const klipyUrl = extractKlipyMediaUrl(comment.text);
   return (
     <div
       className={`p-4 rounded-2xl border space-y-3 ${
@@ -101,7 +103,27 @@ function CommentCard({
             <span className="text-zinc-600 text-[10px] font-mono">{timeAgo(comment.createdAt)}</span>
             {comment.editedAt && <span className="text-zinc-700 text-[9px] font-mono">(edited)</span>}
           </div>
-          <p className="text-zinc-300 text-sm mt-1 whitespace-pre-wrap break-words">{comment.text}</p>
+          {klipyUrl ? (
+            <div className="mt-1 space-y-1.5">
+              <img
+                src={klipyUrl}
+                alt="Klipy media"
+                className="max-w-full max-h-72 rounded-xl border border-zinc-800 bg-zinc-950 object-contain"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+              <a
+                href={klipyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-amber-400 hover:text-amber-300 underline break-all"
+              >
+                Open media in new tab
+              </a>
+            </div>
+          ) : (
+            <p className="text-zinc-300 text-sm mt-1 whitespace-pre-wrap break-words">{comment.text}</p>
+          )}
           <div className="flex items-center gap-3 mt-2">
             <span className="flex items-center gap-1 text-zinc-600 text-xs">
               <Heart size={12} /> {comment.likes}
@@ -159,12 +181,15 @@ export default function CommentPermalink() {
   }
 
   const journalViewUrl = `/journal/view/${encodeURIComponent(journal.slug || journal._id)}`;
+  const seoPreview = extractKlipyMediaUrl(comment.text)
+    ? 'Klipy media comment'
+    : (comment.text.length > 120 ? `${comment.text.slice(0, 120)}…` : comment.text);
 
   return (
     <div className="min-h-screen bg-zinc-950 pt-28 pb-20 px-4">
       <SEO
         title={`Comment by ${comment.userName} | ${journal.title}`}
-        description={`"${comment.text.length > 120 ? comment.text.slice(0, 120) + '…' : comment.text}" — comment on "${journal.title}" by ${comment.userName}`}
+        description={`"${seoPreview}" — comment on "${journal.title}" by ${comment.userName}`}
         route={`/journal/comment/${commentId}`}
       />
       <div className="max-w-2xl mx-auto space-y-6">
