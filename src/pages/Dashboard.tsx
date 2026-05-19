@@ -2772,7 +2772,7 @@ export default function Dashboard() {
             </div>
             {!RAW_WATERMARK_SCRIPT_URL && (
               <p className="text-[11px] text-amber-500/80">
-                Using default hosted script URL. Set <code aria-label="Environment variable VITE_WATERMARK_SCRIPT_URL" className="bg-black/50 px-1 rounded">VITE_WATERMARK_SCRIPT_URL</code> to override.
+                Using default hosted script URL. Set <code className="bg-black/50 px-1 rounded">VITE_WATERMARK_SCRIPT_URL</code> to override.
               </p>
             )}
             <pre className="text-[11px] text-zinc-300 bg-zinc-950/70 border border-zinc-800 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap break-all">
