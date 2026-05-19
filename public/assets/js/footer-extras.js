@@ -3,10 +3,15 @@
  * Automatically injects into every page's footer.
  */
 (function () {
-  document.addEventListener("DOMContentLoaded", function () {
+  function initFooterExtras() {
+    if (window.__DEEP_WATERMARK_SCRIPT_INIT_DONE__) return;
+    window.__DEEP_WATERMARK_SCRIPT_INIT_DONE__ = true;
     var WATERMARK_API_BASE = window.DEEP_WATERMARK_API_BASE || "https://deepdey.vercel.app";
     var WATERMARK_SITE_TOKEN = String(window.DEEP_WATERMARK_SITE_TOKEN || "").trim();
-    var WATERMARK_HEARTBEAT_INTERVAL_MS = 24 * 60 * 60 * 1000;
+    var WATERMARK_HEARTBEAT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+    var WATERMARK_REGISTER_KEY_PREFIX = "deep_wm_registered_v2:";
+    var WATERMARK_HEARTBEAT_KEY_PREFIX = "deep_wm_hb_v2:";
+    var WATERMARK_DEBUG_KEY = "deep_wm_last_error_v1";
 
     /* ===================================================
        1. UPTODOWN WIDGET STYLES
@@ -488,9 +493,6 @@
       + '      from AI-powered tools to full-stack platforms with clean execution. \u26A1'
       + '      <br><i>Open-Source • Performance-First • System Thinking</i>'
       + '    </p>'
-      + '    <p style="font-size: 11px; color: #999; margin-top: 18px; border-top: 1px solid #eee; padding-top: 12px;">'
-      + '      &copy; ' + new Date().getFullYear() + ' Deep Dey | All Rights Reserved | QuickLink &amp; Deep Dey Portfolio'
-      + '    </p>'
       + '    <div class="deep-btn-container">'
       + '      <div onclick="openDeepLink(\'portfolio\')" class="deep-cta-button deep-btn-wiki">My Portfolio</div>'
       + '      <div onclick="openDeepLink(\'insta\')" class="deep-cta-button deep-btn-insta">Instagram</div>'
@@ -502,20 +504,12 @@
       + '  </div>'
       + '</div>';
 
-    // Copyright line below watermarks
-    var copyrightBar = document.createElement("div");
-    copyrightBar.id = "deep-copyright-bar";
-    copyrightBar.style.cssText = "text-align:center; padding:18px 10px; font-size:12px; color:#888; background:#111; border-top:1px solid #222; letter-spacing:0.3px;";
-    copyrightBar.innerHTML = '&copy; ' + new Date().getFullYear() + ' Deep Dey | All Rights Reserved | QuickLink &amp; Deep Dey Portfolio';
-
     // Insert watermarks globally at the very end of <body> so it works on any website
     watermarkDiv.style.cssText = "width:100%; display:flex; justify-content:center; background:#0b0b0d; border-top:1px solid rgba(245,158,11,.12);";
     deepWatermarkDiv.style.cssText = "width:100%; display:flex; justify-content:center; background:#0b0b0d;";
-    copyrightBar.style.cssText = "text-align:center; width:100%; padding:10px 8px; font-size:10px; color:#888; background:#0b0b0d; border-top:1px solid rgba(255,255,255,.08); letter-spacing:0.3px;";
     if (document.body) {
       document.body.appendChild(watermarkDiv);
       document.body.appendChild(deepWatermarkDiv);
-      document.body.appendChild(copyrightBar);
     }
 
     /* ===================================================
@@ -583,12 +577,18 @@
       });
     }
 
-    // Track watermark usage heartbeat (at most once per site per 24h from browser)
+    // Track watermark registration and heartbeat (once at registration + every 7 days)
     try {
-      var heartbeatHost = window.location.hostname || "unknown";
-      var heartbeatKey = "deep_wm_hb_v1:" + heartbeatHost;
+      var heartbeatHost = (window.location.hostname || "unknown").toLowerCase();
+      var registerKey = WATERMARK_REGISTER_KEY_PREFIX + heartbeatHost;
+      var heartbeatKey = WATERMARK_HEARTBEAT_KEY_PREFIX + heartbeatHost;
       var nowMs = Date.now();
+      var shouldRegister = true;
       var shouldSendHeartbeat = true;
+      try {
+        var registeredRaw = localStorage.getItem(registerKey);
+        if (registeredRaw === "1") shouldRegister = false;
+      } catch (e) {}
       try {
         var lastSentRaw = localStorage.getItem(heartbeatKey);
         var lastSent = parseInt(lastSentRaw || "0", 10) || 0;
@@ -597,22 +597,78 @@
         }
       } catch (e) {}
 
-      if (shouldSendHeartbeat) {
-        try { localStorage.setItem(heartbeatKey, String(nowMs)); } catch (e) {}
-        fetch(WATERMARK_API_BASE + "/api/projects?action=watermark-track", {
+      var payloadBase = {
+        url: window.location.href,
+        title: document.title || "",
+        domain: heartbeatHost
+      };
+
+      if (shouldRegister) {
+        fetch(WATERMARK_API_BASE + "/api/projects?action=watermark-register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           mode: "cors",
           keepalive: true,
-          body: JSON.stringify({
-            url: window.location.href,
-            title: document.title || "",
-            siteToken: WATERMARK_SITE_TOKEN
-          })
-        }).catch(function () {});
+          body: JSON.stringify(payloadBase)
+        }).then(function () {
+          try { localStorage.setItem(registerKey, "1"); } catch (e) {}
+        }).catch(function (err) {
+          try { localStorage.setItem(WATERMARK_DEBUG_KEY, "register_failed:" + (err && err.message ? err.message : "unknown")); } catch (e) {}
+        });
+      }
+
+      if (shouldSendHeartbeat && WATERMARK_SITE_TOKEN) {
+        var nonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+        var ts = Date.now();
+        var signatureInput = [heartbeatHost, String(ts), nonce, WATERMARK_SITE_TOKEN].join("|");
+        var sendHeartbeat = function (signatureHex) {
+          var payload = {
+            url: payloadBase.url,
+            title: payloadBase.title,
+            domain: heartbeatHost,
+            siteToken: WATERMARK_SITE_TOKEN,
+            ts: ts,
+            nonce: nonce,
+            sig: signatureHex || ""
+          };
+          try { localStorage.setItem(heartbeatKey, String(nowMs)); } catch (e) {}
+          fetch(WATERMARK_API_BASE + "/api/projects?action=watermark-heartbeat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            mode: "cors",
+            keepalive: true,
+            body: JSON.stringify(payload)
+          }).then(function (resp) {
+            if (!resp.ok) {
+              try { localStorage.setItem(WATERMARK_DEBUG_KEY, "heartbeat_failed_status:" + resp.status); } catch (e) {}
+            }
+          }).catch(function (err) {
+            try { localStorage.setItem(WATERMARK_DEBUG_KEY, "heartbeat_fetch_failed:" + (err && err.message ? err.message : "unknown")); } catch (e) {}
+            if (navigator.sendBeacon) {
+              try {
+                var blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+                navigator.sendBeacon(WATERMARK_API_BASE + "/api/projects?action=watermark-heartbeat", blob);
+              } catch (e) {}
+            }
+          });
+        };
+
+        if (window.crypto && window.crypto.subtle && window.TextEncoder) {
+          var enc = new TextEncoder();
+          window.crypto.subtle.digest("SHA-256", enc.encode(signatureInput))
+            .then(function (buf) {
+              var hex = Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+              sendHeartbeat(hex);
+            })
+            .catch(function () {
+              sendHeartbeat("");
+            });
+        } else {
+          sendHeartbeat("");
+        }
       }
     } catch (e) {
-      // ignore tracking errors on third-party pages
+      try { localStorage.setItem(WATERMARK_DEBUG_KEY, "tracking_init_failed"); } catch (err) {}
     }
 
     /* ===================================================
@@ -650,5 +706,11 @@
       });
     });
 
-  });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initFooterExtras, { once: true });
+  } else {
+    initFooterExtras();
+  }
 })();
