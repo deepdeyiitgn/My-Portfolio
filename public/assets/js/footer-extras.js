@@ -489,7 +489,7 @@
       + '      &copy; ' + new Date().getFullYear() + ' Deep Dey | All Rights Reserved | QuickLink &amp; Deep Dey Portfolio'
       + '    </p>'
       + '    <div class="deep-btn-container">'
-      + '      <div onclick="openDeepLink(\'wiki\')" class="deep-cta-button deep-btn-wiki">My Portfolio</div>'
+      + '      <div onclick="openDeepLink(\'portfolio\')" class="deep-cta-button deep-btn-wiki">My Portfolio</div>'
       + '      <div onclick="openDeepLink(\'insta\')" class="deep-cta-button deep-btn-insta">Instagram</div>'
       + '    </div>'
       + '    <div class="deep-btn-container">'
@@ -548,7 +548,7 @@
 
     // Deep watermark
     var deepLinks = {
-      wiki: "https://deepdey.vercel.app/",
+      portfolio: "https://deepdey.vercel.app/",
       insta: "https://www.instagram.com/deepdey.official",
       github: "https://github.com/deepdeyiitgn",
       discord: "https://discord.com/invite/t6ZKNw556n"
