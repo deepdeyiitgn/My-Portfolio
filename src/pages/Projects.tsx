@@ -12,9 +12,18 @@ type WatermarkSite = {
   domain: string;
   favicon?: string;
   title?: string;
+  status?: 'pending' | 'approved' | 'declined';
   source?: string;
   hits?: number;
   hidden?: boolean;
+};
+
+const WATERMARKS_PER_PAGE = 10;
+
+const getStatusBadgeClass = (status?: WatermarkSite['status']) => {
+  if (status === 'approved') return 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30';
+  if (status === 'declined') return 'bg-red-500/10 text-red-300 border border-red-500/30';
+  return 'bg-amber-500/10 text-amber-300 border border-amber-500/30';
 };
 
 export default function Projects() {
@@ -28,7 +37,7 @@ export default function Projects() {
     const fetchSites = async () => {
       setLoadingWatermarks(true);
       try {
-        const r = await fetch(`/api/projects?action=watermark-sites&status=approved&visible=1&page=${watermarkPage}&limit=10`);
+        const r = await fetch(`/api/projects?action=watermark-sites&status=approved&visible=1&page=${watermarkPage}&limit=${WATERMARKS_PER_PAGE}`);
         const d = await r.json();
         if (d?.ok) {
           setWatermarkSites(Array.isArray(d.sites) ? d.sites : []);
@@ -169,7 +178,7 @@ export default function Projects() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h3 className="text-white font-bold text-xl">Top 10 Projects Using Deep Watermark</h3>
-            <p className="text-zinc-500 text-sm">Websites using the Powered by Deep watermark (approved list only).</p>
+            <p className="text-zinc-500 text-sm">Websites using the Powered by Deep watermark (approved list only · 10 per page).</p>
           </div>
         </div>
 
@@ -196,9 +205,14 @@ export default function Projects() {
                 >
                   {site.title || site.domain || 'Open Site'}
                 </button>
-                <p title={site.url} className="min-w-0 text-zinc-400 text-[10px] md:text-xs font-mono truncate">
-                  {shortenUrl(site.url)}
-                </p>
+                <div className="min-w-0 space-y-1">
+                  <p title={site.url} className="text-zinc-400 text-[10px] md:text-xs font-mono truncate">
+                    {shortenUrl(site.url)}
+                  </p>
+                  <span className={`inline-flex uppercase px-1.5 py-0.5 rounded text-[9px] font-mono ${getStatusBadgeClass(site.status)}`}>
+                    {site.status || 'pending'}
+                  </span>
+                </div>
               </div>
             ))}
           </div>

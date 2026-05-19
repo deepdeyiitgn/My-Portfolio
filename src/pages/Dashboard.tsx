@@ -206,6 +206,12 @@ function maskServiceKey(serviceKey?: string) {
   return '*'.repeat(serviceKey.length);
 }
 
+function getWatermarkStatusBadgeClass(status: 'pending' | 'approved' | 'declined') {
+  if (status === 'approved') return 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30';
+  if (status === 'declined') return 'bg-red-500/10 text-red-300 border border-red-500/30';
+  return 'bg-amber-500/10 text-amber-300 border border-amber-500/30';
+}
+
 const MONGODB_FREE_TIER_LIMIT_BYTES = 512 * 1024 * 1024; // 512 MB
 
 function Toast({ message, type }: { message: string; type: 'success' | 'error' }) {
@@ -1345,10 +1351,9 @@ export default function Dashboard() {
   const [manualWatermarkTitle, setManualWatermarkTitle] = useState('');
   const [addingManualWatermark, setAddingManualWatermark] = useState(false);
   const [copiedWatermarkScript, setCopiedWatermarkScript] = useState(false);
-  const WATERMARK_SCRIPT_URL = String(import.meta.env.VITE_WATERMARK_SCRIPT_URL || '').trim();
-  const watermarkEmbedSnippet = WATERMARK_SCRIPT_URL
-    ? `<!-- Powered by Deep watermark -->\n<script src="${WATERMARK_SCRIPT_URL}" defer></script>`
-    : '<!-- Missing VITE_WATERMARK_SCRIPT_URL. Configure it in environment before sharing script. -->';
+  const RAW_WATERMARK_SCRIPT_URL = String(import.meta.env.VITE_WATERMARK_SCRIPT_URL || '').trim();
+  const WATERMARK_SCRIPT_URL = RAW_WATERMARK_SCRIPT_URL || 'https://deepdey.vercel.app/assets/js/footer-extras.js';
+  const watermarkEmbedSnippet = `<!-- Powered by Deep watermark -->\n<script src="${WATERMARK_SCRIPT_URL}" defer></script>`;
 
   // ── Live Status state ───────────────────────────────────────────────────
   const [statusIsVisible, setStatusIsVisible] = useState(true);
@@ -2346,10 +2351,6 @@ export default function Dashboard() {
   };
 
   const handleCopyWatermarkScript = async () => {
-    if (!WATERMARK_SCRIPT_URL) {
-      showToast('VITE_WATERMARK_SCRIPT_URL is missing in environment.', 'error');
-      return;
-    }
     try {
       await navigator.clipboard.writeText(watermarkEmbedSnippet);
       setCopiedWatermarkScript(true);
@@ -2768,13 +2769,17 @@ export default function Dashboard() {
               <h3 className="text-white font-bold text-base">Official Watermark Script</h3>
               <button
                 onClick={handleCopyWatermarkScript}
-                disabled={!WATERMARK_SCRIPT_URL}
                 className={`${btnCls} bg-amber-500 text-black hover:bg-amber-400 inline-flex items-center gap-2`}
               >
                 <Clipboard size={14} />
                 {copiedWatermarkScript ? 'Copied' : 'Copy Script'}
               </button>
             </div>
+            {!RAW_WATERMARK_SCRIPT_URL && (
+              <p className="text-[11px] text-amber-500/80">
+                Using default hosted script URL. Set <code className="bg-black/50 px-1 rounded">VITE_WATERMARK_SCRIPT_URL</code> to override.
+              </p>
+            )}
             <pre className="text-[11px] text-zinc-300 bg-zinc-950/70 border border-zinc-800 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap break-all">
               {watermarkEmbedSnippet}
             </pre>
@@ -2845,9 +2850,12 @@ export default function Dashboard() {
                     <div className="min-w-0">
                       <p className="text-white text-sm font-bold truncate">{site.domain || site.url}</p>
                       <a href={site.url} target="_blank" rel="noopener noreferrer" className="text-zinc-500 text-xs truncate hover:text-amber-400 transition-colors block">{site.url}</a>
-                      <p className="text-zinc-600 text-[10px] font-mono mt-1">
-                        Status: <span className="uppercase">{site.status}</span> · Source: <span className="uppercase">{site.source || 'auto'}</span> · Hidden: <span className="uppercase">{site.hidden ? 'Yes' : 'No'}</span> · Hits: {site.hits || 0}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[10px] font-mono">
+                        <span className={`uppercase px-1.5 py-0.5 rounded ${getWatermarkStatusBadgeClass(site.status)}`}>{site.status}</span>
+                        <span className="text-zinc-600">Source: <span className="uppercase">{site.source || 'auto'}</span></span>
+                        <span className="text-zinc-600">Hidden: <span className="uppercase">{site.hidden ? 'Yes' : 'No'}</span></span>
+                        <span className="text-zinc-600">Hits: {site.hits || 0}</span>
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 shrink-0">
