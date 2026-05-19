@@ -96,7 +96,7 @@ async function takeScreenshot(url) {
     const buffer = await res.arrayBuffer();
     return `data:image/jpeg;base64,${Buffer.from(buffer).toString('base64')}`;
   }
-  throw new Error('Failed to capture screenshot. Please try again or check if the URL is accessible.');
+  throw new Error('Failed to capture screenshot after trying Google PageSpeed, Site-Shot, and Thum.io fallback.');
 }
 
 module.exports = async (req, res) => {

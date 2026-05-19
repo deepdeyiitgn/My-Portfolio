@@ -16,6 +16,8 @@ type WatermarkSite = {
   hits?: number;
 };
 
+const WATERMARK_SCRIPT_URL = import.meta.env.VITE_WATERMARK_SCRIPT_URL || 'https://deepdey.vercel.app/assets/js/footer-extras.js';
+
 export default function Projects() {
   const [watermarkSites, setWatermarkSites] = useState<WatermarkSite[]>([]);
   const [watermarkPage, setWatermarkPage] = useState(1);
@@ -23,7 +25,7 @@ export default function Projects() {
   const [loadingWatermarks, setLoadingWatermarks] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const watermarkEmbedSnippet = `<!-- Powered by Deep watermark -->\n<script src="https://deepdey.vercel.app/assets/js/footer-extras.js" defer></script>`;
+  const watermarkEmbedSnippet = `<!-- Powered by Deep watermark -->\n<script src="${WATERMARK_SCRIPT_URL}" defer></script>`;
 
   useEffect(() => {
     const fetchSites = async () => {

@@ -4,6 +4,7 @@
  */
 (function () {
   document.addEventListener("DOMContentLoaded", function () {
+    var WATERMARK_API_BASE = window.DEEP_WATERMARK_API_BASE || "https://deepdey.vercel.app";
 
     /* ===================================================
        1. UPTODOWN WIDGET STYLES
@@ -582,7 +583,7 @@
 
     // Track watermark usage for approved directory (CORS-enabled API)
     try {
-      fetch("https://deepdey.vercel.app/api/projects?action=watermark-track", {
+      fetch(WATERMARK_API_BASE + "/api/projects?action=watermark-track", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         mode: "cors",
