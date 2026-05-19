@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence, Variants } from 'motion/react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ChevronLeft, ChevronRight, Download, BookOpen, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
@@ -37,6 +37,15 @@ export default function Portfolio() {
   const [scale, setScale] = useState(1.0);
   const [pdfUrl, setPdfUrl] = useState(PRIMARY_PDF_URL);
   const [isError, setIsError] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(
+    typeof window !== 'undefined' ? window.innerWidth : 1200,
+  );
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', onResize, { passive: true });
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
@@ -64,6 +73,11 @@ export default function Portfolio() {
     setScale(prev => Math.min(Math.max(prev + delta, 0.5), 2.5));
   };
 
+  const pageRenderWidth = Math.min(
+    550,
+    Math.max(240, viewportWidth - (viewportWidth < 640 ? 44 : 64)),
+  );
+
   return (
     <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 flex flex-col items-center space-y-16">
       <SEO
@@ -89,23 +103,23 @@ export default function Portfolio() {
         <div className="absolute -inset-10 bg-amber-500/5 blur-[120px] rounded-full -z-10"></div>
         
         {/* Navigation Buttons - Floating */}
-        <div className="absolute inset-y-0 -left-4 md:-left-12 flex items-center z-20">
+        <div className="absolute inset-y-0 left-2 md:-left-12 flex items-center z-20">
           <button
             onClick={() => changePage(-1)}
             disabled={pageNumber <= 1}
-            className="p-4 bg-zinc-900/80 backdrop-blur-md border border-zinc-800 rounded-2xl text-zinc-400 hover:text-amber-500 disabled:opacity-0 transition-all hover:scale-110 active:scale-95 shadow-xl"
+            className="p-2.5 md:p-4 bg-zinc-900/80 backdrop-blur-md border border-zinc-800 rounded-2xl text-zinc-400 hover:text-amber-500 disabled:opacity-0 transition-all hover:scale-110 active:scale-95 shadow-xl"
           >
-            <ChevronLeft size={28} />
+            <ChevronLeft size={22} className="md:w-7 md:h-7" />
           </button>
         </div>
 
-        <div className="absolute inset-y-0 -right-4 md:-right-12 flex items-center z-20">
+        <div className="absolute inset-y-0 right-2 md:-right-12 flex items-center z-20">
           <button
             onClick={() => changePage(1)}
             disabled={!!numPages && pageNumber >= numPages}
-            className="p-4 bg-zinc-900/80 backdrop-blur-md border border-zinc-800 rounded-2xl text-zinc-400 hover:text-amber-500 disabled:opacity-0 transition-all hover:scale-110 active:scale-95 shadow-xl"
+            className="p-2.5 md:p-4 bg-zinc-900/80 backdrop-blur-md border border-zinc-800 rounded-2xl text-zinc-400 hover:text-amber-500 disabled:opacity-0 transition-all hover:scale-110 active:scale-95 shadow-xl"
           >
-            <ChevronRight size={28} />
+            <ChevronRight size={22} className="md:w-7 md:h-7" />
           </button>
         </div>
 
@@ -142,7 +156,7 @@ export default function Portfolio() {
                   <Page
                     pageNumber={pageNumber}
                     scale={scale}
-                    width={Math.min(window.innerWidth - 64, 550)}
+                    width={pageRenderWidth}
                     renderAnnotationLayer={false}
                     renderTextLayer={false}
                     className="max-w-full h-auto"
@@ -188,7 +202,7 @@ export default function Portfolio() {
         <a
           href={pdfUrl}
           download="Deep_Dey_Portfolio.pdf"
-          className="group relative px-12 py-6 bg-amber-500 text-black font-black text-xl rounded-3xl flex items-center gap-4 transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-amber-500/20"
+          className="group relative px-6 sm:px-12 py-4 sm:py-6 bg-amber-500 text-black font-black text-sm sm:text-xl rounded-3xl flex items-center justify-center gap-3 sm:gap-4 text-center transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-amber-500/20"
         >
           <div className="absolute -inset-1 bg-amber-400 rounded-3xl blur opacity-0 group-hover:opacity-40 transition-opacity"></div>
           <Download size={24} className="group-hover:-translate-y-1 transition-transform" />
