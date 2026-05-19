@@ -618,7 +618,14 @@
       }
 
       if (shouldSendHeartbeat && WATERMARK_SITE_TOKEN) {
-        var nonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+        var nonce = "";
+        if (window.crypto && window.crypto.getRandomValues) {
+          var nonceBytes = new Uint8Array(16);
+          window.crypto.getRandomValues(nonceBytes);
+          nonce = Array.from(nonceBytes).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+        } else {
+          nonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+        }
         var ts = Date.now();
         var signatureInput = [heartbeatHost, String(ts), nonce, WATERMARK_SITE_TOKEN].join("|");
         var sendHeartbeat = function (signatureHex) {
@@ -647,8 +654,13 @@
             if (navigator.sendBeacon) {
               try {
                 var blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
-                navigator.sendBeacon(WATERMARK_API_BASE + "/api/projects?action=watermark-heartbeat", blob);
-              } catch (e) {}
+                var beaconAccepted = navigator.sendBeacon(WATERMARK_API_BASE + "/api/projects?action=watermark-heartbeat", blob);
+                if (!beaconAccepted) {
+                  try { localStorage.setItem(WATERMARK_DEBUG_KEY, "heartbeat_beacon_rejected"); } catch (e) {}
+                }
+              } catch (e) {
+                try { localStorage.setItem(WATERMARK_DEBUG_KEY, "heartbeat_beacon_failed"); } catch (err2) {}
+              }
             }
           });
         };

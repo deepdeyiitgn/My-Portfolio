@@ -2967,7 +2967,7 @@ export default function Dashboard() {
                         <span className="text-zinc-600">Hidden: <span className="uppercase">{site.hidden ? 'Yes' : 'No'}</span></span>
                         <span className="text-zinc-600">Hits: {site.hits || 0}</span>
                         {site.lastSeenAt && <span className="text-zinc-600">Seen: {new Date(site.lastSeenAt).toLocaleDateString()}</span>}
-                        {site.nextAllowedHeartbeatAt && <span className="text-zinc-600">Next HB: {new Date(site.nextAllowedHeartbeatAt).toLocaleDateString()}</span>}
+                        {site.nextAllowedHeartbeatAt && <span className="text-zinc-600">Next Heartbeat: {new Date(site.nextAllowedHeartbeatAt).toLocaleDateString()}</span>}
                       </div>
                     </div>
                   </div>

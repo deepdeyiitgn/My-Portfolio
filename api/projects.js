@@ -403,7 +403,8 @@ module.exports = async (req, res) => {
       const site = await watermarkSitesCol.findOne({ domain });
       if (!site) return res.status(404).json({ ok: false, message: 'Site not found' });
       const challengeExpiresAt = site?.challengeExpiresAt ? new Date(site.challengeExpiresAt) : null;
-      if (!site.challengeTokenHash || !challengeExpiresAt || challengeExpiresAt.getTime() < Date.now()) {
+      const challengeExpiryMs = challengeExpiresAt ? challengeExpiresAt.getTime() : Number.NaN;
+      if (!site.challengeTokenHash || !Number.isFinite(challengeExpiryMs) || challengeExpiryMs < Date.now()) {
         return res.status(400).json({ ok: false, message: 'Challenge missing or expired, register again.' });
       }
       const challengeToken = String(site.challengeToken || '').trim();
