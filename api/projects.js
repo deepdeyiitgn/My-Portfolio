@@ -96,7 +96,7 @@ async function takeScreenshot(url) {
     const buffer = await res.arrayBuffer();
     return `data:image/jpeg;base64,${Buffer.from(buffer).toString('base64')}`;
   }
-  throw new Error('All screenshot layers failed. Please check if the URL is valid.');
+  throw new Error('Failed to capture screenshot. Please try again or check if the URL is accessible.');
 }
 
 module.exports = async (req, res) => {

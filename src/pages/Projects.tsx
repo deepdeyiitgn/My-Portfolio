@@ -164,7 +164,7 @@ export default function Projects() {
       <div className="border border-zinc-800 rounded-3xl p-6 md:p-8 bg-zinc-900/20 space-y-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h3 className="text-white font-bold text-xl">Top 10 Projects Maintained by Deep Dey</h3>
+            <h3 className="text-white font-bold text-xl">Top 10 Projects Using Deep Watermark</h3>
             <p className="text-zinc-500 text-sm">Websites using the Powered by Deep watermark (approved list only).</p>
           </div>
           <button
@@ -204,7 +204,7 @@ export default function Projects() {
                   <p className="text-zinc-200 text-sm font-semibold truncate">{site.domain || site.url}</p>
                   <p className="text-zinc-500 text-[11px] truncate">{site.title || site.url}</p>
                 </div>
-                <span className="ml-auto text-[10px] text-amber-500 font-mono uppercase tracking-wider">Maintained by Deep Dey</span>
+                <span className="ml-auto text-[10px] text-amber-500 font-mono uppercase tracking-wider">Uses Deep Watermark</span>
               </a>
             ))}
           </div>

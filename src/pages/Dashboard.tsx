@@ -2710,7 +2710,7 @@ export default function Dashboard() {
       {tab === 'watermarks' && (
         <div className="space-y-6">
           <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-4">
-            <h3 className="text-white font-bold text-base">Add Approved Site Manually</h3>
+            <h3 className="text-white font-bold text-base">Manually Add and Approve Site</h3>
             <div className="grid md:grid-cols-2 gap-3">
               <input
                 value={manualWatermarkUrl}
