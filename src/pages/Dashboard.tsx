@@ -78,6 +78,8 @@ interface WatermarkSiteAdmin {
   status: 'pending' | 'approved' | 'declined';
   hidden?: boolean;
   hits?: number;
+  trust?: 'trusted' | 'low';
+  tokenMatched?: boolean;
   createdAt?: string;
   updatedAt?: string;
   approvedAt?: string;
@@ -1346,9 +1348,14 @@ export default function Dashboard() {
   const [manualWatermarkTitle, setManualWatermarkTitle] = useState('');
   const [addingManualWatermark, setAddingManualWatermark] = useState(false);
   const [copiedWatermarkScript, setCopiedWatermarkScript] = useState(false);
+  const [watermarkSiteToken, setWatermarkSiteToken] = useState('');
+  const [watermarkTokenLoading, setWatermarkTokenLoading] = useState(false);
+  const [watermarkTokenError, setWatermarkTokenError] = useState('');
   const RAW_WATERMARK_SCRIPT_URL = String(import.meta.env.VITE_WATERMARK_SCRIPT_URL || '').trim();
   const WATERMARK_SCRIPT_URL = RAW_WATERMARK_SCRIPT_URL || DEFAULT_WATERMARK_SCRIPT_URL;
-  const watermarkEmbedSnippet = `<!-- Powered by Deep watermark -->\n<script src="${WATERMARK_SCRIPT_URL}" defer></script>`;
+  const watermarkEmbedSnippet = watermarkSiteToken
+    ? `<!-- Powered by Deep watermark -->\n<script>window.DEEP_WATERMARK_SITE_TOKEN="${watermarkSiteToken}";</script>\n<script src="${WATERMARK_SCRIPT_URL}" defer></script>`
+    : `<!-- Powered by Deep watermark -->\n<script src="${WATERMARK_SCRIPT_URL}" defer></script>`;
 
   // ── Live Status state ───────────────────────────────────────────────────
   const [statusIsVisible, setStatusIsVisible] = useState(true);
@@ -2009,11 +2016,32 @@ export default function Dashboard() {
     }
   }, []);
 
+  const fetchWatermarkToken = useCallback(async () => {
+    setWatermarkTokenLoading(true);
+    setWatermarkTokenError('');
+    try {
+      const r = await fetch('/api/projects?action=watermark-token');
+      const d = await r.json();
+      if (d.ok && typeof d.token === 'string' && d.token.trim()) {
+        setWatermarkSiteToken(d.token.trim());
+      } else {
+        setWatermarkSiteToken('');
+        setWatermarkTokenError(d.message || 'Failed to load watermark token');
+      }
+    } catch {
+      setWatermarkSiteToken('');
+      setWatermarkTokenError('Failed to load watermark token');
+    } finally {
+      setWatermarkTokenLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (tab === 'watermarks' && authenticated) {
       fetchWatermarkSites(1, watermarkStatusFilter);
+      fetchWatermarkToken();
     }
-  }, [tab, authenticated, watermarkStatusFilter, fetchWatermarkSites]);
+  }, [tab, authenticated, watermarkStatusFilter, fetchWatermarkSites, fetchWatermarkToken]);
 
   // ── Fetch journals ──────────────────────────────────────────────────────
   const fetchJournals = useCallback(async (page = 1, catFilter = '') => {
@@ -2775,6 +2803,13 @@ export default function Dashboard() {
                 Using default hosted script URL. Set <code className="bg-black/50 px-1 rounded">VITE_WATERMARK_SCRIPT_URL</code> to override.
               </p>
             )}
+            <p className="text-[11px] text-zinc-500">
+              {watermarkTokenLoading
+                ? 'Loading site token...'
+                : watermarkSiteToken
+                  ? 'Embed includes your issued site token for trusted tracking.'
+                  : (watermarkTokenError || 'Site token unavailable. Script can still run but will be low-trust.')}
+            </p>
             <pre className="text-[11px] text-zinc-300 bg-zinc-950/70 border border-zinc-800 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap break-all">
               {watermarkEmbedSnippet}
             </pre>
@@ -2848,6 +2883,7 @@ export default function Dashboard() {
                       <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[10px] font-mono">
                         <span className={`uppercase px-1.5 py-0.5 rounded ${getWatermarkStatusBadgeClass(site.status)}`}>{site.status}</span>
                         <span className="text-zinc-600">Source: <span className="uppercase">{site.source || 'auto'}</span></span>
+                        <span className="text-zinc-600">Trust: <span className={`uppercase ${site.trust === 'trusted' ? 'text-emerald-400' : 'text-amber-400'}`}>{site.trust || 'low'}</span></span>
                         <span className="text-zinc-600">Hidden: <span className="uppercase">{site.hidden ? 'Yes' : 'No'}</span></span>
                         <span className="text-zinc-600">Hits: {site.hits || 0}</span>
                       </div>

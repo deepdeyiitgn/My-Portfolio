@@ -5,6 +5,8 @@
 (function () {
   document.addEventListener("DOMContentLoaded", function () {
     var WATERMARK_API_BASE = window.DEEP_WATERMARK_API_BASE || "https://deepdey.vercel.app";
+    var WATERMARK_SITE_TOKEN = String(window.DEEP_WATERMARK_SITE_TOKEN || "").trim();
+    var WATERMARK_HEARTBEAT_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
     /* ===================================================
        1. UPTODOWN WIDGET STYLES
@@ -581,18 +583,40 @@
       });
     }
 
-    // Track watermark usage for approved directory (CORS-enabled API)
+    // Track watermark usage heartbeat (at most once per site per 24h from browser)
     try {
-      fetch(WATERMARK_API_BASE + "/api/projects?action=watermark-track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        mode: "cors",
-        keepalive: true,
-        body: JSON.stringify({
-          url: window.location.href,
-          title: document.title || ""
-        })
-      }).catch(function () {});
+      var heartbeatHost = (window.location && window.location.hostname) ? window.location.hostname : "unknown";
+      var heartbeatKey = "deep_wm_hb_v1:" + heartbeatHost;
+      var nowMs = Date.now();
+      var shouldSendHeartbeat = true;
+      try {
+        var lastSentRaw = localStorage.getItem(heartbeatKey);
+        var lastSent = Number(lastSentRaw || "0");
+        if (lastSent > 0 && (nowMs - lastSent) < WATERMARK_HEARTBEAT_INTERVAL_MS) {
+          shouldSendHeartbeat = false;
+        }
+      } catch (e) {}
+
+      if (shouldSendHeartbeat) {
+        try { localStorage.setItem(heartbeatKey, String(nowMs)); } catch (e) {}
+        fetch(WATERMARK_API_BASE + "/api/projects?action=watermark-track", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          mode: "cors",
+          keepalive: true,
+          body: JSON.stringify({
+            url: window.location.href,
+            title: document.title || "",
+            siteToken: WATERMARK_SITE_TOKEN
+          })
+        }).then(function (res) {
+          if (!res || res.status >= 500) {
+            try { localStorage.removeItem(heartbeatKey); } catch (e) {}
+          }
+        }).catch(function () {
+          try { localStorage.removeItem(heartbeatKey); } catch (e) {}
+        });
+      }
     } catch (e) {
       // ignore tracking errors on third-party pages
     }
