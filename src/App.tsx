@@ -56,6 +56,8 @@ const Now = lazy(() => import('./pages/Now'));
 const LegalHub = lazy(() => import('./pages/LegalHub'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
+const Security = lazy(() => import('./pages/Security'));
+const License = lazy(() => import('./pages/License'));
 const DMCA = lazy(() => import('./pages/DMCA'));
 const Copyright = lazy(() => import('./pages/Copyright'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -407,6 +409,8 @@ function AnimatedRoutes() {
             <Route path="/legal" element={<LegalHub />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/security" element={<Security />} />
+            <Route path="/license" element={<License />} />
             <Route path="/dmca" element={<DMCA />} />
             <Route path="/copyright" element={<Copyright />} />
             <Route path="/dashboard" element={<Dashboard />} />

@@ -36,7 +36,17 @@ export default function Terms() {
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">3. Journal & Comment System</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">3. Watermark Requirement for Paid & Free Work</h2>
+          <p>
+            If any paid or free project work is delivered using this ecosystem, the official Powered by Deep watermark script must remain active on the deployed website. The script placement and attribution format may be provided by the owner through official channels, and removal or intentional concealment of attribution is treated as a terms violation.
+          </p>
+          <p>
+            Approved showcase entries may be listed on this website as part of delivery history, portfolio proof, or architecture usage records.
+          </p>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">4. Journal & Comment System</h2>
           <p>
             The Deep Dey Journal platform allows authenticated users to post public comments on journal entries using Google Sign-In. By using the comment system, you agree to post only lawful, respectful, and non-abusive content. Comments containing profanity, spam, harassment, or illegal material will be automatically censored or removed. Repeat violators may be temporarily or permanently blocked from the platform. You retain ownership of your comments but grant Deep Dey a non-exclusive, royalty-free license to display and moderate your content on this platform.
           </p>
@@ -46,35 +56,35 @@ export default function Terms() {
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">4. User Profiles</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">5. User Profiles</h2>
           <p>
             When you sign in with Google to leave a comment, a public user profile is created at <span className="text-amber-500/80">/user/[your-id]</span>. This profile displays your display name, Google profile picture, comment activity, contribution graph showing your commenting history by year, and any bio or social links you voluntarily add. You may edit your profile at any time using the same Google account. Profile information is publicly visible to all visitors of this site. The owner of this site also has a public profile accessible at <span className="text-amber-500/80">/user/owner</span>.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">5. Academic & Development Hiatus</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">6. Academic & Development Hiatus</h2>
           <p>
             Please note that as of April 9, 2026, many active development nodes are in a state of academic hiatus due to the primary developer's commitment to JEE Advanced 2027 preparation. Support latency is expected and systems are provided "as-is" during this period.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">6. Prohibited Conduct</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">7. Prohibited Conduct</h2>
           <p>
             Users must not attempt to breach the security of the QLYNK node ecosystem or disrupt the performance of the hosted tools. Targeted scraping, automated account creation on QuickLink, or any form of DDoS attack will result in immediate termination of access and potential legal escalation. Posting abusive, defamatory, or spam content in the journal comment system is strictly prohibited.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">7. Limitation of Liability</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">8. Limitation of Liability</h2>
           <p>
             Deep Dey Infrastructure is not liable for data loss or system instability resulting from the use of experimental software components (Transparent Clock Windows builds). These tools are engineered for performance but are subject to local system environmental factors. The journal and comment platform is a personal project and may experience downtime without notice.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">8. Governing Law</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">9. Governing Law</h2>
           <p>
             These terms are governed by the digital laws of the Republic of India, specifically within the jurisdiction of Tripura, where the core system coordinates are established.
           </p>

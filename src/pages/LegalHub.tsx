@@ -19,6 +19,20 @@ const LEGAL_NODES = [
     path: '/privacy'
   },
   {
+    id: 'security',
+    title: 'Security Policy',
+    description: 'Security reporting process, hardening posture, and abuse prevention controls.',
+    icon: <Shield className="text-amber-500" />,
+    path: '/security'
+  },
+  {
+    id: 'license',
+    title: 'License Terms',
+    description: 'Watermark credit requirements, usage boundaries, and branding conditions.',
+    icon: <Copyright className="text-amber-500" />,
+    path: '/license'
+  },
+  {
     id: 'dmca',
     title: 'DMCA Takedown',
     description: 'Intellectual property protection and rights management.',

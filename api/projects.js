@@ -142,7 +142,7 @@ module.exports = async (req, res) => {
         { url: normalizedUrl },
         {
           $set: { url: normalizedUrl, domain, favicon, updatedAt: now, lastSeenAt: now, ...(title ? { title } : {}) },
-          $setOnInsert: { createdAt: now, source: 'auto', status: 'pending', hits: 0 },
+          $setOnInsert: { createdAt: now, source: 'auto', status: 'pending', hidden: false, hits: 0 },
           $inc: { hits: 1 },
         },
         { upsert: true },
@@ -165,13 +165,14 @@ module.exports = async (req, res) => {
             url: normalizedUrl,
             domain,
             favicon,
-            source: 'manual',
-            status: 'approved',
-            approvedAt: now,
-            updatedAt: now,
-            lastSeenAt: now,
-            title: String(req.body?.title || '').trim().slice(0, 140),
-          },
+              source: 'manual',
+              status: 'approved',
+              hidden: false,
+              approvedAt: now,
+              updatedAt: now,
+              lastSeenAt: now,
+              title: String(req.body?.title || '').trim().slice(0, 140),
+            },
           $setOnInsert: { createdAt: now, hits: 0 },
         },
         { upsert: true },
@@ -184,7 +185,9 @@ module.exports = async (req, res) => {
       const limit = Math.min(MAX_WATERMARK_PAGE_SIZE, Math.max(1, Number(req.query?.limit || MAX_WATERMARK_PAGE_SIZE)));
       const requestedStatus = String(req.query?.status || 'approved').trim().toLowerCase();
       const status = requestedStatus === 'all' ? 'all' : (VALID_WATERMARK_STATUSES.has(requestedStatus) ? requestedStatus : 'approved');
+      const visibleOnly = String(req.query?.visible || '').trim() === '1';
       const filter = status === 'all' ? {} : { status };
+      if (visibleOnly) filter.hidden = { $ne: true };
 
       const [total, sites] = await Promise.all([
         watermarkSitesCol.countDocuments(filter),
@@ -197,6 +200,7 @@ module.exports = async (req, res) => {
               title: 1,
               status: 1,
               source: 1,
+              hidden: 1,
               hits: 1,
               createdAt: 1,
               updatedAt: 1,
@@ -220,15 +224,25 @@ module.exports = async (req, res) => {
     if (req.method === 'PUT' && action === 'watermark-status') {
       const id = asObjectId(req.body?.id);
       const status = String(req.body?.status || '').trim().toLowerCase();
+      const title = String(req.body?.title || '').trim().slice(0, 140);
       if (!id) return res.status(400).json({ ok: false, message: 'Valid id required' });
       if (!VALID_WATERMARK_STATUSES.has(status)) return res.status(400).json({ ok: false, message: 'Invalid status' });
       const now = new Date();
       const update = {
         status,
         updatedAt: now,
-        ...(status === 'approved' ? { approvedAt: now } : {}),
+        ...(status === 'approved' ? { approvedAt: now, hidden: false } : {}),
+        ...(title ? { title } : {}),
       };
       await watermarkSitesCol.updateOne({ _id: id }, { $set: update });
+      return res.status(200).json({ ok: true });
+    }
+
+    if (req.method === 'PUT' && action === 'watermark-visibility') {
+      const id = asObjectId(req.body?.id);
+      if (!id) return res.status(400).json({ ok: false, message: 'Valid id required' });
+      const hidden = Boolean(req.body?.hidden);
+      await watermarkSitesCol.updateOne({ _id: id }, { $set: { hidden, updatedAt: new Date() } });
       return res.status(200).json({ ok: true });
     }
 

@@ -75,6 +75,7 @@ interface WatermarkSiteAdmin {
   title?: string;
   source?: 'auto' | 'manual';
   status: 'pending' | 'approved' | 'declined';
+  hidden?: boolean;
   hits?: number;
   createdAt?: string;
   updatedAt?: string;
@@ -1343,6 +1344,9 @@ export default function Dashboard() {
   const [manualWatermarkUrl, setManualWatermarkUrl] = useState('');
   const [manualWatermarkTitle, setManualWatermarkTitle] = useState('');
   const [addingManualWatermark, setAddingManualWatermark] = useState(false);
+  const [copiedWatermarkScript, setCopiedWatermarkScript] = useState(false);
+  const WATERMARK_SCRIPT_URL = import.meta.env.VITE_WATERMARK_SCRIPT_URL || 'https://deepdey.vercel.app/assets/js/footer-extras.js';
+  const watermarkEmbedSnippet = `<!-- Powered by Deep watermark -->\n<script src="${WATERMARK_SCRIPT_URL}" defer></script>`;
 
   // ── Live Status state ───────────────────────────────────────────────────
   const [statusIsVisible, setStatusIsVisible] = useState(true);
@@ -2246,12 +2250,12 @@ export default function Dashboard() {
     else showToast(d.message || 'Error', 'error');
   };
 
-  const handleWatermarkStatusUpdate = async (id: string, status: 'pending' | 'approved' | 'declined') => {
+  const handleWatermarkStatusUpdate = async (id: string, status: 'pending' | 'approved' | 'declined', title?: string) => {
     try {
       const r = await fetch('/api/projects?action=watermark-status', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status }),
+        body: JSON.stringify({ id, status, ...(title ? { title } : {}) }),
       });
       const d = await r.json();
       if (d.ok) {
@@ -2259,6 +2263,39 @@ export default function Dashboard() {
         fetchWatermarkSites(watermarkPage, watermarkStatusFilter);
       } else {
         showToast(d.message || 'Failed to update status', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    }
+  };
+
+  const handleApproveWatermark = (site: WatermarkSiteAdmin) => {
+    const rawTagline = window.prompt(
+      'Enter button tagline for this website (example: Developer, Portfolio, Client Work):',
+      site.title || site.domain || 'Developer',
+    );
+    if (rawTagline === null) return;
+    const tagline = rawTagline.trim();
+    if (!tagline) {
+      showToast('Tagline is required to approve this site.', 'error');
+      return;
+    }
+    handleWatermarkStatusUpdate(site._id, 'approved', tagline);
+  };
+
+  const handleWatermarkVisibilityToggle = async (site: WatermarkSiteAdmin) => {
+    try {
+      const r = await fetch('/api/projects?action=watermark-visibility', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: site._id, hidden: !site.hidden }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        showToast(site.hidden ? 'Site unhidden' : 'Site hidden');
+        fetchWatermarkSites(watermarkPage, watermarkStatusFilter);
+      } else {
+        showToast(d.message || 'Failed to update visibility', 'error');
       }
     } catch {
       showToast('Network error', 'error');
@@ -2303,6 +2340,17 @@ export default function Dashboard() {
       showToast('Network error', 'error');
     } finally {
       setAddingManualWatermark(false);
+    }
+  };
+
+  const handleCopyWatermarkScript = async () => {
+    try {
+      await navigator.clipboard.writeText(watermarkEmbedSnippet);
+      setCopiedWatermarkScript(true);
+      window.setTimeout(() => setCopiedWatermarkScript(false), 1600);
+    } catch {
+      setCopiedWatermarkScript(false);
+      showToast('Failed to copy watermark script', 'error');
     }
   };
 
@@ -2710,6 +2758,22 @@ export default function Dashboard() {
       {tab === 'watermarks' && (
         <div className="space-y-6">
           <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <h3 className="text-white font-bold text-base">Official Watermark Script</h3>
+              <button
+                onClick={handleCopyWatermarkScript}
+                className={`${btnCls} bg-amber-500 text-black hover:bg-amber-400 inline-flex items-center gap-2`}
+              >
+                <Clipboard size={14} />
+                {copiedWatermarkScript ? 'Copied' : 'Copy Script'}
+              </button>
+            </div>
+            <pre className="text-[11px] text-zinc-300 bg-zinc-950/70 border border-zinc-800 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap break-all">
+              {watermarkEmbedSnippet}
+            </pre>
+          </div>
+
+          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-4">
             <h3 className="text-white font-bold text-base">Manually Add and Approve Site</h3>
             <div className="grid md:grid-cols-2 gap-3">
               <input
@@ -2775,12 +2839,12 @@ export default function Dashboard() {
                       <p className="text-white text-sm font-bold truncate">{site.domain || site.url}</p>
                       <a href={site.url} target="_blank" rel="noopener noreferrer" className="text-zinc-500 text-xs truncate hover:text-amber-400 transition-colors block">{site.url}</a>
                       <p className="text-zinc-600 text-[10px] font-mono mt-1">
-                        Status: <span className="uppercase">{site.status}</span> · Source: <span className="uppercase">{site.source || 'auto'}</span> · Hits: {site.hits || 0}
+                        Status: <span className="uppercase">{site.status}</span> · Source: <span className="uppercase">{site.source || 'auto'}</span> · Hidden: <span className="uppercase">{site.hidden ? 'Yes' : 'No'}</span> · Hits: {site.hits || 0}
                       </p>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 shrink-0">
-                    <button onClick={() => handleWatermarkStatusUpdate(site._id, 'approved')} className={`${btnCls} bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20 text-xs px-3 py-1.5`}>
+                    <button onClick={() => handleApproveWatermark(site)} className={`${btnCls} bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20 text-xs px-3 py-1.5`}>
                       Approve
                     </button>
                     <button onClick={() => handleWatermarkStatusUpdate(site._id, 'declined')} className={`${btnCls} bg-orange-500/10 border border-orange-500/40 text-orange-300 hover:bg-orange-500/20 text-xs px-3 py-1.5`}>
@@ -2788,6 +2852,9 @@ export default function Dashboard() {
                     </button>
                     <button onClick={() => handleWatermarkStatusUpdate(site._id, 'pending')} className={`${btnCls} bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 text-xs px-3 py-1.5`}>
                       Pending
+                    </button>
+                    <button onClick={() => handleWatermarkVisibilityToggle(site)} className={`${btnCls} bg-indigo-500/10 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/20 text-xs px-3 py-1.5`}>
+                      {site.hidden ? 'Unhide' : 'Hide'}
                     </button>
                     <button onClick={() => handleWatermarkDelete(site._id)} className={`${btnCls} bg-red-900/20 border border-red-900/50 text-red-300 hover:bg-red-900/35 text-xs px-3 py-1.5 inline-flex items-center gap-1`}>
                       <Trash2 size={12} /> Delete

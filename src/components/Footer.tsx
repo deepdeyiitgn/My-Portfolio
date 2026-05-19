@@ -32,8 +32,9 @@ const COMPLIANCE_LINKS = [
   { name: 'Legal Hub', path: '/legal' },
   { name: 'Terms of Service', path: '/terms' },
   { name: 'Privacy Policy', path: '/privacy' },
+  { name: 'Security Policy', path: '/security' },
+  { name: 'License Terms', path: '/license' },
   { name: 'DMCA Policy', path: '/dmca' },
-  { name: 'License Documentation', path: '/copyright' },
 ];
 
 const SOCIAL_LINKS = [
