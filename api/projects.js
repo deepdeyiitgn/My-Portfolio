@@ -1,5 +1,5 @@
 const { MongoClient, ObjectId } = require('mongodb');
-const { randomBytes } = require('crypto');
+const { randomBytes, createHash, timingSafeEqual } = require('crypto');
 
 let cachedDb = null;
 async function connectToDatabase() {
@@ -24,13 +24,21 @@ const ROTATING_HEADERS = [
 const VALID_WATERMARK_STATUSES = new Set(['pending', 'approved', 'declined']);
 const MAX_WATERMARK_PAGE_SIZE = 10;
 const WATERMARK_TRACK_WINDOW_MS = 60 * 1000;
-const WATERMARK_TRACK_MAX_PER_WINDOW = 6;
-const WATERMARK_TRACK_MAX_PER_DOMAIN_WINDOW = 20;
+const WATERMARK_TRACK_MAX_PER_WINDOW = 4;
+const WATERMARK_TRACK_MAX_PER_DOMAIN_WINDOW = 12;
+const WATERMARK_HEARTBEAT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+const WATERMARK_SIGNATURE_WINDOW_MS = 10 * 60 * 1000;
+const WATERMARK_VERIFY_CHALLENGE_TTL_MS = 15 * 60 * 1000;
 const watermarkTrackRateState = new Map();
 const watermarkTrackDomainRateState = new Map();
+const watermarkReplayNonceState = new Map();
 
-function setCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+function setCors(res, req, action = '') {
+  const reqOrigin = String(req.headers?.origin || '').trim();
+  const isWatermarkPublicAction = action.startsWith('watermark-');
+  const allowOrigin = (isWatermarkPublicAction && reqOrigin) ? reqOrigin : '*';
+  res.setHeader('Access-Control-Allow-Origin', allowOrigin);
+  if (allowOrigin !== '*') res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Max-Age', '86400');
@@ -74,6 +82,137 @@ function resolveTrackingUrl(req, bodyUrl) {
   if (ref) return ref;
   const origin = normalizeUrl(req.headers?.origin || '');
   return origin;
+}
+
+function normalizeDomain(raw) {
+  const value = String(raw || '').trim().toLowerCase();
+  if (!value) return '';
+  try {
+    const url = value.includes('://') ? new URL(value) : new URL(`https://${value}`);
+    return String(url.hostname || '').toLowerCase();
+  } catch {
+    return value.replace(/^\.+|\.+$/g, '');
+  }
+}
+
+function extractDomainFromUrl(raw) {
+  const normalized = normalizeUrl(raw);
+  if (!normalized) return '';
+  try {
+    return new URL(normalized).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function resolveRequestDomain(req, bodyDomain, bodyUrl) {
+  const direct = normalizeDomain(bodyDomain);
+  if (direct) return direct;
+  const fromBodyUrl = extractDomainFromUrl(bodyUrl);
+  if (fromBodyUrl) return fromBodyUrl;
+  const fromReferer = extractDomainFromUrl(req.headers?.referer || '');
+  if (fromReferer) return fromReferer;
+  return normalizeDomain(req.headers?.origin || '');
+}
+
+function extractHeaderDomain(value) {
+  const normalized = normalizeUrl(value);
+  if (!normalized) return '';
+  try {
+    return new URL(normalized).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function isRequestDomainVerified(domain, req) {
+  const expected = normalizeDomain(domain);
+  if (!expected) return false;
+  const originDomain = extractHeaderDomain(req.headers?.origin || '');
+  const refererDomain = extractHeaderDomain(req.headers?.referer || '');
+  if (originDomain && originDomain !== expected) return false;
+  if (refererDomain && refererDomain !== expected) return false;
+  return Boolean(originDomain || refererDomain);
+}
+
+function sha256Hex(value) {
+  return createHash('sha256').update(String(value || ''), 'utf8').digest('hex');
+}
+
+function safeTokenEquals(a, b) {
+  const left = Buffer.from(String(a || ''), 'utf8');
+  const right = Buffer.from(String(b || ''), 'utf8');
+  if (left.length !== right.length || left.length === 0) return false;
+  try {
+    return timingSafeEqual(left, right);
+  } catch {
+    return false;
+  }
+}
+
+function buildSignature(domain, ts, nonce, siteToken) {
+  return sha256Hex([String(domain || '').toLowerCase(), String(ts || ''), String(nonce || ''), String(siteToken || '')].join('|'));
+}
+
+function isHeartbeatSignatureValid(domain, body) {
+  const sig = String(body?.sig || '').trim().toLowerCase();
+  const siteToken = String(body?.siteToken || '').trim();
+  const nonce = String(body?.nonce || '').trim();
+  const ts = Number(body?.ts || 0);
+  if (!sig || !siteToken || !nonce || !Number.isFinite(ts)) return false;
+  if (Math.abs(Date.now() - ts) > WATERMARK_SIGNATURE_WINDOW_MS) return false;
+  const expected = buildSignature(domain, ts, nonce, siteToken);
+  return safeTokenEquals(expected, sig);
+}
+
+function registerReplayNonce(domain, nonce, ts) {
+  const key = `${String(domain || '').toLowerCase()}|${String(nonce || '')}`;
+  if (!key || key.endsWith('|')) return false;
+  const now = Date.now();
+  for (const [storedKey, storedTs] of watermarkReplayNonceState.entries()) {
+    if ((now - storedTs) > WATERMARK_SIGNATURE_WINDOW_MS) watermarkReplayNonceState.delete(storedKey);
+  }
+  if (watermarkReplayNonceState.has(key)) return false;
+  watermarkReplayNonceState.set(key, Number(ts || now));
+  return true;
+}
+
+function generateWatermarkChallenge(domain) {
+  const token = randomBytes(24).toString('hex');
+  const challengePath = '/.well-known/deep-watermark-verification.txt';
+  return {
+    domain: normalizeDomain(domain),
+    token,
+    tokenHash: sha256Hex(token),
+    challengePath,
+    challengeContent: `deep-watermark-verification=${token}`,
+    challengeExpiresAt: new Date(Date.now() + WATERMARK_VERIFY_CHALLENGE_TTL_MS),
+  };
+}
+
+async function fetchText(url, timeoutMs = 5000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) return '';
+    return await res.text();
+  } catch {
+    return '';
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function verifyWatermarkDomainChallenge(domain, token, challengePath) {
+  const normalizedDomain = normalizeDomain(domain);
+  if (!normalizedDomain || !token) return false;
+  const path = String(challengePath || '/.well-known/deep-watermark-verification.txt');
+  const httpsText = await fetchText(`https://${normalizedDomain}${path}`);
+  const expectedLine = `deep-watermark-verification=${token}`;
+  if (httpsText.split('\n').map((line) => line.trim()).includes(expectedLine)) return true;
+  const httpText = await fetchText(`http://${normalizedDomain}${path}`);
+  return httpText.split('\n').map((line) => line.trim()).includes(expectedLine);
 }
 
 function sanitizeTitle(raw) {
@@ -173,7 +312,8 @@ async function takeScreenshot(url) {
 }
 
 module.exports = async (req, res) => {
-  setCors(res);
+  const action = String(req.query?.action || req.body?.action || '').trim();
+  setCors(res, req, action);
   if (req.method === 'OPTIONS') return res.status(200).json({ ok: true });
 
   try {
@@ -181,7 +321,6 @@ module.exports = async (req, res) => {
     const configCol = db.collection('config');
     const projectsCol = db.collection('projects');
     const watermarkSitesCol = db.collection('watermark_sites');
-    const action = String(req.query?.action || req.body?.action || '').trim();
 
     if (req.method === 'POST' && req.body?.action === 'screenshot') {
       const { url } = req.body;
@@ -194,47 +333,42 @@ module.exports = async (req, res) => {
       }
     }
 
-    if (req.method === 'POST' && action === 'watermark-track') {
+    if (req.method === 'POST' && action === 'watermark-register') {
       const normalizedUrl = resolveTrackingUrl(req, req.body?.url);
       if (!normalizedUrl) return res.status(400).json({ ok: false, message: 'Valid URL required' });
-
-      const domain = (() => {
-        try {
-          return new URL(normalizedUrl).hostname;
-        } catch {
-          return '';
-        }
-      })();
+      const domain = resolveRequestDomain(req, req.body?.domain, normalizedUrl);
       if (!domain) return res.status(400).json({ ok: false, message: 'Invalid hostname' });
       const ip = getClientIp(req);
-      if (isWatermarkTrackRateLimited(domain, ip)) {
-        return res.status(202).json({ ok: true, rateLimited: true });
+      if (isWatermarkTrackRateLimited(domain, ip)) return res.status(202).json({ ok: true, rateLimited: true });
+      const cookies = parseCookies(req.headers?.cookie);
+      const trustedDashboard = cookies.dd_auth === 'authenticated';
+      if (!trustedDashboard && !isRequestDomainVerified(domain, req)) {
+        return res.status(403).json({ ok: false, message: 'Origin or referer mismatch' });
       }
 
       const now = new Date();
-      const dayBucket = getDayBucket(now);
       const favicon = buildGoogleFaviconUrl(normalizedUrl || domain);
       const title = sanitizeTitle(req.body?.title);
-      const cookies = parseCookies(req.headers?.cookie);
-      const trustedDashboard = cookies.dd_auth === 'authenticated';
-      let expectedSiteToken = '';
-      if (!trustedDashboard) {
-        const cfg = await configCol.findOne(
-          { _id: 'site_config' },
-          { projection: { watermarkSiteToken: 1 } },
-        );
-        expectedSiteToken = String(cfg?.watermarkSiteToken || '').trim();
-      }
-      const providedSiteToken = String(req.body?.siteToken || '').trim();
-      const trustedByToken = Boolean(expectedSiteToken) && Boolean(providedSiteToken) && providedSiteToken === expectedSiteToken;
-      const trust = trustedDashboard || trustedByToken ? 'trusted' : 'low';
-      const tokenMatched = trustedDashboard || trustedByToken;
-      const trustSet = tokenMatched ? { trust, tokenMatched } : {};
+      const challenge = generateWatermarkChallenge(domain);
 
       await watermarkSitesCol.updateOne(
         { domain },
         {
-          $set: { url: normalizedUrl, domain, favicon, updatedAt: now, lastSeenAt: now, ...(title ? { title } : {}), ...trustSet },
+          $set: {
+            url: normalizedUrl,
+            domain,
+            favicon,
+            updatedAt: now,
+            lastSeenAt: now,
+            ...(title ? { title } : {}),
+            trust: 'low',
+            verificationState: 'pending',
+            challengeToken: challenge.token,
+            challengeTokenHash: challenge.tokenHash,
+            challengePath: challenge.challengePath,
+            challengeExpiresAt: challenge.challengeExpiresAt,
+            challengeIssuedAt: now,
+          },
           $setOnInsert: {
             createdAt: now,
             source: 'auto',
@@ -242,27 +376,199 @@ module.exports = async (req, res) => {
             hidden: false,
             hits: 0,
             heartbeatBuckets: [],
-            trust: tokenMatched ? 'trusted' : 'low',
-            tokenMatched,
+            tokenMatched: false,
           },
         },
         { upsert: true },
       );
-      if (!tokenMatched) {
-        await watermarkSitesCol.updateOne(
-          { domain, trust: { $exists: false } },
-          { $set: { trust: 'low', tokenMatched: false, updatedAt: now } },
-        );
+      return res.status(200).json({
+        ok: true,
+        domain,
+        verificationState: 'pending',
+        challenge: {
+          path: challenge.challengePath,
+          content: challenge.challengeContent,
+          expiresAt: challenge.challengeExpiresAt,
+        },
+      });
+    }
+
+    if (req.method === 'POST' && action === 'watermark-verify') {
+      const domain = resolveRequestDomain(req, req.body?.domain, req.body?.url);
+      if (!domain) return res.status(400).json({ ok: false, message: 'Domain required' });
+      const cookies = parseCookies(req.headers?.cookie);
+      if (cookies.dd_auth !== 'authenticated') {
+        return res.status(401).json({ ok: false, message: 'Unauthorized' });
       }
+      const site = await watermarkSitesCol.findOne({ domain });
+      if (!site) return res.status(404).json({ ok: false, message: 'Site not found' });
+      const challengeExpiresAt = site?.challengeExpiresAt ? new Date(site.challengeExpiresAt) : null;
+      const challengeExpiryMs = challengeExpiresAt ? challengeExpiresAt.getTime() : Number.NaN;
+      if (!site.challengeTokenHash || !Number.isFinite(challengeExpiryMs) || challengeExpiryMs < Date.now()) {
+        return res.status(400).json({ ok: false, message: 'Challenge missing or expired, register again.' });
+      }
+      const challengeToken = String(site.challengeToken || '').trim();
+      if (!challengeToken || (site.challengeTokenHash && !safeTokenEquals(sha256Hex(challengeToken), String(site.challengeTokenHash || '')))) {
+        return res.status(400).json({ ok: false, message: 'Challenge token mismatch' });
+      }
+      const challengeValid = await verifyWatermarkDomainChallenge(domain, challengeToken, site.challengePath);
+      if (!challengeValid) {
+        await watermarkSitesCol.updateOne(
+          { domain },
+          { $set: { verificationState: 'pending', trust: 'low', updatedAt: new Date() } },
+        );
+        return res.status(400).json({ ok: false, message: 'Challenge file not found on domain' });
+      }
+
+      const issuedToken = randomBytes(32).toString('hex');
+      const now = new Date();
       await watermarkSitesCol.updateOne(
-        { domain, lastHeartbeatBucket: { $ne: dayBucket } },
+        { domain },
         {
-          $push: { heartbeatBuckets: { $each: [dayBucket], $slice: -90 } },
-          $inc: { hits: 1 },
-          $set: { updatedAt: now, lastHeartbeatBucket: dayBucket },
+          $set: {
+            verificationState: 'verified',
+            trust: 'trusted',
+            tokenMatched: true,
+            status: site.status === 'declined' ? 'pending' : site.status,
+            siteToken: issuedToken,
+            siteTokenHash: sha256Hex(issuedToken),
+            verifiedAt: now,
+            updatedAt: now,
+            nextAllowedHeartbeatAt: now,
+          },
+          $unset: {
+            challengeTokenHash: '',
+            challengeToken: '',
+            challengePath: '',
+            challengeExpiresAt: '',
+            challengeIssuedAt: '',
+          },
         },
       );
-      return res.status(200).json({ ok: true });
+      return res.status(200).json({
+        ok: true,
+        domain,
+        verificationState: 'verified',
+        siteToken: issuedToken,
+        nextAllowedHeartbeatAt: now,
+      });
+    }
+
+    if (req.method === 'POST' && action === 'watermark-heartbeat') {
+      const normalizedUrl = resolveTrackingUrl(req, req.body?.url);
+      if (!normalizedUrl) return res.status(400).json({ ok: false, message: 'Valid URL required' });
+      const domain = resolveRequestDomain(req, req.body?.domain, normalizedUrl);
+      if (!domain) return res.status(400).json({ ok: false, message: 'Invalid hostname' });
+      const ip = getClientIp(req);
+      if (isWatermarkTrackRateLimited(domain, ip)) return res.status(202).json({ ok: true, rateLimited: true });
+      if (!isRequestDomainVerified(domain, req)) return res.status(403).json({ ok: false, message: 'Origin or referer mismatch' });
+      if (!isHeartbeatSignatureValid(domain, req.body || {})) {
+        return res.status(403).json({ ok: false, message: 'Invalid heartbeat signature' });
+      }
+      if (!registerReplayNonce(domain, req.body?.nonce, req.body?.ts)) {
+        return res.status(409).json({ ok: false, message: 'Replay detected' });
+      }
+
+      const site = await watermarkSitesCol.findOne({ domain });
+      if (!site || site.verificationState !== 'verified') {
+        return res.status(403).json({ ok: false, message: 'Domain not verified' });
+      }
+      const providedSiteToken = String(req.body?.siteToken || '').trim();
+      if (!site.siteTokenHash || !safeTokenEquals(sha256Hex(providedSiteToken), String(site.siteTokenHash || ''))) {
+        return res.status(403).json({ ok: false, message: 'Invalid site token' });
+      }
+      const now = new Date();
+      const nextAllowed = site.nextAllowedHeartbeatAt ? new Date(site.nextAllowedHeartbeatAt) : new Date(0);
+      if (nextAllowed.getTime() > now.getTime()) {
+        return res.status(202).json({ ok: true, skipped: true, nextAllowedHeartbeatAt: nextAllowed });
+      }
+
+      const dayBucket = getDayBucket(now);
+      const title = sanitizeTitle(req.body?.title);
+      await watermarkSitesCol.updateOne(
+        { domain },
+        {
+          $set: {
+            url: normalizedUrl,
+            domain,
+            favicon: buildGoogleFaviconUrl(normalizedUrl || domain),
+            ...(title ? { title } : {}),
+            updatedAt: now,
+            lastSeenAt: now,
+            lastHeartbeatAt: now,
+            nextAllowedHeartbeatAt: new Date(now.getTime() + WATERMARK_HEARTBEAT_INTERVAL_MS),
+          },
+          $inc: { hits: 1 },
+          $push: { heartbeatBuckets: { $each: [dayBucket], $slice: -90 } },
+        },
+      );
+      return res.status(200).json({ ok: true, domain, nextAllowedHeartbeatAt: new Date(now.getTime() + WATERMARK_HEARTBEAT_INTERVAL_MS) });
+    }
+
+    if (req.method === 'GET' && action === 'watermark-status') {
+      const domain = resolveRequestDomain(req, req.query?.domain, req.query?.url);
+      if (!domain) return res.status(400).json({ ok: false, message: 'Domain required' });
+      const site = await watermarkSitesCol.findOne(
+        { domain },
+        {
+          projection: {
+            domain: 1,
+            status: 1,
+            trust: 1,
+            verificationState: 1,
+            lastSeenAt: 1,
+            lastHeartbeatAt: 1,
+            nextAllowedHeartbeatAt: 1,
+            tokenMatched: 1,
+            siteToken: 1,
+          },
+        },
+      );
+      if (!site) return res.status(404).json({ ok: false, message: 'Site not found' });
+      const cookies = parseCookies(req.headers?.cookie);
+      const trustedDashboard = cookies.dd_auth === 'authenticated';
+      return res.status(200).json({
+        ok: true,
+        site: {
+          ...site,
+          ...(trustedDashboard ? { siteToken: site.siteToken || '' } : {}),
+        },
+      });
+    }
+
+    // Backward compatibility for old embeds: register domain and return migration hint.
+    if (req.method === 'POST' && action === 'watermark-track') {
+      const normalizedUrl = resolveTrackingUrl(req, req.body?.url);
+      if (!normalizedUrl) return res.status(400).json({ ok: false, message: 'Valid URL required' });
+      const domain = resolveRequestDomain(req, req.body?.domain, normalizedUrl);
+      if (!domain) return res.status(400).json({ ok: false, message: 'Invalid hostname' });
+      const now = new Date();
+      await watermarkSitesCol.updateOne(
+        { domain },
+        {
+          $set: {
+            url: normalizedUrl,
+            domain,
+            favicon: buildGoogleFaviconUrl(normalizedUrl || domain),
+            title: sanitizeTitle(req.body?.title),
+            updatedAt: now,
+            lastSeenAt: now,
+            trust: 'low',
+            verificationState: 'legacy',
+          },
+          $setOnInsert: {
+            createdAt: now,
+            source: 'auto',
+            status: 'pending',
+            hidden: false,
+            hits: 0,
+            heartbeatBuckets: [],
+            tokenMatched: false,
+          },
+        },
+        { upsert: true },
+      );
+      return res.status(200).json({ ok: true, migrationRequired: true, message: 'Use watermark-register and watermark-heartbeat actions.' });
     }
 
     if (req.method === 'POST' && action === 'watermark-manual-add') {
@@ -276,22 +582,24 @@ module.exports = async (req, res) => {
       await watermarkSitesCol.updateOne(
         { url: normalizedUrl },
         {
-          $set: {
-            url: normalizedUrl,
-            domain,
-            favicon,
-            source: 'manual',
+            $set: {
+              url: normalizedUrl,
+              domain,
+              favicon,
+              source: 'manual',
               status: 'approved',
               hidden: false,
               approvedAt: now,
               updatedAt: now,
               lastSeenAt: now,
               title: sanitizeTitle(req.body?.title),
+              trust: 'trusted',
+              verificationState: 'manual',
             },
-          $setOnInsert: { createdAt: now, hits: 0 },
-        },
-        { upsert: true },
-      );
+            $setOnInsert: { createdAt: now, hits: 0 },
+          },
+          { upsert: true },
+        );
       return res.status(200).json({ ok: true });
     }
 
@@ -319,9 +627,12 @@ module.exports = async (req, res) => {
               hits: 1,
               trust: 1,
               tokenMatched: 1,
+              verificationState: 1,
               createdAt: 1,
               updatedAt: 1,
               lastSeenAt: 1,
+              lastHeartbeatAt: 1,
+              nextAllowedHeartbeatAt: 1,
               approvedAt: 1,
             },
           })

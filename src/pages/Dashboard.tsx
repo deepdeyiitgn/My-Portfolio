@@ -80,9 +80,13 @@ interface WatermarkSiteAdmin {
   hits?: number;
   trust?: 'trusted' | 'low';
   tokenMatched?: boolean;
+  verificationState?: 'pending' | 'verified' | 'manual' | 'legacy';
   createdAt?: string;
   updatedAt?: string;
   approvedAt?: string;
+  lastSeenAt?: string;
+  lastHeartbeatAt?: string;
+  nextAllowedHeartbeatAt?: string;
 }
 
 // ── Storage types ─────────────────────────────────────────────────────────────
@@ -1348,14 +1352,19 @@ export default function Dashboard() {
   const [manualWatermarkTitle, setManualWatermarkTitle] = useState('');
   const [addingManualWatermark, setAddingManualWatermark] = useState(false);
   const [copiedWatermarkScript, setCopiedWatermarkScript] = useState(false);
-  const [watermarkSiteToken, setWatermarkSiteToken] = useState('');
-  const [watermarkTokenLoading, setWatermarkTokenLoading] = useState(false);
-  const [watermarkTokenError, setWatermarkTokenError] = useState('');
+  const [watermarkDomainInput, setWatermarkDomainInput] = useState('');
+  const [watermarkDomainToken, setWatermarkDomainToken] = useState('');
+  const [watermarkDomainVerification, setWatermarkDomainVerification] = useState('');
+  const [watermarkChallengePath, setWatermarkChallengePath] = useState('');
+  const [watermarkChallengeContent, setWatermarkChallengeContent] = useState('');
+  const [watermarkChallengeExpiry, setWatermarkChallengeExpiry] = useState('');
+  const [watermarkChallengeLoading, setWatermarkChallengeLoading] = useState(false);
+  const [watermarkVerifyLoading, setWatermarkVerifyLoading] = useState(false);
   const RAW_WATERMARK_SCRIPT_URL = String(import.meta.env.VITE_WATERMARK_SCRIPT_URL || '').trim();
   const WATERMARK_SCRIPT_URL = RAW_WATERMARK_SCRIPT_URL || DEFAULT_WATERMARK_SCRIPT_URL;
-  const watermarkEmbedSnippet = watermarkSiteToken
-    ? `<!-- Powered by Deep watermark -->\n<script>window.DEEP_WATERMARK_SITE_TOKEN="${watermarkSiteToken}";</script>\n<script src="${WATERMARK_SCRIPT_URL}" defer></script>`
-    : `<!-- Powered by Deep watermark -->\n<script src="${WATERMARK_SCRIPT_URL}" defer></script>`;
+  const watermarkEmbedSnippet = watermarkDomainToken
+    ? `<script>window.DEEP_WATERMARK_SITE_TOKEN="${watermarkDomainToken}";</script>\n<script src="${WATERMARK_SCRIPT_URL}" defer></script>`
+    : `<script src="${WATERMARK_SCRIPT_URL}" defer></script>`;
 
   // ── Live Status state ───────────────────────────────────────────────────
   const [statusIsVisible, setStatusIsVisible] = useState(true);
@@ -2016,32 +2025,11 @@ export default function Dashboard() {
     }
   }, []);
 
-  const fetchWatermarkToken = useCallback(async () => {
-    setWatermarkTokenLoading(true);
-    setWatermarkTokenError('');
-    try {
-      const r = await fetch('/api/projects?action=watermark-token');
-      const d = await r.json();
-      if (d.ok && typeof d.token === 'string' && d.token.trim()) {
-        setWatermarkSiteToken(d.token.trim());
-      } else {
-        setWatermarkSiteToken('');
-        setWatermarkTokenError(d.message || 'Failed to load watermark token');
-      }
-    } catch {
-      setWatermarkSiteToken('');
-      setWatermarkTokenError('Failed to load watermark token');
-    } finally {
-      setWatermarkTokenLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     if (tab === 'watermarks' && authenticated) {
       fetchWatermarkSites(1, watermarkStatusFilter);
-      fetchWatermarkToken();
     }
-  }, [tab, authenticated, watermarkStatusFilter, fetchWatermarkSites, fetchWatermarkToken]);
+  }, [tab, authenticated, watermarkStatusFilter, fetchWatermarkSites]);
 
   // ── Fetch journals ──────────────────────────────────────────────────────
   const fetchJournals = useCallback(async (page = 1, catFilter = '') => {
@@ -2381,6 +2369,69 @@ export default function Dashboard() {
     } catch {
       setCopiedWatermarkScript(false);
       showToast('Failed to copy watermark script', 'error');
+    }
+  };
+
+  const handleIssueWatermarkChallenge = async () => {
+    const domain = watermarkDomainInput.trim().toLowerCase();
+    if (!domain) {
+      showToast('Enter a domain first', 'error');
+      return;
+    }
+    setWatermarkChallengeLoading(true);
+    try {
+      const r = await fetch('/api/projects?action=watermark-register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain, url: `https://${domain}/` }),
+      });
+      const d = await r.json();
+      if (!d.ok) {
+        showToast(d.message || 'Failed to issue challenge', 'error');
+        return;
+      }
+      setWatermarkChallengePath(String(d?.challenge?.path || ''));
+      setWatermarkChallengeContent(String(d?.challenge?.content || ''));
+      setWatermarkChallengeExpiry(String(d?.challenge?.expiresAt || ''));
+      setWatermarkDomainVerification(String(d?.verificationState || 'pending'));
+      setWatermarkDomainToken('');
+      showToast('Verification challenge issued');
+    } catch {
+      showToast('Network error', 'error');
+    } finally {
+      setWatermarkChallengeLoading(false);
+    }
+  };
+
+  const handleVerifyWatermarkDomain = async () => {
+    const domain = watermarkDomainInput.trim().toLowerCase();
+    if (!domain) {
+      showToast('Enter a domain first', 'error');
+      return;
+    }
+    setWatermarkVerifyLoading(true);
+    try {
+      const r = await fetch('/api/projects?action=watermark-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain }),
+      });
+      const d = await r.json();
+      if (!d.ok) {
+        showToast(d.message || 'Verification failed', 'error');
+        return;
+      }
+      setWatermarkDomainVerification(String(d.verificationState || 'verified'));
+      setWatermarkDomainToken(String(d.siteToken || ''));
+      setWatermarkChallengePath('');
+      setWatermarkChallengeContent('');
+      setWatermarkChallengeExpiry('');
+      showToast('Domain verified and secure token issued');
+      fetchWatermarkSites(watermarkPage, watermarkStatusFilter);
+    } catch {
+      showToast('Network error', 'error');
+    } finally {
+      setWatermarkVerifyLoading(false);
     }
   };
 
@@ -2803,13 +2854,41 @@ export default function Dashboard() {
                 Using default hosted script URL. Set <code className="bg-black/50 px-1 rounded">VITE_WATERMARK_SCRIPT_URL</code> to override.
               </p>
             )}
+            <div className="grid md:grid-cols-[1fr_auto_auto] gap-2">
+              <input
+                value={watermarkDomainInput}
+                onChange={(e) => setWatermarkDomainInput(e.target.value)}
+                placeholder="example.com"
+                className={inputCls}
+              />
+              <button
+                onClick={handleIssueWatermarkChallenge}
+                disabled={watermarkChallengeLoading || !watermarkDomainInput.trim()}
+                className={`${btnCls} bg-zinc-800 text-zinc-200 hover:bg-zinc-700 disabled:opacity-50`}
+              >
+                {watermarkChallengeLoading ? 'Issuing...' : 'Issue Challenge'}
+              </button>
+              <button
+                onClick={handleVerifyWatermarkDomain}
+                disabled={watermarkVerifyLoading || !watermarkDomainInput.trim()}
+                className={`${btnCls} bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 disabled:opacity-50`}
+              >
+                {watermarkVerifyLoading ? 'Verifying...' : 'Verify Domain'}
+              </button>
+            </div>
             <p className="text-[11px] text-zinc-500">
-              {watermarkTokenLoading
-                ? 'Loading site token...'
-                : watermarkSiteToken
-                  ? 'Embed includes your issued site token for trusted tracking.'
-                  : (watermarkTokenError || 'Site token unavailable. Script can still run but will be low-trust.')}
+              Verification state: <span className="uppercase text-zinc-300">{watermarkDomainVerification || 'unknown'}</span>{' '}
+              {watermarkDomainToken ? '• secure domain token ready for snippet.' : '• run challenge + verify to issue domain token.'}
             </p>
+            {watermarkChallengePath && watermarkChallengeContent && (
+              <div className="text-[11px] text-zinc-400 bg-zinc-950/60 border border-zinc-800 rounded-xl p-3 space-y-1">
+                <p>Create this file on your domain:</p>
+                <p className="font-mono text-amber-400 break-all">{watermarkChallengePath}</p>
+                <p>With exact content:</p>
+                <p className="font-mono text-emerald-300 break-all">{watermarkChallengeContent}</p>
+                {watermarkChallengeExpiry && <p>Expires: {new Date(watermarkChallengeExpiry).toLocaleString()}</p>}
+              </div>
+            )}
             <pre className="text-[11px] text-zinc-300 bg-zinc-950/70 border border-zinc-800 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap break-all">
               {watermarkEmbedSnippet}
             </pre>
@@ -2884,8 +2963,11 @@ export default function Dashboard() {
                         <span className={`uppercase px-1.5 py-0.5 rounded ${getWatermarkStatusBadgeClass(site.status)}`}>{site.status}</span>
                         <span className="text-zinc-600">Source: <span className="uppercase">{site.source || 'auto'}</span></span>
                         <span className="text-zinc-600">Trust: <span className={`uppercase ${site.trust === 'trusted' ? 'text-emerald-400' : 'text-amber-400'}`}>{site.trust || 'low'}</span></span>
+                        <span className="text-zinc-600">Verify: <span className={`uppercase ${site.verificationState === 'verified' || site.verificationState === 'manual' ? 'text-emerald-400' : 'text-amber-400'}`}>{site.verificationState || 'pending'}</span></span>
                         <span className="text-zinc-600">Hidden: <span className="uppercase">{site.hidden ? 'Yes' : 'No'}</span></span>
                         <span className="text-zinc-600">Hits: {site.hits || 0}</span>
+                        {site.lastSeenAt && <span className="text-zinc-600">Seen: {new Date(site.lastSeenAt).toLocaleDateString()}</span>}
+                        {site.nextAllowedHeartbeatAt && <span className="text-zinc-600">Next Heartbeat: {new Date(site.nextAllowedHeartbeatAt).toLocaleDateString()}</span>}
                       </div>
                     </div>
                   </div>
