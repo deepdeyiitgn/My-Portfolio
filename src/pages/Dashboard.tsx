@@ -10,6 +10,7 @@ import {
 import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
 import { ICON_NAMES, renderIcon } from '../utils/iconMap';
+import { DEFAULT_WATERMARK_SCRIPT_URL, getWatermarkStatusBadgeClass } from '../utils/watermark';
 import { VerifiedTickIcon } from '../components/IdentityBadges';
 import FeedbackAdminPanel from '../components/FeedbackAdminPanel';
 import ReactQuill from 'react-quill-new';
@@ -204,12 +205,6 @@ function formatModerationUntil(entry?: { until?: string | null }) {
 function maskServiceKey(serviceKey?: string) {
   if (!serviceKey) return '****************';
   return '*'.repeat(serviceKey.length);
-}
-
-function getWatermarkStatusBadgeClass(status: 'pending' | 'approved' | 'declined') {
-  if (status === 'approved') return 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30';
-  if (status === 'declined') return 'bg-red-500/10 text-red-300 border border-red-500/30';
-  return 'bg-amber-500/10 text-amber-300 border border-amber-500/30';
 }
 
 const MONGODB_FREE_TIER_LIMIT_BYTES = 512 * 1024 * 1024; // 512 MB
@@ -1352,7 +1347,7 @@ export default function Dashboard() {
   const [addingManualWatermark, setAddingManualWatermark] = useState(false);
   const [copiedWatermarkScript, setCopiedWatermarkScript] = useState(false);
   const RAW_WATERMARK_SCRIPT_URL = String(import.meta.env.VITE_WATERMARK_SCRIPT_URL || '').trim();
-  const WATERMARK_SCRIPT_URL = RAW_WATERMARK_SCRIPT_URL || 'https://deepdey.vercel.app/assets/js/footer-extras.js';
+  const WATERMARK_SCRIPT_URL = RAW_WATERMARK_SCRIPT_URL || DEFAULT_WATERMARK_SCRIPT_URL;
   const watermarkEmbedSnippet = `<!-- Powered by Deep watermark -->\n<script src="${WATERMARK_SCRIPT_URL}" defer></script>`;
 
   // ── Live Status state ───────────────────────────────────────────────────

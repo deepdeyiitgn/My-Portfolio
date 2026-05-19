@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { projectsData } from '../data/projectsData';
 import { ExternalLink, ArrowRight, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { getWatermarkStatusBadgeClass } from '../utils/watermark';
 // import ProjectPlaceholder from '../components/ProjectPlaceholder';
 import SEO from '../components/SEO';
 
@@ -19,12 +20,6 @@ type WatermarkSite = {
 };
 
 const WATERMARKS_PER_PAGE = 10;
-
-const getStatusBadgeClass = (status?: WatermarkSite['status']) => {
-  if (status === 'approved') return 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30';
-  if (status === 'declined') return 'bg-red-500/10 text-red-300 border border-red-500/30';
-  return 'bg-amber-500/10 text-amber-300 border border-amber-500/30';
-};
 
 export default function Projects() {
   const [watermarkSites, setWatermarkSites] = useState<WatermarkSite[]>([]);
@@ -209,7 +204,7 @@ export default function Projects() {
                   <p title={site.url} className="text-zinc-400 text-[10px] md:text-xs font-mono truncate">
                     {shortenUrl(site.url)}
                   </p>
-                  <span className={`inline-flex uppercase px-1.5 py-0.5 rounded text-[9px] font-mono ${getStatusBadgeClass(site.status)}`}>
+                  <span className={`inline-flex uppercase px-1.5 py-0.5 rounded text-[9px] font-mono ${getWatermarkStatusBadgeClass(site.status)}`}>
                     {site.status || 'pending'}
                   </span>
                 </div>
