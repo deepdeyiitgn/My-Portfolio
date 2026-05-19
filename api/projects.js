@@ -23,10 +23,11 @@ const ROTATING_HEADERS = [
 
 const VALID_WATERMARK_STATUSES = new Set(['pending', 'approved', 'declined']);
 const MAX_WATERMARK_PAGE_SIZE = 10;
-const WATERMARK_HEARTBEAT_BUCKETS_LIMIT = 45;
 const WATERMARK_TRACK_WINDOW_MS = 60 * 1000;
 const WATERMARK_TRACK_MAX_PER_WINDOW = 6;
+const WATERMARK_TRACK_MAX_PER_DOMAIN_WINDOW = 20;
 const watermarkTrackRateState = new Map();
+const watermarkTrackDomainRateState = new Map();
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -96,8 +97,17 @@ function getClientIp(req) {
 }
 
 function isWatermarkTrackRateLimited(domain, ip, nowMs = Date.now()) {
-  const key = `${String(domain || '').toLowerCase()}|${ip}`;
-  if (!key || key.startsWith('|')) return false;
+  const normalizedDomain = String(domain || '').toLowerCase().trim();
+  if (!normalizedDomain) return true;
+  const domainState = watermarkTrackDomainRateState.get(normalizedDomain);
+  if (!domainState || nowMs - domainState.windowStart >= WATERMARK_TRACK_WINDOW_MS) {
+    watermarkTrackDomainRateState.set(normalizedDomain, { count: 1, windowStart: nowMs });
+  } else {
+    domainState.count += 1;
+    if (domainState.count > WATERMARK_TRACK_MAX_PER_DOMAIN_WINDOW) return true;
+  }
+  const key = `${normalizedDomain}|${ip}`;
+  if (key.startsWith('|')) return true;
   const existing = watermarkTrackRateState.get(key);
   if (!existing || nowMs - existing.windowStart >= WATERMARK_TRACK_WINDOW_MS) {
     watermarkTrackRateState.set(key, { count: 1, windowStart: nowMs });
@@ -105,11 +115,6 @@ function isWatermarkTrackRateLimited(domain, ip, nowMs = Date.now()) {
   }
   existing.count += 1;
   return existing.count > WATERMARK_TRACK_MAX_PER_WINDOW;
-}
-
-function trimWatermarkBuckets(buckets, max = WATERMARK_HEARTBEAT_BUCKETS_LIMIT) {
-  if (!Array.isArray(buckets) || buckets.length <= max) return Array.isArray(buckets) ? buckets : [];
-  return buckets.slice(-max);
 }
 
 function buildGoogleFaviconUrl(value) {
@@ -224,42 +229,39 @@ module.exports = async (req, res) => {
       const trustedByToken = Boolean(expectedSiteToken) && Boolean(providedSiteToken) && providedSiteToken === expectedSiteToken;
       const trust = trustedDashboard || trustedByToken ? 'trusted' : 'low';
       const tokenMatched = trustedDashboard || trustedByToken;
+      const trustSet = tokenMatched ? { trust, tokenMatched } : {};
 
       await watermarkSitesCol.updateOne(
         { domain },
         {
-          $set: { url: normalizedUrl, domain, favicon, updatedAt: now, ...(title ? { title } : {}), trust, tokenMatched },
+          $set: { url: normalizedUrl, domain, favicon, updatedAt: now, lastSeenAt: now, ...(title ? { title } : {}), ...trustSet },
           $setOnInsert: {
             createdAt: now,
             source: 'auto',
             status: 'pending',
             hidden: false,
             hits: 0,
-            lastSeenAt: now,
             heartbeatBuckets: [],
+            trust: tokenMatched ? 'trusted' : 'low',
+            tokenMatched,
           },
         },
         { upsert: true },
       );
-      await watermarkSitesCol.updateOne(
-        { domain, heartbeatBuckets: { $ne: dayBucket } },
-        {
-          $addToSet: { heartbeatBuckets: dayBucket },
-          $inc: { hits: 1 },
-          $set: { lastSeenAt: now, updatedAt: now },
-        },
-      );
-      const updated = await watermarkSitesCol.findOne(
-        { domain },
-        { projection: { heartbeatBuckets: 1 } },
-      );
-      const trimmedBuckets = trimWatermarkBuckets(updated?.heartbeatBuckets);
-      if (trimmedBuckets.length !== (updated?.heartbeatBuckets || []).length) {
+      if (!tokenMatched) {
         await watermarkSitesCol.updateOne(
-          { domain },
-          { $set: { heartbeatBuckets: trimmedBuckets, updatedAt: now } },
+          { domain, trust: { $exists: false } },
+          { $set: { trust: 'low', tokenMatched: false, updatedAt: now } },
         );
       }
+      await watermarkSitesCol.updateOne(
+        { domain, lastHeartbeatBucket: { $ne: dayBucket } },
+        {
+          $push: { heartbeatBuckets: { $each: [dayBucket], $slice: -90 } },
+          $inc: { hits: 1 },
+          $set: { updatedAt: now, lastHeartbeatBucket: dayBucket },
+        },
+      );
       return res.status(200).json({ ok: true });
     }
 

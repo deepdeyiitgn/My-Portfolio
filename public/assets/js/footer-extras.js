@@ -585,13 +585,13 @@
 
     // Track watermark usage heartbeat (at most once per site per 24h from browser)
     try {
-      var heartbeatHost = (window.location && window.location.hostname) ? window.location.hostname : "unknown";
+      var heartbeatHost = window.location.hostname || "unknown";
       var heartbeatKey = "deep_wm_hb_v1:" + heartbeatHost;
       var nowMs = Date.now();
       var shouldSendHeartbeat = true;
       try {
         var lastSentRaw = localStorage.getItem(heartbeatKey);
-        var lastSent = Number(lastSentRaw || "0");
+        var lastSent = parseInt(lastSentRaw || "0", 10) || 0;
         if (lastSent > 0 && (nowMs - lastSent) < WATERMARK_HEARTBEAT_INTERVAL_MS) {
           shouldSendHeartbeat = false;
         }
@@ -609,13 +609,7 @@
             title: document.title || "",
             siteToken: WATERMARK_SITE_TOKEN
           })
-        }).then(function (res) {
-          if (!res || res.status >= 500) {
-            try { localStorage.removeItem(heartbeatKey); } catch (e) {}
-          }
-        }).catch(function () {
-          try { localStorage.removeItem(heartbeatKey); } catch (e) {}
-        });
+        }).catch(function () {});
       }
     } catch (e) {
       // ignore tracking errors on third-party pages
