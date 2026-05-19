@@ -67,6 +67,22 @@ function sanitizeTitle(raw) {
     .slice(0, 140);
 }
 
+function buildGoogleFaviconUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return 'https://www.google.com/s2/favicons?sz=64';
+  let domainUrl = raw;
+  try {
+    domainUrl = new URL(raw).origin;
+  } catch {
+    try {
+      domainUrl = new URL(`https://${raw}`).origin;
+    } catch {
+      domainUrl = raw;
+    }
+  }
+  return `https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(domainUrl)}`;
+}
+
 async function takeScreenshot(url) {
   const googleKey = process.env.GOOGLE_PAGESPEED_API_KEY;
   const siteShotKey = process.env.SITESHOT_API_KEY;
@@ -142,7 +158,7 @@ module.exports = async (req, res) => {
       if (!domain) return res.status(400).json({ ok: false, message: 'Invalid hostname' });
 
       const now = new Date();
-      const favicon = `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(domain)}`;
+      const favicon = buildGoogleFaviconUrl(normalizedUrl || domain);
       const title = sanitizeTitle(req.body?.title);
 
       await watermarkSitesCol.updateOne(
@@ -163,7 +179,7 @@ module.exports = async (req, res) => {
       const parsed = new URL(normalizedUrl);
       const now = new Date();
       const domain = parsed.hostname;
-      const favicon = `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(domain)}`;
+      const favicon = buildGoogleFaviconUrl(normalizedUrl || domain);
 
       await watermarkSitesCol.updateOne(
         { url: normalizedUrl },

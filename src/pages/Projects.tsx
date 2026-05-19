@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { projectsData } from '../data/projectsData';
 import { ExternalLink, ArrowRight, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { getGoogleFaviconUrl, getWatermarkStatusBadgeClass } from '../utils/watermark';
 // import ProjectPlaceholder from '../components/ProjectPlaceholder';
 import SEO from '../components/SEO';
 
@@ -12,10 +13,13 @@ type WatermarkSite = {
   domain: string;
   favicon?: string;
   title?: string;
+  status?: 'pending' | 'approved' | 'declined';
   source?: string;
   hits?: number;
   hidden?: boolean;
 };
+
+const WATERMARKS_PER_PAGE = 10;
 
 export default function Projects() {
   const [watermarkSites, setWatermarkSites] = useState<WatermarkSite[]>([]);
@@ -28,7 +32,7 @@ export default function Projects() {
     const fetchSites = async () => {
       setLoadingWatermarks(true);
       try {
-        const r = await fetch(`/api/projects?action=watermark-sites&status=approved&visible=1&page=${watermarkPage}&limit=10`);
+        const r = await fetch(`/api/projects?action=watermark-sites&status=approved&visible=1&page=${watermarkPage}&limit=${WATERMARKS_PER_PAGE}`);
         const d = await r.json();
         if (d?.ok) {
           setWatermarkSites(Array.isArray(d.sites) ? d.sites : []);
@@ -169,7 +173,7 @@ export default function Projects() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h3 className="text-white font-bold text-xl">Top 10 Projects Using Deep Watermark</h3>
-            <p className="text-zinc-500 text-sm">Websites using the Powered by Deep watermark (approved list only).</p>
+            <p className="text-zinc-500 text-sm">Websites using the Powered by Deep watermark (approved list only · 10 per page).</p>
           </div>
         </div>
 
@@ -185,7 +189,7 @@ export default function Projects() {
                 className="grid grid-cols-[auto_minmax(0,1fr)] md:grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3"
               >
                 <img
-                  src={site.favicon || `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(site.domain || '')}`}
+                  src={getGoogleFaviconUrl(site.url || site.domain, 64)}
                   alt={site.domain}
                   className="w-6 h-6 rounded"
                   loading="lazy"
@@ -196,9 +200,14 @@ export default function Projects() {
                 >
                   {site.title || site.domain || 'Open Site'}
                 </button>
-                <p title={site.url} className="min-w-0 text-zinc-400 text-[10px] md:text-xs font-mono truncate">
-                  {shortenUrl(site.url)}
-                </p>
+                <div className="min-w-0 space-y-1">
+                  <p title={site.url} className="text-zinc-400 text-[10px] md:text-xs font-mono truncate">
+                    {shortenUrl(site.url)}
+                  </p>
+                  <span className={`inline-flex uppercase px-1.5 py-0.5 rounded text-[9px] font-mono ${getWatermarkStatusBadgeClass(site.status)}`}>
+                    {site.status || 'pending'}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
