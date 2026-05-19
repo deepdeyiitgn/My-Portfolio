@@ -1,4 +1,5 @@
 const { MongoClient, ObjectId } = require('mongodb');
+const { randomBytes } = require('crypto');
 
 let cachedDb = null;
 async function connectToDatabase() {
@@ -22,6 +23,11 @@ const ROTATING_HEADERS = [
 
 const VALID_WATERMARK_STATUSES = new Set(['pending', 'approved', 'declined']);
 const MAX_WATERMARK_PAGE_SIZE = 10;
+const WATERMARK_TRACK_WINDOW_MS = 60 * 1000;
+const WATERMARK_TRACK_MAX_PER_WINDOW = 6;
+const WATERMARK_TRACK_MAX_PER_DOMAIN_WINDOW = 20;
+const watermarkTrackRateState = new Map();
+const watermarkTrackDomainRateState = new Map();
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -33,6 +39,16 @@ function setCors(res) {
 function asObjectId(value) {
   if (!value || typeof value !== 'string' || !ObjectId.isValid(value)) return null;
   return new ObjectId(value);
+}
+
+function parseCookies(cookieHeader) {
+  const cookies = {};
+  if (!cookieHeader) return cookies;
+  cookieHeader.split(';').forEach((part) => {
+    const [k, ...v] = part.trim().split('=');
+    if (k) cookies[k.trim()] = decodeURIComponent(v.join('='));
+  });
+  return cookies;
 }
 
 function normalizeUrl(raw) {
@@ -65,6 +81,40 @@ function sanitizeTitle(raw) {
     .replace(/[<>]/g, '')
     .trim()
     .slice(0, 140);
+}
+
+function getDayBucket(date = new Date()) {
+  return date.toISOString().slice(0, 10);
+}
+
+function getClientIp(req) {
+  return (
+    req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+    req.headers['x-real-ip'] ||
+    req.socket?.remoteAddress ||
+    'unknown'
+  );
+}
+
+function isWatermarkTrackRateLimited(domain, ip, nowMs = Date.now()) {
+  const normalizedDomain = String(domain || '').toLowerCase().trim();
+  if (!normalizedDomain) return true;
+  const domainState = watermarkTrackDomainRateState.get(normalizedDomain);
+  if (!domainState || nowMs - domainState.windowStart >= WATERMARK_TRACK_WINDOW_MS) {
+    watermarkTrackDomainRateState.set(normalizedDomain, { count: 1, windowStart: nowMs });
+  } else {
+    domainState.count += 1;
+    if (domainState.count > WATERMARK_TRACK_MAX_PER_DOMAIN_WINDOW) return true;
+  }
+  const key = `${normalizedDomain}|${ip}`;
+  if (key.startsWith('|')) return true;
+  const existing = watermarkTrackRateState.get(key);
+  if (!existing || nowMs - existing.windowStart >= WATERMARK_TRACK_WINDOW_MS) {
+    watermarkTrackRateState.set(key, { count: 1, windowStart: nowMs });
+    return false;
+  }
+  existing.count += 1;
+  return existing.count > WATERMARK_TRACK_MAX_PER_WINDOW;
 }
 
 function buildGoogleFaviconUrl(value) {
@@ -156,19 +206,61 @@ module.exports = async (req, res) => {
         }
       })();
       if (!domain) return res.status(400).json({ ok: false, message: 'Invalid hostname' });
+      const ip = getClientIp(req);
+      if (isWatermarkTrackRateLimited(domain, ip)) {
+        return res.status(202).json({ ok: true, rateLimited: true });
+      }
 
       const now = new Date();
+      const dayBucket = getDayBucket(now);
       const favicon = buildGoogleFaviconUrl(normalizedUrl || domain);
       const title = sanitizeTitle(req.body?.title);
+      const cookies = parseCookies(req.headers?.cookie);
+      const trustedDashboard = cookies.dd_auth === 'authenticated';
+      let expectedSiteToken = '';
+      if (!trustedDashboard) {
+        const cfg = await configCol.findOne(
+          { _id: 'site_config' },
+          { projection: { watermarkSiteToken: 1 } },
+        );
+        expectedSiteToken = String(cfg?.watermarkSiteToken || '').trim();
+      }
+      const providedSiteToken = String(req.body?.siteToken || '').trim();
+      const trustedByToken = Boolean(expectedSiteToken) && Boolean(providedSiteToken) && providedSiteToken === expectedSiteToken;
+      const trust = trustedDashboard || trustedByToken ? 'trusted' : 'low';
+      const tokenMatched = trustedDashboard || trustedByToken;
+      const trustSet = tokenMatched ? { trust, tokenMatched } : {};
 
       await watermarkSitesCol.updateOne(
-        { url: normalizedUrl },
+        { domain },
         {
-          $set: { url: normalizedUrl, domain, favicon, updatedAt: now, lastSeenAt: now, ...(title ? { title } : {}) },
-          $setOnInsert: { createdAt: now, source: 'auto', status: 'pending', hidden: false, hits: 0 },
-          $inc: { hits: 1 },
+          $set: { url: normalizedUrl, domain, favicon, updatedAt: now, lastSeenAt: now, ...(title ? { title } : {}), ...trustSet },
+          $setOnInsert: {
+            createdAt: now,
+            source: 'auto',
+            status: 'pending',
+            hidden: false,
+            hits: 0,
+            heartbeatBuckets: [],
+            trust: tokenMatched ? 'trusted' : 'low',
+            tokenMatched,
+          },
         },
         { upsert: true },
+      );
+      if (!tokenMatched) {
+        await watermarkSitesCol.updateOne(
+          { domain, trust: { $exists: false } },
+          { $set: { trust: 'low', tokenMatched: false, updatedAt: now } },
+        );
+      }
+      await watermarkSitesCol.updateOne(
+        { domain, lastHeartbeatBucket: { $ne: dayBucket } },
+        {
+          $push: { heartbeatBuckets: { $each: [dayBucket], $slice: -90 } },
+          $inc: { hits: 1 },
+          $set: { updatedAt: now, lastHeartbeatBucket: dayBucket },
+        },
       );
       return res.status(200).json({ ok: true });
     }
@@ -225,6 +317,8 @@ module.exports = async (req, res) => {
               source: 1,
               hidden: 1,
               hits: 1,
+              trust: 1,
+              tokenMatched: 1,
               createdAt: 1,
               updatedAt: 1,
               lastSeenAt: 1,
@@ -242,6 +336,27 @@ module.exports = async (req, res) => {
         sites,
         pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
       });
+    }
+
+    if (req.method === 'GET' && action === 'watermark-token') {
+      const cookies = parseCookies(req.headers?.cookie);
+      if (cookies.dd_auth !== 'authenticated') {
+        return res.status(401).json({ ok: false, message: 'Unauthorized' });
+      }
+      const existing = await configCol.findOne(
+        { _id: 'site_config' },
+        { projection: { watermarkSiteToken: 1 } },
+      );
+      let token = String(existing?.watermarkSiteToken || '').trim();
+      if (!token) {
+        token = randomBytes(24).toString('hex');
+        await configCol.updateOne(
+          { _id: 'site_config' },
+          { $set: { watermarkSiteToken: token, updatedAt: new Date() } },
+          { upsert: true },
+        );
+      }
+      return res.status(200).json({ ok: true, token });
     }
 
     if (req.method === 'PUT' && action === 'watermark-status') {
