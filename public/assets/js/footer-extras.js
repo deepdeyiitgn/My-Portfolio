@@ -4,6 +4,7 @@
  */
 (function () {
   document.addEventListener("DOMContentLoaded", function () {
+    var WATERMARK_API_BASE = window.DEEP_WATERMARK_API_BASE || "https://deepdey.vercel.app";
 
     /* ===================================================
        1. UPTODOWN WIDGET STYLES
@@ -79,7 +80,7 @@
       #ql-container{
         width:100%;
         text-align:center;
-        padding:18px 0;
+        padding:10px 0;
         font-family:'Inter',system-ui,-apple-system,sans-serif;
       }
       .ql-watermark{
@@ -93,7 +94,7 @@
         transition:.25s ease;
       }
       .ql-watermark:hover{opacity:1}
-      .ql-watermark img{height:24px}
+      .ql-watermark img{height:18px}
       .ql-text{
         display:flex;
         flex-direction:column;
@@ -101,12 +102,12 @@
         line-height:1.15;
       }
       .ql-title{
-        font-size:15px;
+        font-size:13px;
         font-weight:600;
         color:#333;
       }
       .ql-sub{
-        font-size:12px;
+        font-size:10px;
         color:#777;
       }
       .tm{
@@ -133,9 +134,9 @@
       #ql-modal{
         background:#ffffff;
         width:90%;
-        max-width:480px;
+        max-width:420px;
         border-radius:24px;
-        padding:38px 30px 30px;
+        padding:28px 20px 20px;
         text-align:center;
         position:relative;
         transform:scale(.9);
@@ -160,23 +161,23 @@
       .ql-header img{height:48px;margin-bottom:14px}
       .ql-header h2{
         margin:0;
-        font-size:22px;
+        font-size:18px;
         font-weight:700;
         color:#111;
       }
       .ql-header p{
-        font-size:14px;
+        font-size:12px;
         color:#666;
         margin-top:6px;
       }
       .ql-body p{
-        font-size:14px;
+        font-size:12px;
         color:#444;
         line-height:1.7;
-        margin:14px 0;
+        margin:10px 0;
       }
       .ql-founder{
-        font-size:14px;
+        font-size:12px;
         color:#222;
         margin-top:10px;
       }
@@ -190,11 +191,11 @@
         display:flex;
         align-items:center;
         justify-content:center;
-        gap:10px;
-        padding:16px 0;
+        gap:8px;
+        padding:11px 0;
         border:none;
         border-radius:16px;
-        font-size:15px;
+        font-size:12px;
         font-weight:600;
         cursor:pointer;
         color:#fff;
@@ -220,7 +221,7 @@
         width: 100%;
         display: flex;
         justify-content: center;
-        padding: 15px 10px;
+        padding: 8px 8px;
         cursor: pointer;
       }
       .deep-footer-branding {
@@ -233,8 +234,8 @@
         transform: scale(1.03);
       }
       .deep-footer-icon {
-        width: 34px;
-        height: 34px;
+        width: 30px;
+        height: 30px;
         border-radius: 10px;
         background: linear-gradient(135deg, #111, #333);
         display: flex;
@@ -243,8 +244,8 @@
         box-shadow: 0 4px 10px rgba(0,0,0,0.15);
       }
       .deep-footer-icon svg {
-        width: 18px;
-        height: 18px;
+        width: 15px;
+        height: 15px;
         fill: #fff;
       }
       .deep-footer-text {
@@ -253,13 +254,13 @@
         line-height: 1.2;
       }
       .deep-footer-title {
-        font-size: 15px;
+        font-size: 13px;
         font-weight: 600;
         color: #222;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       }
       .deep-footer-tagline {
-        font-size: 12px;
+        font-size: 10px;
         color: #777;
         margin-top: 2px;
         white-space: nowrap;
@@ -287,10 +288,10 @@
       }
       .deep-modal-content {
         background: white;
-        padding: 35px 25px;
+        padding: 24px 16px;
         border-radius: 20px;
         width: 100%;
-        max-width: 380px;
+        max-width: 340px;
         text-align: center;
         position: relative;
         box-shadow: 0 20px 40px rgba(0,0,0,0.4);
@@ -304,8 +305,8 @@
         opacity: 1;
       }
       .deep-profile-img {
-        width: 90px;
-        height: 90px;
+        width: 70px;
+        height: 70px;
         border-radius: 50%;
         object-fit: cover;
         border: 3px solid #fff;
@@ -316,26 +317,26 @@
         position: absolute;
         top: 15px;
         right: 20px;
-        font-size: 28px;
+        font-size: 22px;
         font-weight: bold;
         cursor: pointer;
         color: #aaa;
       }
       .deep-close-btn:hover { color: #000; }
       .deep-title {
-        font-size: 22px;
+        font-size: 18px;
         font-weight: 800;
         margin-bottom: 10px;
         color: #222;
       }
       .deep-subtitle {
-        font-size: 14px;
+        font-size: 12px;
         color: #555;
-        margin-bottom: 25px;
+        margin-bottom: 16px;
         line-height: 1.6;
       }
       .deep-highlight {
-        color: #d63384;
+        color: #f59e0b;
         font-weight: bold;
       }
       .deep-btn-container {
@@ -350,13 +351,13 @@
         align-items: center;
         justify-content: center;
         color: white !important;
-        padding: 10px 20px;
+        padding: 8px 14px;
         border-radius: 50px;
-        font-size: 13px;
+        font-size: 11px;
         font-weight: 600;
         box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         transition: transform 0.2s, box-shadow 0.2s;
-        min-width: 110px;
+        min-width: 100px;
         cursor: pointer;
       }
       .deep-cta-button:hover {
@@ -384,20 +385,10 @@
           leftDiv.appendChild(container.firstChild);
         }
 
-        // Create right div with Uptodown widget
+        // Create right div (Transparent Clock widget removed)
         var rightDiv = document.createElement("div");
         rightDiv.className = "footer-right";
-        rightDiv.innerHTML = '<div class="uptodown-item">'
-          + '<figure onclick="location.href=\'https://transparent-clock.en.uptodown.com/windows\';">'
-          + '<img width="100" height="100" alt="Transparent Clock icon" loading="lazy" class="app_card_img" '
-          + 'src="https://img.utdstc.com/icon/60a/7b6/60a7b6356f368e1c6408d9b1dd783bea44d625184e3022a95d6d83b60e2c75dd" '
-          + 'srcset="https://img.utdstc.com/icon/60a/7b6/60a7b6356f368e1c6408d9b1dd783bea44d625184e3022a95d6d83b60e2c75dd:100 1x, '
-          + 'https://img.utdstc.com/icon/60a/7b6/60a7b6356f368e1c6408d9b1dd783bea44d625184e3022a95d6d83b60e2c75dd:200 2x, '
-          + 'https://img.utdstc.com/icon/60a/7b6/60a7b6356f368e1c6408d9b1dd783bea44d625184e3022a95d6d83b60e2c75dd:300 3x">'
-          + '</figure>'
-          + '<div class="utd-name"><a href="https://transparent-clock.en.uptodown.com/windows" title="Download Transparent Clock">Transparent Clock</a></div>'
-          + '<div class="utd-desc">A clean always-on-top transparent clock &amp; focus utilities for Windows</div>'
-          + '</div>';
+        rightDiv.innerHTML = '';
 
         // Create wrapper
         var wrapper = document.createElement("div");
@@ -488,18 +479,18 @@
       + '    <img src="https://qlynk.me/wiki-images/Deep_Dey_New.png" alt="Deep Dey" class="deep-profile-img">'
       + '    <div class="deep-title">Hello, I\'m Deep!</div>'
       + '    <p class="deep-subtitle">'
-      + '      I\'m a <strong>Class 11 Student</strong> and a self-taught '
-      + '      <strong>AI &amp; Prompt Engineer</strong> (3+ Years). \uD83E\uDD16'
+      + '      I\'m a <strong>Class 12 Student</strong> and a self-taught '
+      + '      <strong>Software Architect &amp; AI Engineer</strong> (3+ Years). \uD83E\uDD16'
       + '      <br><br>'
-      + '      I created <span class="deep-highlight">Transparent Clock</span> — '
-      + '      a minimal, privacy-first clock overlay &amp; focus companion for students. \u23F0'
-      + '      <br><i>Source-Available • Zero Data Collection • Always-On-Top</i>'
+      + '      I architect <span class="deep-highlight">high-performance digital systems</span> — '
+      + '      from AI-powered tools to full-stack platforms with clean execution. \u26A1'
+      + '      <br><i>Open-Source • Performance-First • System Thinking</i>'
       + '    </p>'
       + '    <p style="font-size: 11px; color: #999; margin-top: 18px; border-top: 1px solid #eee; padding-top: 12px;">'
-      + '      &copy; ' + new Date().getFullYear() + ' Deep Dey | All Rights Reserved | QuickLink &times; Transparent Clock'
+      + '      &copy; ' + new Date().getFullYear() + ' Deep Dey | All Rights Reserved | QuickLink &amp; Deep Dey Portfolio'
       + '    </p>'
       + '    <div class="deep-btn-container">'
-      + '      <div onclick="openDeepLink(\'wiki\')" class="deep-cta-button deep-btn-wiki">More Info</div>'
+      + '      <div onclick="openDeepLink(\'portfolio\')" class="deep-cta-button deep-btn-wiki">My Portfolio</div>'
       + '      <div onclick="openDeepLink(\'insta\')" class="deep-cta-button deep-btn-insta">Instagram</div>'
       + '    </div>'
       + '    <div class="deep-btn-container">'
@@ -513,13 +504,16 @@
     var copyrightBar = document.createElement("div");
     copyrightBar.id = "deep-copyright-bar";
     copyrightBar.style.cssText = "text-align:center; padding:18px 10px; font-size:12px; color:#888; background:#111; border-top:1px solid #222; letter-spacing:0.3px;";
-    copyrightBar.innerHTML = '&copy; ' + new Date().getFullYear() + ' Deep Dey | All Rights Reserved | QuickLink &times; Transparent Clock';
+    copyrightBar.innerHTML = '&copy; ' + new Date().getFullYear() + ' Deep Dey | All Rights Reserved | QuickLink &amp; Deep Dey Portfolio';
 
-    // Insert watermarks + copyright after footer
-    if (footer) {
-      footer.parentNode.insertBefore(watermarkDiv, footer.nextSibling);
-      footer.parentNode.insertBefore(deepWatermarkDiv, watermarkDiv.nextSibling);
-      footer.parentNode.insertBefore(copyrightBar, deepWatermarkDiv.nextSibling);
+    // Insert watermarks globally at the very end of <body> so it works on any website
+    watermarkDiv.style.cssText = "width:100%; display:flex; justify-content:center; background:#0b0b0d; border-top:1px solid rgba(245,158,11,.12);";
+    deepWatermarkDiv.style.cssText = "width:100%; display:flex; justify-content:center; background:#0b0b0d;";
+    copyrightBar.style.cssText = "text-align:center; width:100%; padding:10px 8px; font-size:10px; color:#888; background:#0b0b0d; border-top:1px solid rgba(255,255,255,.08); letter-spacing:0.3px;";
+    if (document.body) {
+      document.body.appendChild(watermarkDiv);
+      document.body.appendChild(deepWatermarkDiv);
+      document.body.appendChild(copyrightBar);
     }
 
     /* ===================================================
@@ -555,7 +549,7 @@
 
     // Deep watermark
     var deepLinks = {
-      wiki: "https://qlynk.vercel.app/wiki",
+      portfolio: "https://deepdey.vercel.app/",
       insta: "https://www.instagram.com/deepdey.official",
       github: "https://github.com/deepdeyiitgn",
       discord: "https://discord.com/invite/t6ZKNw556n"
@@ -585,6 +579,22 @@
           deepOverlay.classList.remove("active");
         }
       });
+    }
+
+    // Track watermark usage for approved directory (CORS-enabled API)
+    try {
+      fetch(WATERMARK_API_BASE + "/api/projects?action=watermark-track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        mode: "cors",
+        keepalive: true,
+        body: JSON.stringify({
+          url: window.location.href,
+          title: document.title || ""
+        })
+      }).catch(function () {});
+    } catch (e) {
+      // ignore tracking errors on third-party pages
     }
 
     /* ===================================================

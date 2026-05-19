@@ -85,7 +85,17 @@ export default function Privacy() {
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">10. Policy Changes</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">10. Watermark Tracking Metadata</h2>
+          <p>
+            For websites that use the official Powered by Deep watermark script, we may process the submitted page URL, domain, favicon, optional tagline/title, status labels (pending/approved/declined), and visibility state (shown/hidden). This is used to verify attribution, prevent abuse, and manage showcase listings.
+          </p>
+          <p>
+            Hidden entries are retained for moderation/audit purposes but may be excluded from public project listings.
+          </p>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">11. Policy Changes</h2>
           <p>
             This policy can be updated as features evolve. Material changes will be published on this page with an updated effective date.
           </p>

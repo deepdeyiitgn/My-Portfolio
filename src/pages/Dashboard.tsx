@@ -5,7 +5,7 @@ import {
   Lock, LogIn, Eye, EyeOff, Plus, Trash2, Edit3, Send, X,
   ChevronLeft, ChevronRight, LogOut, Tag, BookOpen, Settings,
   ToggleLeft, ToggleRight, Clock, Loader2, AlertCircle, CheckCircle2, Upload, ImagePlus, Clipboard, Layers, Activity, History, HardDrive,
-  Users, MessageSquare, ShieldBan, AlertOctagon, User, RefreshCw
+  Users, MessageSquare, ShieldBan, AlertOctagon, User, RefreshCw, Link2
 } from 'lucide-react';
 import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
@@ -43,8 +43,9 @@ interface Journal {
   images?: string[];
 }
 
-type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'status' | 'storage' | 'users' | 'feedback';
+type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'watermarks' | 'status' | 'storage' | 'users' | 'feedback';
 type StatusMonitorMode = 'live' | 'stop' | 'maintenance' | 'hiatus';
+type WatermarkStatusFilter = 'all' | 'pending' | 'approved' | 'declined';
 
 // ── Projects types ────────────────────────────────────────────────────────────
 export interface ProjectDB {
@@ -64,6 +65,21 @@ export interface ProjectDB {
   metrics: Array<{ label: string; value: string }>;
   architectureLayers: string[];
   screenshotUrl?: string;
+}
+
+interface WatermarkSiteAdmin {
+  _id: string;
+  url: string;
+  domain: string;
+  favicon?: string;
+  title?: string;
+  source?: 'auto' | 'manual';
+  status: 'pending' | 'approved' | 'declined';
+  hidden?: boolean;
+  hits?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  approvedAt?: string;
 }
 
 // ── Storage types ─────────────────────────────────────────────────────────────
@@ -1318,8 +1334,21 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<ProjectDB[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [savingProjectMode, setSavingProjectMode] = useState(false);
-const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | 'edit'>('none');
+  const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | 'edit'>('none');
   const [editingProject, setEditingProject] = useState<ProjectDB | null>(null);
+  const [watermarkSites, setWatermarkSites] = useState<WatermarkSiteAdmin[]>([]);
+  const [watermarkLoading, setWatermarkLoading] = useState(false);
+  const [watermarkPage, setWatermarkPage] = useState(1);
+  const [watermarkTotalPages, setWatermarkTotalPages] = useState(1);
+  const [watermarkStatusFilter, setWatermarkStatusFilter] = useState<WatermarkStatusFilter>('all');
+  const [manualWatermarkUrl, setManualWatermarkUrl] = useState('');
+  const [manualWatermarkTitle, setManualWatermarkTitle] = useState('');
+  const [addingManualWatermark, setAddingManualWatermark] = useState(false);
+  const [copiedWatermarkScript, setCopiedWatermarkScript] = useState(false);
+  const WATERMARK_SCRIPT_URL = String(import.meta.env.VITE_WATERMARK_SCRIPT_URL || '').trim();
+  const watermarkEmbedSnippet = WATERMARK_SCRIPT_URL
+    ? `<!-- Powered by Deep watermark -->\n<script src="${WATERMARK_SCRIPT_URL}" defer></script>`
+    : '<!-- Missing VITE_WATERMARK_SCRIPT_URL. Configure it in environment before sharing script. -->';
 
   // ── Live Status state ───────────────────────────────────────────────────
   const [statusIsVisible, setStatusIsVisible] = useState(true);
@@ -1963,6 +1992,29 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
     finally { setLoadingProjects(false); }
   }, []);
 
+  const fetchWatermarkSites = useCallback(async (page = 1, status: WatermarkStatusFilter = 'all') => {
+    setWatermarkLoading(true);
+    try {
+      const r = await fetch(`/api/projects?action=watermark-sites&status=${encodeURIComponent(status)}&page=${page}&limit=10`);
+      const d = await r.json();
+      if (d.ok) {
+        setWatermarkSites(Array.isArray(d.sites) ? d.sites : []);
+        setWatermarkPage(Number(d?.pagination?.page || page));
+        setWatermarkTotalPages(Math.max(1, Number(d?.pagination?.totalPages || 1)));
+      }
+    } catch {
+      setWatermarkSites([]);
+    } finally {
+      setWatermarkLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'watermarks' && authenticated) {
+      fetchWatermarkSites(1, watermarkStatusFilter);
+    }
+  }, [tab, authenticated, watermarkStatusFilter, fetchWatermarkSites]);
+
   // ── Fetch journals ──────────────────────────────────────────────────────
   const fetchJournals = useCallback(async (page = 1, catFilter = '') => {
     setLoadingJournals(true);
@@ -2200,6 +2252,114 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
     else showToast(d.message || 'Error', 'error');
   };
 
+  const handleWatermarkStatusUpdate = async (id: string, status: 'pending' | 'approved' | 'declined', title?: string) => {
+    try {
+      const r = await fetch('/api/projects?action=watermark-status', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status, ...(title ? { title } : {}) }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        showToast(`Watermark site marked ${status}`);
+        fetchWatermarkSites(watermarkPage, watermarkStatusFilter);
+      } else {
+        showToast(d.message || 'Failed to update status', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    }
+  };
+
+  const handleApproveWatermark = (site: WatermarkSiteAdmin) => {
+    const rawTagline = window.prompt(
+      'Enter button tagline for this website (example: Developer, Portfolio, Client Work):',
+      site.title || site.domain || 'Developer',
+    );
+    if (rawTagline === null) return;
+    const tagline = rawTagline.trim();
+    if (!tagline) {
+      showToast('Tagline is required to approve this site.', 'error');
+      return;
+    }
+    handleWatermarkStatusUpdate(site._id, 'approved', tagline);
+  };
+
+  const handleWatermarkVisibilityToggle = async (site: WatermarkSiteAdmin) => {
+    try {
+      const r = await fetch('/api/projects?action=watermark-visibility', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: site._id, hidden: !site.hidden }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        showToast(site.hidden ? 'Site unhidden' : 'Site hidden');
+        fetchWatermarkSites(watermarkPage, watermarkStatusFilter);
+      } else {
+        showToast(d.message || 'Failed to update visibility', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    }
+  };
+
+  const handleWatermarkDelete = async (id: string) => {
+    if (!confirm('Delete this watermark site record?')) return;
+    try {
+      const r = await fetch(`/api/projects?action=watermark-site&id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const d = await r.json();
+      if (d.ok) {
+        showToast('Watermark site deleted');
+        fetchWatermarkSites(watermarkPage, watermarkStatusFilter);
+      } else {
+        showToast(d.message || 'Failed to delete', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    }
+  };
+
+  const handleManualWatermarkAdd = async () => {
+    if (!manualWatermarkUrl.trim()) return;
+    setAddingManualWatermark(true);
+    try {
+      const r = await fetch('/api/projects?action=watermark-manual-add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: manualWatermarkUrl.trim(), title: manualWatermarkTitle.trim() }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        setManualWatermarkUrl('');
+        setManualWatermarkTitle('');
+        showToast('Manual watermark site added');
+        fetchWatermarkSites(1, watermarkStatusFilter);
+      } else {
+        showToast(d.message || 'Failed to add site', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    } finally {
+      setAddingManualWatermark(false);
+    }
+  };
+
+  const handleCopyWatermarkScript = async () => {
+    if (!WATERMARK_SCRIPT_URL) {
+      showToast('VITE_WATERMARK_SCRIPT_URL is missing in environment.', 'error');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(watermarkEmbedSnippet);
+      setCopiedWatermarkScript(true);
+      window.setTimeout(() => setCopiedWatermarkScript(false), 1600);
+    } catch {
+      setCopiedWatermarkScript(false);
+      showToast('Failed to copy watermark script', 'error');
+    }
+  };
+
   // ── Loading state ───────────────────────────────────────────────────────
   if (authenticated === null) {
     return (
@@ -2342,6 +2502,7 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
         {([
           { id: 'journals', label: 'Journals', icon: <BookOpen size={14} /> },
           { id: 'projects', label: 'Projects', icon: <Layers size={14} /> },    // <-- YE NAYA TAB HAI
+          { id: 'watermarks', label: 'Watermarks', icon: <Link2 size={14} /> },
           { id: 'status', label: 'Live Status', icon: <Activity size={14} /> },     // <-- YE NAYA TAB HAI v2
           { id: 'feedback', label: 'Feedback', icon: <MessageSquare size={14} /> },
           { id: 'categories', label: 'Categories', icon: <Tag size={14} /> },
@@ -2594,6 +2755,128 @@ const [projectEditorMode, setProjectEditorMode] = useState<'none' | 'create' | '
           {projectMode === 'default' && (
             <div className="bg-zinc-900/20 border border-zinc-800 rounded-2xl p-6 text-center">
               <p className="text-zinc-500 text-sm">Showing default projects from <code className="text-amber-500/70 bg-black/50 px-1 rounded">src/data/projectsData.ts</code>.<br/> Switch to Custom to edit and add screenshots dynamically.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Watermarks Tab ───────────────────────────────────────────────── */}
+      {tab === 'watermarks' && (
+        <div className="space-y-6">
+          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <h3 className="text-white font-bold text-base">Official Watermark Script</h3>
+              <button
+                onClick={handleCopyWatermarkScript}
+                disabled={!WATERMARK_SCRIPT_URL}
+                className={`${btnCls} bg-amber-500 text-black hover:bg-amber-400 inline-flex items-center gap-2`}
+              >
+                <Clipboard size={14} />
+                {copiedWatermarkScript ? 'Copied' : 'Copy Script'}
+              </button>
+            </div>
+            <pre className="text-[11px] text-zinc-300 bg-zinc-950/70 border border-zinc-800 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap break-all">
+              {watermarkEmbedSnippet}
+            </pre>
+          </div>
+
+          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-4">
+            <h3 className="text-white font-bold text-base">Manually Add and Approve Site</h3>
+            <div className="grid md:grid-cols-2 gap-3">
+              <input
+                value={manualWatermarkUrl}
+                onChange={(e) => setManualWatermarkUrl(e.target.value)}
+                placeholder="https://example.com/page"
+                className={inputCls}
+              />
+              <input
+                value={manualWatermarkTitle}
+                onChange={(e) => setManualWatermarkTitle(e.target.value)}
+                placeholder="Optional title"
+                className={inputCls}
+              />
+            </div>
+            <button
+              onClick={handleManualWatermarkAdd}
+              disabled={addingManualWatermark || !manualWatermarkUrl.trim()}
+              className={`${btnCls} bg-amber-500 text-black hover:bg-amber-400 inline-flex items-center gap-2 disabled:opacity-50`}
+            >
+              {addingManualWatermark ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+              Add & Approve
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={watermarkStatusFilter}
+              onChange={(e) => { setWatermarkStatusFilter(e.target.value as WatermarkStatusFilter); setWatermarkPage(1); }}
+              className="bg-zinc-900 border border-zinc-800 text-zinc-300 text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+            >
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="declined">Declined</option>
+            </select>
+            <button
+              onClick={() => fetchWatermarkSites(watermarkPage, watermarkStatusFilter)}
+              className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700`}
+            >
+              Refresh
+            </button>
+          </div>
+
+          {watermarkLoading ? (
+            <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-amber-500" /></div>
+          ) : watermarkSites.length === 0 ? (
+            <div className="text-center py-12 text-zinc-600 bg-zinc-900/20 border border-zinc-800 rounded-2xl">
+              <Link2 size={30} className="mx-auto mb-3 opacity-40" />
+              <p className="text-sm">No watermark sites found for this filter.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {watermarkSites.map((site) => (
+                <div key={site._id} className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-4">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <img
+                      src={site.favicon || `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(site.domain || '')}`}
+                      alt={site.domain}
+                      className="w-7 h-7 rounded border border-zinc-700"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-white text-sm font-bold truncate">{site.domain || site.url}</p>
+                      <a href={site.url} target="_blank" rel="noopener noreferrer" className="text-zinc-500 text-xs truncate hover:text-amber-400 transition-colors block">{site.url}</a>
+                      <p className="text-zinc-600 text-[10px] font-mono mt-1">
+                        Status: <span className="uppercase">{site.status}</span> · Source: <span className="uppercase">{site.source || 'auto'}</span> · Hidden: <span className="uppercase">{site.hidden ? 'Yes' : 'No'}</span> · Hits: {site.hits || 0}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    <button onClick={() => handleApproveWatermark(site)} className={`${btnCls} bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20 text-xs px-3 py-1.5`}>
+                      Approve
+                    </button>
+                    <button onClick={() => handleWatermarkStatusUpdate(site._id, 'declined')} className={`${btnCls} bg-orange-500/10 border border-orange-500/40 text-orange-300 hover:bg-orange-500/20 text-xs px-3 py-1.5`}>
+                      Decline
+                    </button>
+                    <button onClick={() => handleWatermarkStatusUpdate(site._id, 'pending')} className={`${btnCls} bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 text-xs px-3 py-1.5`}>
+                      Pending
+                    </button>
+                    <button onClick={() => handleWatermarkVisibilityToggle(site)} className={`${btnCls} bg-indigo-500/10 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/20 text-xs px-3 py-1.5`}>
+                      {site.hidden ? 'Unhide' : 'Hide'}
+                    </button>
+                    <button onClick={() => handleWatermarkDelete(site._id)} className={`${btnCls} bg-red-900/20 border border-red-900/50 text-red-300 hover:bg-red-900/35 text-xs px-3 py-1.5 inline-flex items-center gap-1`}>
+                      <Trash2 size={12} /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {watermarkTotalPages > 1 && (
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button onClick={() => { const p = Math.max(1, watermarkPage - 1); setWatermarkPage(p); fetchWatermarkSites(p, watermarkStatusFilter); }} disabled={watermarkPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}><ChevronLeft size={14} /> Prev</button>
+              <span className="text-zinc-500 text-sm">Page {watermarkPage} / {watermarkTotalPages}</span>
+              <button onClick={() => { const p = Math.min(watermarkTotalPages, watermarkPage + 1); setWatermarkPage(p); fetchWatermarkSites(p, watermarkStatusFilter); }} disabled={watermarkPage >= watermarkTotalPages} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}>Next <ChevronRight size={14} /></button>
             </div>
           )}
         </div>

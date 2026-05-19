@@ -1,11 +1,63 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { projectsData } from '../data/projectsData';
-import { ExternalLink, ArrowRight } from 'lucide-react';
+import { ExternalLink, ArrowRight, ChevronLeft, ChevronRight, X } from 'lucide-react';
 // import ProjectPlaceholder from '../components/ProjectPlaceholder';
 import SEO from '../components/SEO';
 
+type WatermarkSite = {
+  _id: string;
+  url: string;
+  domain: string;
+  favicon?: string;
+  title?: string;
+  source?: string;
+  hits?: number;
+  hidden?: boolean;
+};
+
 export default function Projects() {
+  const [watermarkSites, setWatermarkSites] = useState<WatermarkSite[]>([]);
+  const [watermarkPage, setWatermarkPage] = useState(1);
+  const [watermarkTotalPages, setWatermarkTotalPages] = useState(1);
+  const [loadingWatermarks, setLoadingWatermarks] = useState(false);
+  const [selectedWatermarkSite, setSelectedWatermarkSite] = useState<WatermarkSite | null>(null);
+
+  useEffect(() => {
+    const fetchSites = async () => {
+      setLoadingWatermarks(true);
+      try {
+        const r = await fetch(`/api/projects?action=watermark-sites&status=approved&visible=1&page=${watermarkPage}&limit=10`);
+        const d = await r.json();
+        if (d?.ok) {
+          setWatermarkSites(Array.isArray(d.sites) ? d.sites : []);
+          setWatermarkTotalPages(Math.max(1, Number(d?.pagination?.totalPages || 1)));
+        }
+      } catch {
+        setWatermarkSites([]);
+      } finally {
+        setLoadingWatermarks(false);
+      }
+    };
+    fetchSites();
+  }, [watermarkPage]);
+
+  const shortenUrl = (value: string, max = 60) => {
+    const trimmed = value.trim();
+    if (trimmed.length <= max) return trimmed;
+    return `${trimmed.slice(0, max - 5)}.....`;
+  };
+
+  const getMainOrigin = (site: WatermarkSite) => {
+    try {
+      return new URL(site.url).origin;
+    } catch {
+      const domain = (site.domain || '').trim();
+      return domain ? `https://${domain}` : site.url;
+    }
+  };
+
   return (
     <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 space-y-16">
       <SEO 
@@ -112,6 +164,112 @@ export default function Projects() {
           <Link to="/now" className="px-4 py-3 border border-zinc-700 text-zinc-300 rounded-xl text-xs font-black uppercase tracking-widest hover:border-amber-500/40 hover:text-amber-500 transition-colors">Roadmap</Link>
         </div>
       </div>
+
+      <div className="border border-zinc-800 rounded-3xl p-6 md:p-8 bg-zinc-900/20 space-y-5">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h3 className="text-white font-bold text-xl">Top 10 Projects Using Deep Watermark</h3>
+            <p className="text-zinc-500 text-sm">Websites using the Powered by Deep watermark (approved list only).</p>
+          </div>
+        </div>
+
+        {loadingWatermarks ? (
+          <p className="text-zinc-500 text-sm">Loading maintained websites…</p>
+        ) : watermarkSites.length === 0 ? (
+          <p className="text-zinc-600 text-sm">No approved websites yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {watermarkSites.map((site) => (
+              <div
+                key={site._id}
+                className="grid grid-cols-[auto_minmax(0,1fr)] md:grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3"
+              >
+                <img
+                  src={site.favicon || `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(site.domain || '')}`}
+                  alt={site.domain}
+                  className="w-6 h-6 rounded"
+                  loading="lazy"
+                />
+                <button
+                  onClick={() => setSelectedWatermarkSite(site)}
+                  className="justify-self-start px-3 py-1.5 rounded-lg border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 text-[11px] font-mono uppercase tracking-wider"
+                >
+                  {site.title || site.domain || 'Open Site'}
+                </button>
+                <p title={site.url} className="min-w-0 text-zinc-400 text-[10px] md:text-xs font-mono truncate">
+                  {shortenUrl(site.url)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {watermarkTotalPages > 1 && (
+          <div className="flex items-center justify-center gap-3 pt-1">
+            <button
+              onClick={() => setWatermarkPage((p) => Math.max(1, p - 1))}
+              disabled={watermarkPage <= 1}
+              className="px-3 py-2 rounded-xl bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1 text-sm"
+            >
+              <ChevronLeft size={14} /> Prev
+            </button>
+            <span className="text-zinc-500 text-sm">Page {watermarkPage} / {watermarkTotalPages}</span>
+            <button
+              onClick={() => setWatermarkPage((p) => Math.min(watermarkTotalPages, p + 1))}
+              disabled={watermarkPage >= watermarkTotalPages}
+              className="px-3 py-2 rounded-xl bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1 text-sm"
+            >
+              Next <ChevronRight size={14} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {selectedWatermarkSite && (
+        <div
+          className="fixed inset-0 z-[220] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setSelectedWatermarkSite(null)}
+        >
+          <div
+            className="w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-3xl p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h4 className="text-white font-bold text-lg">Open external website?</h4>
+              <button
+                onClick={() => setSelectedWatermarkSite(null)}
+                className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-zinc-400 text-sm">
+              This website includes partial or full credit to Deep and is listed for watermark verification.
+            </p>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 space-y-2">
+              <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Primary Domain</p>
+              <p className="text-amber-400 text-sm font-mono break-all">{getMainOrigin(selectedWatermarkSite)}</p>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                onClick={() => setSelectedWatermarkSite(null)}
+                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 hover:bg-zinc-700 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  window.open(selectedWatermarkSite.url, '_blank', 'noopener,noreferrer');
+                  setSelectedWatermarkSite(null);
+                }}
+                className="px-4 py-2 rounded-xl bg-amber-500 text-black hover:bg-amber-400 text-sm font-bold"
+              >
+                Go
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
