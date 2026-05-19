@@ -286,7 +286,7 @@ export default function Footer() {
                 <p className="text-[12px] text-zinc-400 mt-1">Smart URL &amp; QR Platform</p>
               </div>
               <div className="text-left">
-                <p className="text-[12px] text-zinc-400 leading-[1.6] my-2">QuickLink is an all-in-one smart link shortening and QR platform designed for speed, clarity and control.</p>
+                <p className="text-[12px] text-zinc-400 leading-[1.6] my-2">QuickLink is an all-in-one smart link shortening and QR platform designed for speed, clarity, and control.</p>
                 <p className="text-[12px] text-zinc-400 leading-[1.6] my-2">Create short links, generate dynamic QR codes, manage redirects, and track performance — all in one place.</p>
                 <p className="text-[12px] text-zinc-400 leading-[1.6] my-2">Built for creators, developers, students and modern businesses who value simplicity and efficiency.</p>
                 <p className="text-[12px] text-zinc-300 mt-2"><strong>Founder &amp; Creator:</strong> Deep Dey</p>

@@ -1345,8 +1345,10 @@ export default function Dashboard() {
   const [manualWatermarkTitle, setManualWatermarkTitle] = useState('');
   const [addingManualWatermark, setAddingManualWatermark] = useState(false);
   const [copiedWatermarkScript, setCopiedWatermarkScript] = useState(false);
-  const WATERMARK_SCRIPT_URL = import.meta.env.VITE_WATERMARK_SCRIPT_URL || 'https://deepdey.vercel.app/assets/js/footer-extras.js';
-  const watermarkEmbedSnippet = `<!-- Powered by Deep watermark -->\n<script src="${WATERMARK_SCRIPT_URL}" defer></script>`;
+  const WATERMARK_SCRIPT_URL = String(import.meta.env.VITE_WATERMARK_SCRIPT_URL || '').trim();
+  const watermarkEmbedSnippet = WATERMARK_SCRIPT_URL
+    ? `<!-- Powered by Deep watermark -->\n<script src="${WATERMARK_SCRIPT_URL}" defer></script>`
+    : '<!-- Missing VITE_WATERMARK_SCRIPT_URL. Configure it in environment before sharing script. -->';
 
   // ── Live Status state ───────────────────────────────────────────────────
   const [statusIsVisible, setStatusIsVisible] = useState(true);
@@ -2344,6 +2346,10 @@ export default function Dashboard() {
   };
 
   const handleCopyWatermarkScript = async () => {
+    if (!WATERMARK_SCRIPT_URL) {
+      showToast('VITE_WATERMARK_SCRIPT_URL is missing in environment.', 'error');
+      return;
+    }
     try {
       await navigator.clipboard.writeText(watermarkEmbedSnippet);
       setCopiedWatermarkScript(true);
@@ -2762,6 +2768,7 @@ export default function Dashboard() {
               <h3 className="text-white font-bold text-base">Official Watermark Script</h3>
               <button
                 onClick={handleCopyWatermarkScript}
+                disabled={!WATERMARK_SCRIPT_URL}
                 className={`${btnCls} bg-amber-500 text-black hover:bg-amber-400 inline-flex items-center gap-2`}
               >
                 <Clipboard size={14} />

@@ -60,6 +60,13 @@ function resolveTrackingUrl(req, bodyUrl) {
   return origin;
 }
 
+function sanitizeTitle(raw) {
+  return String(raw || '')
+    .replace(/[<>]/g, '')
+    .trim()
+    .slice(0, 140);
+}
+
 async function takeScreenshot(url) {
   const googleKey = process.env.GOOGLE_PAGESPEED_API_KEY;
   const siteShotKey = process.env.SITESHOT_API_KEY;
@@ -136,7 +143,7 @@ module.exports = async (req, res) => {
 
       const now = new Date();
       const favicon = `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(domain)}`;
-      const title = String(req.body?.title || '').trim().slice(0, 140);
+      const title = sanitizeTitle(req.body?.title);
 
       await watermarkSitesCol.updateOne(
         { url: normalizedUrl },
@@ -165,13 +172,13 @@ module.exports = async (req, res) => {
             url: normalizedUrl,
             domain,
             favicon,
-              source: 'manual',
+            source: 'manual',
               status: 'approved',
               hidden: false,
               approvedAt: now,
               updatedAt: now,
               lastSeenAt: now,
-              title: String(req.body?.title || '').trim().slice(0, 140),
+              title: sanitizeTitle(req.body?.title),
             },
           $setOnInsert: { createdAt: now, hits: 0 },
         },
@@ -224,7 +231,7 @@ module.exports = async (req, res) => {
     if (req.method === 'PUT' && action === 'watermark-status') {
       const id = asObjectId(req.body?.id);
       const status = String(req.body?.status || '').trim().toLowerCase();
-      const title = String(req.body?.title || '').trim().slice(0, 140);
+      const title = sanitizeTitle(req.body?.title);
       if (!id) return res.status(400).json({ ok: false, message: 'Valid id required' });
       if (!VALID_WATERMARK_STATUSES.has(status)) return res.status(400).json({ ok: false, message: 'Invalid status' });
       const now = new Date();
