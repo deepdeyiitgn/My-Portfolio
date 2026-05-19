@@ -10,7 +10,7 @@ import {
 import SEO from '../components/SEO';
 import { timelineData } from '../data/timelineData';
 import { ICON_NAMES, renderIcon } from '../utils/iconMap';
-import { DEFAULT_WATERMARK_SCRIPT_URL, getWatermarkStatusBadgeClass } from '../utils/watermark';
+import { DEFAULT_WATERMARK_SCRIPT_URL, getGoogleFaviconUrl, getWatermarkStatusBadgeClass } from '../utils/watermark';
 import { VerifiedTickIcon } from '../components/IdentityBadges';
 import FeedbackAdminPanel from '../components/FeedbackAdminPanel';
 import ReactQuill from 'react-quill-new';
@@ -2838,7 +2838,7 @@ export default function Dashboard() {
                 <div key={site._id} className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-4">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <img
-                      src={site.favicon || `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(site.domain || '')}`}
+                      src={getGoogleFaviconUrl(site.url || site.domain, 64)}
                       alt={site.domain}
                       className="w-7 h-7 rounded border border-zinc-700"
                     />

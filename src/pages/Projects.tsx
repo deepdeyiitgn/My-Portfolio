@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { projectsData } from '../data/projectsData';
 import { ExternalLink, ArrowRight, ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { getWatermarkStatusBadgeClass } from '../utils/watermark';
+import { getGoogleFaviconUrl, getWatermarkStatusBadgeClass } from '../utils/watermark';
 // import ProjectPlaceholder from '../components/ProjectPlaceholder';
 import SEO from '../components/SEO';
 
@@ -189,7 +189,7 @@ export default function Projects() {
                 className="grid grid-cols-[auto_minmax(0,1fr)] md:grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3"
               >
                 <img
-                  src={site.favicon || `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(site.domain || '')}`}
+                  src={getGoogleFaviconUrl(site.url || site.domain, 64)}
                   alt={site.domain}
                   className="w-6 h-6 rounded"
                   loading="lazy"
