@@ -316,13 +316,13 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
         event.preventDefault();
         setNativeVisible(false);
         setCustomEnabled(true);
-        setShortcutMessage('Original cursor hidden. Press Ctrl + X to show it again.');
+        setShortcutMessage('Native cursor hidden. Press Ctrl + X to show it again.');
         return;
       }
       if (key === 'x') {
         event.preventDefault();
         setNativeVisible(true);
-        setShortcutMessage('Original cursor restored.');
+        setShortcutMessage('Native cursor restored.');
         return;
       }
       if (key === 'b') {
@@ -331,7 +331,7 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
           const next = !prev;
           if (!next && !nativeVisible) {
             setNativeVisible(true);
-            setShortcutMessage('Custom pointer hidden. Original cursor restored for safety.');
+            setShortcutMessage('Custom pointer hidden. Native cursor restored for safety.');
             return false;
           }
           setShortcutMessage(next ? 'Custom pointer enabled.' : 'Custom pointer disabled.');
