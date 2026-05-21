@@ -28,7 +28,85 @@ interface HomeCountdownContent {
   heading: string;
   quote: string;
   targetDate: number | null;
+  quotes: string[];
+  quoteStartDate: number;
 }
+
+interface CountdownBorderTheme {
+  gradient: string;
+  accent: string;
+  glow: string;
+}
+
+const DEFAULT_HOME_COUNTDOWN_TARGET = new Date('June 30, 2027 23:59:59').getTime();
+const DEFAULT_HOME_COUNTDOWN_QUOTE_START = new Date('2025-03-31').getTime();
+const DEFAULT_HOME_COUNTDOWN_QUOTES = ['Dream big, work hard, stay focused.'];
+
+const extractDateLiteral = (source: string, variableName: string) => {
+  const match = source.match(new RegExp(`(?:const|let|var)\\s+${variableName}\\s*=\\s*new Date\\("([^"]+)"\\)`, 'm'));
+  return match?.[1] || null;
+};
+
+const extractQuotes = (source: string) => {
+  const match = source.match(/(?:const|let|var)\s+quotes\s*=\s*\[([\s\S]*?)\];/m);
+  if (!match) return null;
+
+  try {
+    const parsed = JSON.parse(`[${match[1]}]`);
+    return Array.isArray(parsed) ? parsed.filter((quote): quote is string => typeof quote === 'string') : null;
+  } catch {
+    return null;
+  }
+};
+
+const normalizeToDayStart = (value: number) => {
+  const date = new Date(value);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+};
+
+const getCountdownDayIndex = (startDate: number) => {
+  const today = normalizeToDayStart(Date.now());
+  const safeStartDate = normalizeToDayStart(startDate);
+  return Math.max(Math.floor((today - safeStartDate) / (1000 * 60 * 60 * 24)), 0);
+};
+
+const hslToHex = (hue: number, saturation: number, lightness: number) => {
+  const s = saturation / 100;
+  const l = lightness / 100;
+  const k = (n: number) => (n + hue / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => {
+    const color = l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+
+  return `#${f(0)}${f(8)}${f(4)}`;
+};
+
+const hexToRgba = (hex: string, alpha: number) => {
+  const normalized = hex.replace('#', '');
+  if (normalized.length !== 6) return `rgba(245, 158, 11, ${alpha})`;
+
+  const numericValue = Number.parseInt(normalized, 16);
+  const red = (numericValue >> 16) & 255;
+  const green = (numericValue >> 8) & 255;
+  const blue = numericValue & 255;
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+};
+
+const buildCountdownTheme = (dayIndex: number): CountdownBorderTheme => {
+  const baseHue = (dayIndex * 41) % 360;
+  const accent = hslToHex(baseHue, 88, 62);
+  const midTone = hslToHex((baseHue + 74) % 360, 84, 58);
+  const endTone = hslToHex((baseHue + 148) % 360, 82, 60);
+
+  return {
+    gradient: `linear-gradient(135deg, ${accent}, ${midTone}, ${endTone})`,
+    accent,
+    glow: hexToRgba(midTone, 0.35),
+  };
+};
 
 export default function Home() {
   const [isHoverable, setIsHoverable] = useState(true);
@@ -40,8 +118,11 @@ export default function Home() {
     heading: 'JEE 2027 Ke Liye Time Hai...',
     quote: 'Dream big, work hard, stay focused.',
     targetDate: null,
+    quotes: DEFAULT_HOME_COUNTDOWN_QUOTES,
+    quoteStartDate: DEFAULT_HOME_COUNTDOWN_QUOTE_START,
   });
   const [countdownText, setCountdownText] = useState('Loading countdown...');
+  const [countdownTheme, setCountdownTheme] = useState<CountdownBorderTheme>(() => buildCountdownTheme(getCountdownDayIndex(DEFAULT_HOME_COUNTDOWN_QUOTE_START)));
 
   // Timeline — default is local data; replaced with MongoDB items when mode='custom'
   const [activeTimeline, setActiveTimeline] = useState<TimelineItem[]>(timelineData);
@@ -100,34 +181,52 @@ export default function Home() {
           .map((script) => script.textContent || '')
           .join('\n');
 
-        const extractDateLiteral = (source: string, variableName: string) => {
-          const marker = `${variableName} = new Date("`;
-          const startIndex = source.indexOf(marker);
-          if (startIndex < 0) return null;
-          const valueStart = startIndex + marker.length;
-          const valueEnd = source.indexOf('")', valueStart);
-          if (valueEnd <= valueStart) return null;
-          return source.slice(valueStart, valueEnd);
-        };
-
         const targetDateSource = extractDateLiteral(scriptContent, 'targetDate');
+        const quoteStartDateSource = extractDateLiteral(scriptContent, 'startDate');
+        const parsedQuotes = extractQuotes(scriptContent) || DEFAULT_HOME_COUNTDOWN_QUOTES;
         const parsedTargetDate = targetDateSource
           ? new Date(targetDateSource).getTime()
-          : new Date('June 30, 2027 23:59:59').getTime();
+          : DEFAULT_HOME_COUNTDOWN_TARGET;
+        const parsedQuoteStartDate = quoteStartDateSource
+          ? new Date(quoteStartDateSource).getTime()
+          : DEFAULT_HOME_COUNTDOWN_QUOTE_START;
 
         setHomeCountdown({
           heading,
-          quote: 'Dream big, work hard, stay focused.',
-          targetDate: parsedTargetDate && !Number.isNaN(parsedTargetDate) ? parsedTargetDate : null,
+          quote: parsedQuotes[0] || DEFAULT_HOME_COUNTDOWN_QUOTES[0],
+          targetDate: parsedTargetDate && !Number.isNaN(parsedTargetDate) ? parsedTargetDate : DEFAULT_HOME_COUNTDOWN_TARGET,
+          quotes: parsedQuotes,
+          quoteStartDate: parsedQuoteStartDate && !Number.isNaN(parsedQuoteStartDate) ? parsedQuoteStartDate : DEFAULT_HOME_COUNTDOWN_QUOTE_START,
         });
       })
       .catch(() => {
         setHomeCountdown((previous) => ({
           ...previous,
-          targetDate: new Date('June 30, 2027 23:59:59').getTime(),
+          targetDate: DEFAULT_HOME_COUNTDOWN_TARGET,
         }));
       });
   }, []);
+
+  useEffect(() => {
+    if (!homeCountdown.quotes.length) return;
+
+    const applyDailyCountdownContent = () => {
+      const dayIndex = getCountdownDayIndex(homeCountdown.quoteStartDate);
+      const nextQuote = homeCountdown.quotes[dayIndex % homeCountdown.quotes.length] || DEFAULT_HOME_COUNTDOWN_QUOTES[0];
+      const nextTheme = buildCountdownTheme(dayIndex);
+
+      setHomeCountdown((previous) => (previous.quote === nextQuote ? previous : { ...previous, quote: nextQuote }));
+      setCountdownTheme((previous) => (
+        previous.gradient === nextTheme.gradient && previous.accent === nextTheme.accent && previous.glow === nextTheme.glow
+          ? previous
+          : nextTheme
+      ));
+    };
+
+    applyDailyCountdownContent();
+    const intervalId = window.setInterval(applyDailyCountdownContent, 60 * 1000);
+    return () => window.clearInterval(intervalId);
+  }, [homeCountdown.quoteStartDate, homeCountdown.quotes]);
 
   useEffect(() => {
     if (!homeCountdown.targetDate) {
@@ -588,12 +687,41 @@ export default function Home() {
         viewport={{ once: true, amount: 0.2 }}
         className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6"
       >
-        <div className="relative overflow-hidden bg-zinc-950 border border-amber-500/60 rounded-3xl p-8 md:p-10 space-y-4">
-          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-transparent pointer-events-none" />
-          <p className="relative z-10 text-[10px] font-mono text-amber-500 uppercase tracking-[0.4em]">Countdown</p>
-          <h3 className="relative z-10 text-2xl md:text-3xl font-black text-white tracking-tight">{homeCountdown.heading}</h3>
-          <p className="relative z-10 text-zinc-300 text-sm md:text-base">{homeCountdown.quote}</p>
-          <p className="relative z-10 text-amber-500 text-lg md:text-2xl font-black tracking-tight">{countdownText}</p>
+        <div className="relative overflow-hidden rounded-3xl p-px">
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: countdownTheme.gradient,
+              backgroundSize: '220% 220%',
+              boxShadow: `0 0 45px ${countdownTheme.glow}`,
+            }}
+            animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
+            transition={{ duration: 18, ease: 'easeInOut', repeat: Infinity }}
+          />
+          <div
+            className="absolute inset-0 opacity-60 blur-3xl pointer-events-none"
+            style={{ backgroundImage: countdownTheme.gradient }}
+          />
+          <div className="relative overflow-hidden bg-zinc-950 rounded-[23px] p-8 md:p-10 space-y-4">
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{ background: `linear-gradient(90deg, ${hexToRgba(countdownTheme.accent, 0.14)}, transparent 60%)` }}
+            />
+            <p
+              className="relative z-10 text-[10px] font-mono uppercase tracking-[0.4em]"
+              style={{ color: countdownTheme.accent }}
+            >
+              Countdown
+            </p>
+            <h3 className="relative z-10 text-2xl md:text-3xl font-black text-white tracking-tight">{homeCountdown.heading}</h3>
+            <p className="relative z-10 text-zinc-300 text-sm md:text-base">{homeCountdown.quote}</p>
+            <p
+              className="relative z-10 text-lg md:text-2xl font-black tracking-tight"
+              style={{ color: countdownTheme.accent }}
+            >
+              {countdownText}
+            </p>
+          </div>
         </div>
       </motion.section>
 
