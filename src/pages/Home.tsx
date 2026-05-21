@@ -45,6 +45,11 @@ interface CountdownParts {
   seconds: number;
 }
 
+interface CountdownProgressState {
+  percentage: number;
+  remainingMs: number;
+}
+
 const DEFAULT_HOME_COUNTDOWN_TARGET = new Date('June 30, 2027 23:59:59').getTime();
 const DEFAULT_HOME_COUNTDOWN_QUOTE_START = new Date('2025-03-31').getTime();
 const DEFAULT_HOME_COUNTDOWN_QUOTES = ['Dream big, work hard, stay focused.'];
@@ -129,6 +134,7 @@ export default function Home() {
     quoteStartDate: DEFAULT_HOME_COUNTDOWN_QUOTE_START,
   });
   const [countdownParts, setCountdownParts] = useState<CountdownParts | null>(null);
+  const [countdownProgress, setCountdownProgress] = useState<CountdownProgressState>({ percentage: 0, remainingMs: 0 });
   const [countdownTheme, setCountdownTheme] = useState<CountdownBorderTheme>(() => buildCountdownTheme(getCountdownDayIndex(DEFAULT_HOME_COUNTDOWN_QUOTE_START)));
 
   // Timeline — default is local data; replaced with MongoDB items when mode='custom'
@@ -245,18 +251,25 @@ export default function Home() {
     const updateCountdown = () => {
       const distance = targetDate - Date.now();
       const safeDistance = Math.max(distance, 0);
+      const effectiveStartDate = Math.min(homeCountdown.quoteStartDate || Date.now(), targetDate - 1);
+      const totalDuration = Math.max(targetDate - effectiveStartDate, 1);
+      const rawPercentage = (safeDistance / totalDuration) * 100;
       const days = Math.floor(safeDistance / (1000 * 60 * 60 * 24));
       const hours = Math.floor((safeDistance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((safeDistance % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((safeDistance % (1000 * 60)) / 1000);
 
       setCountdownParts({ days, hours, minutes, seconds });
+      setCountdownProgress({
+        percentage: Number(Math.max(0, Math.min(100, rawPercentage)).toFixed(1)),
+        remainingMs: safeDistance,
+      });
     };
 
     updateCountdown();
     const intervalId = window.setInterval(updateCountdown, 1000);
     return () => window.clearInterval(intervalId);
-  }, [homeCountdown.targetDate]);
+  }, [homeCountdown.quoteStartDate, homeCountdown.targetDate]);
 
   return (
     <div className="space-y-32 mb-20 overflow-hidden">
@@ -703,11 +716,25 @@ export default function Home() {
             animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
             transition={{ duration: 22, ease: 'easeInOut', repeat: Infinity }}
           />
-          <div
+          <motion.div
             className="absolute -inset-3 rounded-[30px] opacity-45 blur-2xl pointer-events-none"
             style={{ backgroundImage: countdownTheme.gradient }}
+            animate={{ opacity: [0.26, 0.45, 0.28], scale: [0.98, 1.03, 0.99] }}
+            transition={{ duration: 10, ease: 'easeInOut', repeat: Infinity }}
           />
           <div className="relative overflow-hidden bg-zinc-950/95 rounded-[24px] border border-white/10 px-6 py-7 md:px-9 md:py-10">
+            <motion.div
+              className="absolute -left-10 top-[-10%] h-40 w-40 rounded-full blur-3xl pointer-events-none"
+              style={{ background: `radial-gradient(circle, ${hexToRgba(countdownTheme.accent, 0.34)} 0%, transparent 72%)` }}
+              animate={{ x: ['0%', '28%', '4%'], y: ['0%', '14%', '8%'], opacity: [0.38, 0.62, 0.4] }}
+              transition={{ duration: 16, ease: 'easeInOut', repeat: Infinity }}
+            />
+            <motion.div
+              className="absolute bottom-[-18%] right-[-4%] h-48 w-48 rounded-full blur-3xl pointer-events-none"
+              style={{ background: `radial-gradient(circle, ${hexToRgba(countdownTheme.accent, 0.24)} 0%, transparent 72%)` }}
+              animate={{ x: ['0%', '-16%', '-4%'], y: ['0%', '-10%', '-4%'], opacity: [0.2, 0.42, 0.24] }}
+              transition={{ duration: 18, ease: 'easeInOut', repeat: Infinity }}
+            />
             <div
               className="absolute inset-0 pointer-events-none"
               style={{ background: `radial-gradient(circle at 10% 10%, ${hexToRgba(countdownTheme.accent, 0.2)}, transparent 58%)` }}
@@ -781,6 +808,35 @@ export default function Home() {
                   <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-zinc-400 font-medium">{unit.label}</p>
                 </motion.div>
               ))}
+            </div>
+
+            <div className="relative z-10 mt-5 rounded-2xl border border-white/10 bg-zinc-900/50 p-4">
+              <div className="flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-[0.2em]">
+                <span className="text-zinc-400">Time remaining</span>
+                <span style={{ color: countdownTheme.accent }}>{countdownProgress.percentage.toFixed(1)}%</span>
+              </div>
+              <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/8">
+                <motion.div
+                  className="relative h-full rounded-full"
+                  style={{
+                    width: `${countdownProgress.percentage}%`,
+                    backgroundImage: countdownTheme.gradient,
+                    boxShadow: `0 0 18px ${hexToRgba(countdownTheme.accent, 0.4)}`,
+                  }}
+                  animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
+                  transition={{ duration: 8, ease: 'easeInOut', repeat: Infinity }}
+                >
+                  <motion.span
+                    className="absolute inset-y-0 right-0 w-10 bg-white/30 blur-sm"
+                    animate={{ x: ['-240%', '260%'] }}
+                    transition={{ duration: 2.8, ease: 'linear', repeat: Infinity }}
+                  />
+                </motion.div>
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-zinc-500">
+                <span>100% at start</span>
+                <span>{countdownProgress.remainingMs === 0 ? '0% means time is up' : 'Realtime countdown percentage'}</span>
+              </div>
             </div>
 
             <div className="relative z-10 mt-5 flex items-center gap-2 text-zinc-400 text-xs md:text-sm">
