@@ -76,6 +76,31 @@
   }
 }
 
+.dd-hide-native-cursor,
+.dd-hide-native-cursor * {
+  cursor: none !important;
+}
+
+.dd-custom-pointer {
+  will-change: transform;
+}
+
+.dd-pointer-float {
+  animation: dd-pointer-float 1.8s ease-in-out infinite;
+}
+
+@keyframes dd-pointer-float {
+  0% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(-1.8px) rotate(1.2deg);
+  }
+  100% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+}
+
 /* Page Transition Helpers */
 .page-enter {
   opacity: 0;

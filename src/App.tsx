@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense, lazy, useRef } from 'react';
 import Layout from './components/Layout';
 import StatusWidget from './components/StatusWidget';
 import LoadingScreen from './components/LoadingScreen';
+import CustomPointerSystem from './components/CustomPointerSystem';
 
 // Lazy Loaded Pages
 const Home = lazy(() => import('./pages/Home'));
@@ -430,6 +431,7 @@ function AnimatedRoutes() {
       </motion.div>
     </AnimatePresence>
     {!isJournalEmbedRoute && <StatusWidget />}
+    <CustomPointerSystem showTipsAnchor={!isJournalEmbedRoute} />
     </>
   );
 }
