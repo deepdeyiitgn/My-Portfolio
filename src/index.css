@@ -81,6 +81,13 @@
   cursor: none !important;
 }
 
+.dd-use-system-cursor,
+.dd-use-system-cursor *,
+.dd-use-system-cursor *::before,
+.dd-use-system-cursor *::after {
+  cursor: var(--dd-system-cursor, auto) !important;
+}
+
 .dd-custom-pointer {
   will-change: transform;
 }

@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { POINTER_FAMILY, POINTER_SYSTEM_CURSORS, renderPointerSvg, type PointerMode } from '../data/pointerAssets';
 
 type PointerPrefs = {
   customEnabled: boolean;
   nativeVisible: boolean;
 };
-
-type PointerMode = 'default' | 'action' | 'text' | 'input' | 'select' | 'click' | 'drag';
 
 const PREF_COOKIE_KEY = 'dd_pointer_prefs_v1';
 const SESSION_TIPS_KEY = 'dd_pointer_tips_seen';
@@ -16,16 +15,6 @@ const DRAG_THRESHOLD_PIXELS = 2;
 const POINTER_VARIANT_CYCLE_INTERVAL_MS = 1200;
 const SHORTCUT_MESSAGE_DISPLAY_DURATION_MS = 3200;
 const DESKTOP_MIN_WIDTH_PIXELS = 768;
-
-const POINTER_FAMILY: Record<PointerMode, string[]> = {
-  default: ['comet', 'neon-needle', 'prism-arrow', 'orbit', 'pulse-core'],
-  action: ['vector-wing', 'quantum-tip', 'flare-triangle'],
-  text: ['scribe', 'input-beam'],
-  input: ['input-beam', 'scribe'],
-  select: ['selection-ring', 'anchor-grid'],
-  click: ['click-burst', 'pulse-core'],
-  drag: ['drag-node', 'anchor-grid'],
-};
 
 function parsePrefsCookie(): PointerPrefs {
   if (typeof document === 'undefined') return { customEnabled: true, nativeVisible: true };
@@ -57,138 +46,6 @@ function writePrefsCookie(prefs: PointerPrefs) {
 function clearPrefsCookie() {
   if (typeof document === 'undefined') return;
   document.cookie = `${PREF_COOKIE_KEY}=; path=/; max-age=0; samesite=lax`;
-}
-
-function renderPointerSvg(variant: string, isClicking: boolean) {
-  const sharedClass = `w-[34px] h-[34px] drop-shadow-[0_0_16px_rgba(245,158,11,0.45)] ${isClicking ? 'scale-90' : 'scale-100'} transition-transform duration-100`;
-
-  switch (variant) {
-    case 'comet':
-      return (
-        <svg viewBox="0 0 34 34" className={sharedClass}>
-          <defs>
-            <linearGradient id="dd-ptr-comet" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#fcd34d" />
-              <stop offset="55%" stopColor="#f59e0b" />
-              <stop offset="100%" stopColor="#f97316" />
-            </linearGradient>
-          </defs>
-          <path d="M4 3L25 16L15 18L17 29L4 3Z" fill="url(#dd-ptr-comet)" stroke="#fde68a" strokeWidth="1.2" />
-        </svg>
-      );
-    case 'neon-needle':
-      return (
-        <svg viewBox="0 0 34 34" className={sharedClass}>
-          <path d="M6 5L28 14L15 19L11 30L6 5Z" fill="#18181b" stroke="#f59e0b" strokeWidth="1.6" />
-          <path d="M9 9L22 14.4L13.7 17.6L11.4 24.8L9 9Z" fill="#f59e0b" />
-        </svg>
-      );
-    case 'prism-arrow':
-      return (
-        <svg viewBox="0 0 34 34" className={sharedClass}>
-          <defs>
-            <radialGradient id="dd-ptr-prism" cx="35%" cy="30%" r="80%">
-              <stop offset="0%" stopColor="#fff7d6" />
-              <stop offset="45%" stopColor="#fbbf24" />
-              <stop offset="100%" stopColor="#b45309" />
-            </radialGradient>
-          </defs>
-          <path d="M5 4L27 17L16 19L17 30L5 4Z" fill="url(#dd-ptr-prism)" stroke="#fef3c7" strokeWidth="1" />
-          <path d="M14 20L21 27" stroke="#fef3c7" strokeWidth="1.3" strokeLinecap="round" />
-        </svg>
-      );
-    case 'orbit':
-      return (
-        <svg viewBox="0 0 34 34" className={sharedClass}>
-          <path d="M5 5L24 16L15 19L17 30L5 5Z" fill="#f59e0b" stroke="#fde68a" strokeWidth="1" />
-          <circle cx="24.5" cy="9.5" r="4.3" fill="none" stroke="#fbbf24" strokeWidth="1.5" />
-          <circle cx="24.5" cy="9.5" r="1.2" fill="#fde68a" />
-        </svg>
-      );
-    case 'pulse-core':
-      return (
-        <svg viewBox="0 0 34 34" className={sharedClass}>
-          <path d="M5 4L24 16L14.7 18.6L16.5 29.6L5 4Z" fill="#0f172a" stroke="#f59e0b" strokeWidth="1.4" />
-          <circle cx="24" cy="10.5" r="3.9" fill="#f59e0b" opacity="0.22" />
-          <circle cx="24" cy="10.5" r="2.3" fill="#fbbf24" />
-        </svg>
-      );
-    case 'vector-wing':
-      return (
-        <svg viewBox="0 0 34 34" className={sharedClass}>
-          <path d="M4.5 4.5L26 15L14.6 18.2L16 29.5L4.5 4.5Z" fill="#f59e0b" stroke="#fde68a" strokeWidth="1.1" />
-          <path d="M13.8 17.8L25.5 20.2L21.5 24.8L16.8 21.6Z" fill="#fde68a" opacity="0.8" />
-        </svg>
-      );
-    case 'quantum-tip':
-      return (
-        <svg viewBox="0 0 34 34" className={sharedClass}>
-          <path d="M5 4L25 15.8L15 18.5L16.9 30L5 4Z" fill="#111827" stroke="#f59e0b" strokeWidth="1.5" />
-          <path d="M20 8.5L29 12.5L22.8 15.8Z" fill="#fbbf24" />
-          <circle cx="27.7" cy="12" r="1.2" fill="#fef3c7" />
-        </svg>
-      );
-    case 'flare-triangle':
-      return (
-        <svg viewBox="0 0 34 34" className={sharedClass}>
-          <path d="M5 4L24.8 16.4L15 19L16.8 29.8L5 4Z" fill="#f59e0b" stroke="#fef3c7" strokeWidth="1.2" />
-          <path d="M23 8L30 8M26.5 4.5V11.5" stroke="#fde68a" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      );
-    case 'scribe':
-      return (
-        <svg viewBox="0 0 34 34" className={sharedClass}>
-          <rect x="13.2" y="4" width="2.4" height="24" rx="1.2" fill="#f59e0b" />
-          <rect x="9.2" y="6.2" width="10.4" height="2" rx="1" fill="#fde68a" />
-          <path d="M15.5 29L12 24.5H19L15.5 29Z" fill="#fbbf24" />
-        </svg>
-      );
-    case 'input-beam':
-      return (
-        <svg viewBox="0 0 34 34" className={sharedClass}>
-          <rect x="15.2" y="4" width="3.2" height="26" rx="1.6" fill="#f59e0b" />
-          <rect x="9" y="4.8" width="15.5" height="2.2" rx="1.1" fill="#fde68a" />
-          <rect x="9" y="27" width="15.5" height="2.2" rx="1.1" fill="#fde68a" />
-        </svg>
-      );
-    case 'selection-ring':
-      return (
-        <svg viewBox="0 0 34 34" className={sharedClass}>
-          <circle cx="17" cy="17" r="9.2" fill="none" stroke="#f59e0b" strokeWidth="2.1" />
-          <circle cx="17" cy="17" r="5.3" fill="#fbbf24" opacity="0.2" />
-          <path d="M6 17H9.5M24.5 17H28M17 6V9.5M17 24.5V28" stroke="#fde68a" strokeWidth="1.4" strokeLinecap="round" />
-        </svg>
-      );
-    case 'anchor-grid':
-      return (
-        <svg viewBox="0 0 34 34" className={sharedClass}>
-          <path d="M5.2 4.2L24.5 16L14.8 18.8L16.8 29.5L5.2 4.2Z" fill="#f59e0b" stroke="#fef3c7" strokeWidth="1.1" />
-          <path d="M23 21.5H30M26.5 18V25" stroke="#fde68a" strokeWidth="1.5" strokeLinecap="round" />
-          <circle cx="26.5" cy="21.5" r="5" fill="none" stroke="#fbbf24" strokeWidth="1.2" />
-        </svg>
-      );
-    case 'click-burst':
-      return (
-        <svg viewBox="0 0 34 34" className={sharedClass}>
-          <path d="M5 4L25 16L15 18.8L16.8 30L5 4Z" fill="#f59e0b" stroke="#fef3c7" strokeWidth="1.1" />
-          <path d="M25 7L27 3M28.4 9.6L32.2 8.7M27 13.5L30.2 16" stroke="#fde68a" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      );
-    case 'drag-node':
-      return (
-        <svg viewBox="0 0 34 34" className={sharedClass}>
-          <path d="M5 4.5L24.2 16L14.8 18.7L16.6 29.4L5 4.5Z" fill="#f59e0b" stroke="#fef3c7" strokeWidth="1.1" />
-          <path d="M22.8 10.4L29.6 17.2" stroke="#fde68a" strokeWidth="1.6" strokeLinecap="round" />
-          <circle cx="29.6" cy="17.2" r="2" fill="#fbbf24" />
-        </svg>
-      );
-    default:
-      return (
-        <svg viewBox="0 0 34 34" className={sharedClass}>
-          <path d="M4 3L25 16L15 18L17 29L4 3Z" fill="#f59e0b" stroke="#fde68a" strokeWidth="1.2" />
-        </svg>
-      );
-  }
 }
 
 export default function CustomPointerSystem({ showTipsAnchor = true }: { showTipsAnchor?: boolean }) {
@@ -247,6 +104,23 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
     }
     return () => root.classList.remove('dd-hide-native-cursor');
   }, [nativeVisible, supportsDesktopPointer]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    if (supportsDesktopPointer && nativeVisible) {
+      root.classList.add('dd-use-system-cursor');
+      root.style.setProperty('--dd-system-cursor', POINTER_SYSTEM_CURSORS[pointerMode]);
+    } else {
+      root.classList.remove('dd-use-system-cursor');
+      root.style.removeProperty('--dd-system-cursor');
+    }
+
+    return () => {
+      root.classList.remove('dd-use-system-cursor');
+      root.style.removeProperty('--dd-system-cursor');
+    };
+  }, [nativeVisible, pointerMode, supportsDesktopPointer]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import { motion } from 'motion/react';
 
 const SVG_LOGOS = {
@@ -30,45 +31,77 @@ const LOGO_NODES = [
   { name: 'Premiere', key: 'premiere', x: '-18%', y: '38%', duration: 8.2 },
 ];
 
-export default function TechGalaxy() {
-  const stars = Array.from({ length: 60 });
+function TechGalaxy() {
+  const stars = useMemo(
+    () =>
+      Array.from({ length: 60 }, () => ({
+        x: `${Math.random() * 100}%`,
+        y: `${Math.random() * 100}%`,
+        opacity: Math.random() * 0.7 + 0.1,
+        scale: Math.random() * 0.5 + 0.5,
+        driftX: `${Math.random() * 100}%`,
+        duration: 15 + Math.random() * 20,
+        width: `${Math.random() * 2 + 1}px`,
+        height: `${Math.random() * 2 + 1}px`,
+        color: Math.random() > 0.8 ? '#f59e0b' : '#ffffff',
+      })),
+    [],
+  );
+  const nodeMotion = useMemo(
+    () =>
+      LOGO_NODES.map((node) => ({
+        ...node,
+        xDrift: Math.random() * 20 - 10,
+        yDrift: Math.random() * 30 - 15,
+      })),
+    [],
+  );
 
   return (
     <div className="relative w-full h-[600px] flex items-center justify-center overflow-visible select-none">
       {/* Background Stars Layer */}
       <div className="absolute inset-0 z-0">
-        {stars.map((_, i) => (
+        {stars.map((star, i) => (
           <motion.div
             key={i}
-            initial={{ 
-              x: `${Math.random() * 100}%`, 
-              y: `${Math.random() * 100}%`,
-              opacity: Math.random() * 0.7 + 0.1,
-              scale: Math.random() * 0.5 + 0.5
+            initial={{
+              x: star.x,
+              y: star.y,
+              opacity: star.opacity,
+              scale: star.scale,
             }}
-            animate={{ 
+            animate={{
               opacity: [0.1, 0.8, 0.1],
               scale: [1, 1.2, 1],
-              x: [`${Math.random() * 100}%`, `${Math.random() * 100}%`]
+              x: [star.x, star.driftX],
             }}
             transition={{
-              duration: 15 + Math.random() * 20,
+              duration: star.duration,
               repeat: Infinity,
               ease: "linear",
             }}
             className="absolute rounded-full"
-            style={{ 
-              width: `${Math.random() * 2 + 1}px`, 
-              height: `${Math.random() * 2 + 1}px`,
-              backgroundColor: Math.random() > 0.8 ? '#f59e0b' : '#ffffff',
-              filter: 'blur(0.5px)'
+            style={{
+              width: star.width,
+              height: star.height,
+              backgroundColor: star.color,
+              filter: 'blur(0.5px)',
             }}
           />
         ))}
       </div>
 
       {/* Atmospheric Glows */}
-      <div className="absolute w-[500px] h-[500px] bg-amber-500/5 blur-[120px] rounded-full -z-10 animate-pulse"></div>
+      <motion.div
+        className="absolute w-[500px] h-[500px] bg-amber-500/5 blur-[120px] rounded-full -z-10"
+        animate={{ scale: [0.96, 1.04, 0.98], opacity: [0.35, 0.55, 0.38] }}
+        transition={{ duration: 8, ease: 'easeInOut', repeat: Infinity }}
+      />
+      <motion.div
+        className="absolute w-[260px] h-[260px] rounded-full border border-amber-500/12 bg-amber-500/6 blur-[42px] -z-10"
+        animate={{ scale: [0.94, 1.02, 0.96], opacity: [0.32, 0.48, 0.34], borderRadius: ['44%', '52%', '46%'] }}
+        transition={{ duration: 6.5, ease: 'easeInOut', repeat: Infinity }}
+      />
 
       {/* Central Core Identity */}
       <motion.div 
@@ -77,25 +110,54 @@ export default function TechGalaxy() {
         viewport={{ once: true }}
         className="relative z-10 text-center space-y-2"
       >
+        <motion.div
+          className="absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(circle at 30% 30%, rgba(251,191,36,0.3) 0%, rgba(245,158,11,0.14) 38%, rgba(245,158,11,0.03) 72%, transparent 100%)',
+            filter: 'blur(18px)',
+          }}
+          animate={{
+            scale: [0.95, 1.03, 0.97],
+            opacity: [0.38, 0.58, 0.42],
+            borderRadius: ['40% 60% 55% 45% / 43% 47% 53% 57%', '55% 45% 52% 48% / 53% 44% 56% 47%', '42% 58% 48% 52% / 46% 54% 46% 54%'],
+          }}
+          transition={{ duration: 7.2, ease: 'easeInOut', repeat: Infinity }}
+        />
+        <motion.div
+          className="absolute left-1/2 top-1/2 h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-400/20 pointer-events-none"
+          animate={{ scale: [0.88, 1.18], opacity: [0.28, 0] }}
+          transition={{ duration: 3.4, ease: 'easeOut', repeat: Infinity }}
+        />
+        <motion.div
+          className="absolute left-1/2 top-1/2 h-52 w-52 -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-300/10 pointer-events-none"
+          animate={{ scale: [0.82, 1.1], opacity: [0.18, 0] }}
+          transition={{ duration: 3.4, ease: 'easeOut', repeat: Infinity, delay: 1.1 }}
+        />
         <div className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full inline-block">
           <span className="text-[10px] font-mono text-amber-500 uppercase tracking-[0.5em]">Neural Network</span>
         </div>
         <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tighter uppercase italic">
           My Ecosystem
         </h2>
-        <div className="h-1.5 w-24 bg-amber-500 mx-auto rounded-full shadow-[0_0_20px_rgba(245,158,11,0.6)]"></div>
+        <motion.div
+          className="h-1.5 w-24 mx-auto rounded-full shadow-[0_0_20px_rgba(245,158,11,0.6)]"
+          style={{ background: 'linear-gradient(90deg, rgba(245,158,11,0.7), rgba(251,191,36,1), rgba(245,158,11,0.7))' }}
+          animate={{ scaleX: [0.96, 1.08, 0.98], opacity: [0.84, 1, 0.88] }}
+          transition={{ duration: 1.8, ease: 'easeInOut', repeat: Infinity }}
+        />
       </motion.div>
 
       {/* Floating Logo Nodes */}
-      {LOGO_NODES.map((node, index) => (
+      {nodeMotion.map((node, index) => (
         <motion.div
           key={node.name}
           initial={{ opacity: 0, scale: 0 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           animate={{
-            x: [0, Math.random() * 20 - 10, 0],
-            y: [0, Math.random() * 30 - 15, 0],
+            x: [0, node.xDrift, 0],
+            y: [0, node.yDrift, 0],
           }}
           transition={{
             x: { duration: node.duration + 1, repeat: Infinity, ease: "easeInOut" },
@@ -133,3 +195,5 @@ export default function TechGalaxy() {
     </div>
   );
 }
+
+export default memo(TechGalaxy);
