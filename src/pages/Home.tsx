@@ -38,6 +38,13 @@ interface CountdownBorderTheme {
   glow: string;
 }
 
+interface CountdownParts {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+}
+
 const DEFAULT_HOME_COUNTDOWN_TARGET = new Date('June 30, 2027 23:59:59').getTime();
 const DEFAULT_HOME_COUNTDOWN_QUOTE_START = new Date('2025-03-31').getTime();
 const DEFAULT_HOME_COUNTDOWN_QUOTES = ['Dream big, work hard, stay focused.'];
@@ -121,7 +128,7 @@ export default function Home() {
     quotes: DEFAULT_HOME_COUNTDOWN_QUOTES,
     quoteStartDate: DEFAULT_HOME_COUNTDOWN_QUOTE_START,
   });
-  const [countdownText, setCountdownText] = useState('Loading countdown...');
+  const [countdownParts, setCountdownParts] = useState<CountdownParts | null>(null);
   const [countdownTheme, setCountdownTheme] = useState<CountdownBorderTheme>(() => buildCountdownTheme(getCountdownDayIndex(DEFAULT_HOME_COUNTDOWN_QUOTE_START)));
 
   // Timeline — default is local data; replaced with MongoDB items when mode='custom'
@@ -230,7 +237,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!homeCountdown.targetDate) {
-      setCountdownText('Countdown unavailable right now.');
+      setCountdownParts(null);
       return;
     }
     const targetDate = homeCountdown.targetDate;
@@ -242,10 +249,8 @@ export default function Home() {
       const hours = Math.floor((safeDistance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((safeDistance % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((safeDistance % (1000 * 60)) / 1000);
-      const label = (value: number, singular: string, plural: string) => (value === 1 ? singular : plural);
-      setCountdownText(
-        `Time Left: ${days} ${label(days, 'Day', 'Days')} ${hours} ${label(hours, 'Hour', 'Hours')} ${minutes} ${label(minutes, 'Minute', 'Minutes')} ${seconds} ${label(seconds, 'Second', 'Seconds')}`
-      );
+
+      setCountdownParts({ days, hours, minutes, seconds });
     };
 
     updateCountdown();
@@ -687,40 +692,101 @@ export default function Home() {
         viewport={{ once: true, amount: 0.2 }}
         className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6"
       >
-        <div className="relative overflow-hidden rounded-3xl p-px">
+        <div className="relative rounded-[26px] p-[1.5px]">
           <motion.div
-            className="absolute inset-0"
+            className="absolute -inset-[1.5px] rounded-[27.5px]"
             style={{
               backgroundImage: countdownTheme.gradient,
-              backgroundSize: '220% 220%',
-              boxShadow: `0 0 45px ${countdownTheme.glow}`,
+              backgroundSize: '260% 260%',
+              boxShadow: `0 0 55px ${countdownTheme.glow}`,
             }}
             animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
-            transition={{ duration: 18, ease: 'easeInOut', repeat: Infinity }}
+            transition={{ duration: 22, ease: 'easeInOut', repeat: Infinity }}
           />
           <div
-            className="absolute inset-0 opacity-60 blur-3xl pointer-events-none"
+            className="absolute -inset-3 rounded-[30px] opacity-45 blur-2xl pointer-events-none"
             style={{ backgroundImage: countdownTheme.gradient }}
           />
-          <div className="relative overflow-hidden bg-zinc-950 rounded-[23px] p-8 md:p-10 space-y-4">
+          <div className="relative overflow-hidden bg-zinc-950/95 rounded-[24px] border border-white/10 px-6 py-7 md:px-9 md:py-10">
             <div
               className="absolute inset-0 pointer-events-none"
-              style={{ background: `linear-gradient(90deg, ${hexToRgba(countdownTheme.accent, 0.14)}, transparent 60%)` }}
+              style={{ background: `radial-gradient(circle at 10% 10%, ${hexToRgba(countdownTheme.accent, 0.2)}, transparent 58%)` }}
             />
-            <p
-              className="relative z-10 text-[10px] font-mono uppercase tracking-[0.4em]"
-              style={{ color: countdownTheme.accent }}
+            <svg
+              className="absolute right-4 top-4 h-16 w-16 md:h-20 md:w-20 opacity-35 pointer-events-none"
+              viewBox="0 0 120 120"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
             >
-              Countdown
-            </p>
-            <h3 className="relative z-10 text-2xl md:text-3xl font-black text-white tracking-tight">{homeCountdown.heading}</h3>
-            <p className="relative z-10 text-zinc-300 text-sm md:text-base">{homeCountdown.quote}</p>
-            <p
-              className="relative z-10 text-lg md:text-2xl font-black tracking-tight"
-              style={{ color: countdownTheme.accent }}
+              <defs>
+                <linearGradient id="countdown-badge-gradient" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor={countdownTheme.accent} />
+                  <stop offset="100%" stopColor="#ffffff" stopOpacity="0.12" />
+                </linearGradient>
+              </defs>
+              <circle cx="60" cy="60" r="52" stroke="url(#countdown-badge-gradient)" strokeWidth="6" />
+              <path d="M60 26V60L83 74" stroke={countdownTheme.accent} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+
+            <div className="relative z-10 flex items-start justify-between gap-4 flex-wrap">
+              <div className="space-y-2">
+                <p
+                  className="text-[11px] font-semibold uppercase tracking-[0.28em]"
+                  style={{ color: countdownTheme.accent }}
+                >
+                  Student Mission Timer
+                </p>
+                <h3 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight leading-tight">{homeCountdown.heading}</h3>
+              </div>
+              <motion.div
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-zinc-900/70 px-3.5 py-1.5 text-[11px] font-medium text-zinc-200"
+                whileHover={{ scale: 1.04 }}
+                transition={{ duration: 0.22 }}
+              >
+                <Clock size={14} style={{ color: countdownTheme.accent }} />
+                Focus • Practice • Progress
+              </motion.div>
+            </div>
+
+            <motion.p
+              key={homeCountdown.quote}
+              initial={{ opacity: 0.35, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, ease: 'easeOut' }}
+              className="relative z-10 mt-5 text-zinc-200/95 text-sm md:text-base leading-relaxed font-medium"
             >
-              {countdownText}
-            </p>
+              “{homeCountdown.quote}”
+            </motion.p>
+
+            <div className="relative z-10 mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: 'Days', value: countdownParts?.days ?? 0 },
+                { label: 'Hours', value: countdownParts?.hours ?? 0 },
+                { label: 'Minutes', value: countdownParts?.minutes ?? 0 },
+                { label: 'Seconds', value: countdownParts?.seconds ?? 0 },
+              ].map((unit) => (
+                <motion.div
+                  key={unit.label}
+                  className="rounded-2xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-center"
+                  whileHover={{ y: -3, borderColor: hexToRgba(countdownTheme.accent, 0.55) }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <p
+                    className="text-2xl md:text-3xl font-extrabold tabular-nums"
+                    style={{ color: countdownTheme.accent }}
+                  >
+                    {String(unit.value).padStart(2, '0')}
+                  </p>
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-zinc-400 font-medium">{unit.label}</p>
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="relative z-10 mt-5 flex items-center gap-2 text-zinc-400 text-xs md:text-sm">
+              <Target size={14} style={{ color: countdownTheme.accent }} />
+              Professional yet friendly daily tracker for every student.
+            </div>
           </div>
         </div>
       </motion.section>
