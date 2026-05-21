@@ -11,7 +11,10 @@ type PointerMode = 'default' | 'action' | 'text' | 'input' | 'select' | 'click' 
 
 const PREF_COOKIE_KEY = 'dd_pointer_prefs_v1';
 const SESSION_TIPS_KEY = 'dd_pointer_tips_seen';
-const TWENTY_YEARS_IN_SECONDS = 60 * 60 * 24 * 365 * 20;
+const LONG_LIVED_COOKIE_SECONDS = 60 * 60 * 24 * 365 * 20;
+const DRAG_THRESHOLD_PIXELS = 2;
+const POINTER_VARIANT_CYCLE_INTERVAL_MS = 1200;
+const SHORTCUT_MESSAGE_DISPLAY_DURATION_MS = 3200;
 
 const POINTER_FAMILY: Record<PointerMode, string[]> = {
   default: ['comet', 'neon-needle', 'prism-arrow', 'orbit', 'pulse-core'],
@@ -47,7 +50,7 @@ function parsePrefsCookie(): PointerPrefs {
 function writePrefsCookie(prefs: PointerPrefs) {
   if (typeof document === 'undefined') return;
   const encoded = encodeURIComponent(JSON.stringify(prefs));
-  document.cookie = `${PREF_COOKIE_KEY}=${encoded}; path=/; max-age=${TWENTY_YEARS_IN_SECONDS}; samesite=lax`;
+  document.cookie = `${PREF_COOKIE_KEY}=${encoded}; path=/; max-age=${LONG_LIVED_COOKIE_SECONDS}; samesite=lax`;
 }
 
 function clearPrefsCookie() {
@@ -340,7 +343,7 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
       if (!isMouseDown || !dragStartRef.current) return;
       const diffX = Math.abs(event.clientX - dragStartRef.current.x);
       const diffY = Math.abs(event.clientY - dragStartRef.current.y);
-      if (diffX > 2 || diffY > 2) setIsDragging(true);
+      if (diffX > DRAG_THRESHOLD_PIXELS || diffY > DRAG_THRESHOLD_PIXELS) setIsDragging(true);
     };
 
     window.addEventListener('mousemove', onMouseMove);
@@ -367,13 +370,13 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
   }, [isDragging, isMouseDown, isSelecting, nativeVisible]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setCycleIndex((prev) => prev + 1), 1200);
+    const timer = window.setInterval(() => setCycleIndex((prev) => prev + 1), POINTER_VARIANT_CYCLE_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
     if (!shortcutMessage) return;
-    const timer = window.setTimeout(() => setShortcutMessage(''), 3200);
+    const timer = window.setTimeout(() => setShortcutMessage(''), SHORTCUT_MESSAGE_DISPLAY_DURATION_MS);
     return () => window.clearTimeout(timer);
   }, [shortcutMessage]);
 
