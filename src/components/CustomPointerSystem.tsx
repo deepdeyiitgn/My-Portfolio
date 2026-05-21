@@ -15,6 +15,7 @@ const LONG_LIVED_COOKIE_SECONDS = 60 * 60 * 24 * 365 * 20;
 const DRAG_THRESHOLD_PIXELS = 2;
 const POINTER_VARIANT_CYCLE_INTERVAL_MS = 1200;
 const SHORTCUT_MESSAGE_DISPLAY_DURATION_MS = 3200;
+const DESKTOP_MIN_WIDTH_PIXELS = 768;
 
 const POINTER_FAMILY: Record<PointerMode, string[]> = {
   default: ['comet', 'neon-needle', 'prism-arrow', 'orbit', 'pulse-core'],
@@ -217,7 +218,7 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
 
     const updateCapability = () => {
       const hasFinePointer = mql.matches;
-      const likelyDesktop = window.innerWidth >= 768;
+      const likelyDesktop = window.innerWidth >= DESKTOP_MIN_WIDTH_PIXELS;
       setSupportsDesktopPointer(hasFinePointer && likelyDesktop);
     };
     updateCapability();
@@ -382,7 +383,7 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
 
   const activeVariant = useMemo(() => {
     const family = POINTER_FAMILY[pointerMode] || POINTER_FAMILY.default;
-    return family[Math.abs(cycleIndex) % family.length];
+    return family[cycleIndex % family.length];
   }, [pointerMode, cycleIndex]);
 
   const showCustomPointer = supportsDesktopPointer && mouseDetected && customEnabled && isInsideViewport;
