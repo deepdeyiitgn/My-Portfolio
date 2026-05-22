@@ -506,8 +506,7 @@ module.exports = async (req, res) => {
         });
       }
 
-      const existingToken = String(site.siteToken || '').trim();
-      const issuedToken = existingToken || randomBytes(32).toString('hex');
+      const issuedToken = randomBytes(32).toString('hex');
       const now = new Date();
       await watermarkSitesCol.updateOne(
         { domain },
@@ -584,6 +583,7 @@ module.exports = async (req, res) => {
         );
         return res.status(403).json({ ok: false, message: 'Domain verification token missing; re-register domain challenge' });
       }
+      // Enforce continuous domain ownership proof on weekly heartbeat checks.
       const ownershipCheck = await verifyWatermarkDomainOwnership(domain, verificationToken, site.challengePath);
       if (!ownershipCheck.ok) {
         await watermarkSitesCol.updateOne(

@@ -2432,6 +2432,11 @@ export default function Dashboard() {
       setWatermarkDomainVerification(String(d.verificationState || 'verified'));
       setWatermarkDomainToken(String(d.siteToken || ''));
       showToast('Domain verified and secure token issued');
+      setWatermarkChallengePath('');
+      setWatermarkChallengeContent('');
+      setWatermarkChallengeExpiry('');
+      setWatermarkTxtHost('');
+      setWatermarkTxtValue('');
       await fetchWatermarkDomainStatus(domain, { silent: true });
       fetchWatermarkSites(watermarkPage, watermarkStatusFilter);
     } catch {
@@ -2928,7 +2933,7 @@ export default function Dashboard() {
             </button>
             <p className="text-[11px] text-zinc-500">
               Verification state: <span className="uppercase text-zinc-300">{watermarkDomainVerification || 'unknown'}</span>{' '}
-              {watermarkDomainToken ? '• secure domain token ready for snippet.' : '• run challenge + verify to issue domain token using both methods.'}
+              {watermarkDomainToken ? '• Secure domain token ready for snippet.' : '• run challenge + verify to issue domain token using both methods.'}
             </p>
             {watermarkChallengePath && watermarkChallengeContent && (
               <div className="text-[11px] text-zinc-400 bg-zinc-950/60 border border-zinc-800 rounded-xl p-3 space-y-1">
