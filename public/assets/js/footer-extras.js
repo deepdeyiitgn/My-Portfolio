@@ -547,13 +547,25 @@
     copyrightStrip.appendChild(leadText);
     copyrightStrip.appendChild(deepLink);
 
+    function isTransparentLike(value) {
+      var v = String(value || "").toLowerCase().replace(/\s+/g, "");
+      if (!v) return true;
+      if (v === "transparent" || v === "inherit" || v === "initial" || v === "unset") return true;
+      if (v === "rgba(0,0,0,0)" || v === "hsla(0,0%,0%,0)") return true;
+      if (/^rgba\(.+,(0|0\.\d+)\)$/.test(v)) return true;
+      if (/^hsla\(.+,(0|0\.\d+)\)$/.test(v)) return true;
+      if (/^#[0-9a-f]{8}$/.test(v) && v.slice(7, 9) === "00") return true;
+      if (/^#[0-9a-f]{4}$/.test(v) && v.slice(3, 4) === "0") return true;
+      return false;
+    }
+
     function getFirstMeaningfulColor(elements, cssProp, fallback) {
       for (var i = 0; i < elements.length; i++) {
         var el = elements[i];
         if (!el) continue;
         try {
           var value = window.getComputedStyle(el).getPropertyValue(cssProp);
-          if (value && value !== "transparent" && value !== "rgba(0, 0, 0, 0)" && value !== "inherit") {
+          if (value && !isTransparentLike(value)) {
             return value.trim();
           }
         } catch (e) {}
