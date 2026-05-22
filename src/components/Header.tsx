@@ -236,6 +236,13 @@ export default function Header() {
                   <Search size={16} />
                   Search Anything...
                 </button>
+                <a
+                  href="/static-pages.html"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-2 w-full justify-center mb-4 px-4 py-3 min-h-[48px] bg-zinc-900/40 hover:bg-zinc-900/70 border border-zinc-700/60 hover:border-amber-500/40 text-zinc-200 hover:text-amber-500 rounded-xl transition-all duration-300 font-mono text-xs tracking-wider uppercase"
+                >
+                  Static Pages
+                </a>
 
                 <div className="space-y-2">
                   {NAV_LINKS.map((link, index) => (
