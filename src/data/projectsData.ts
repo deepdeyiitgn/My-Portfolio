@@ -107,7 +107,7 @@ export const projectsData: Project[] = [
     shortDescription: 'A magical, multi-profile interactive web application featuring personalized gamified journeys and hardware integrations.',
     fullDescription: 'A highly interactive React frontend designed to deliver bespoke digital birthday experiences. It features a smart URL-based authentication system that routes different users to entirely unique visual themes, custom-animated timelines, and manifestation games. It also leverages advanced browser APIs, including an isolated multi-track audio controller for seamless crossfading and MediaStream Microphone API integration allowing users to physically "blow out" a digital candle.',
     techStack: ['React 19', 'TypeScript', 'Tailwind CSS', 'Vite 6', 'HTML5 Audio API', 'MediaStream API'],
-    liveUrl: 'https://m.qlynk.me/?pass=demo@123',
+    liveUrl: 'https://m.qlynk.me/',
     githubUrl: 'https://m.qlynk.me/?pass=demo@123',
     logoUrl: 'https://m.qlynk.me/favicon.jpeg',
     category: 'Interactive Web App / Gamification',
