@@ -375,6 +375,29 @@
       .deep-btn-insta { background: linear-gradient(45deg, #f09433 0%, #dc2743 50%, #bc1888 100%); }
       .deep-btn-github { background: #24292e; }
       .deep-btn-discord { background: #5865F2; }
+      .deep-copyright-strip {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 4px;
+        padding: 10px 14px;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        color: #f4f4f5;
+        font-size: 11px;
+        line-height: 1.5;
+        text-align: center;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+      }
+      .deep-copyright-strip a {
+        color: #fde68a;
+        text-decoration: none;
+        font-weight: 700;
+      }
+      .deep-copyright-strip a:hover {
+        text-decoration: underline;
+      }
     `;
     document.head.appendChild(widgetStyle);
 
@@ -507,9 +530,68 @@
     // Insert watermarks globally at the very end of <body> so it works on any website
     watermarkDiv.style.cssText = "width:100%; display:flex; justify-content:center; background:#0b0b0d; border-top:1px solid rgba(245,158,11,.12);";
     deepWatermarkDiv.style.cssText = "width:100%; display:flex; justify-content:center; background:#0b0b0d;";
+    var copyrightStrip = document.createElement("div");
+    copyrightStrip.className = "deep-copyright-strip";
+
+    var currentYear = new Date().getFullYear();
+    var currentDomain = String(window.location.hostname || "localhost");
+    var leadText = document.createElement("span");
+    leadText.textContent = "\u00A9 " + currentYear + " " + currentDomain + " | Powered by ";
+
+    var deepLink = document.createElement("a");
+    deepLink.href = "https://deepdey.vercel.app";
+    deepLink.target = "_blank";
+    deepLink.rel = "noopener noreferrer";
+    deepLink.textContent = "Deep Dey";
+
+    copyrightStrip.appendChild(leadText);
+    copyrightStrip.appendChild(deepLink);
+
+    function isTransparentLike(value) {
+      var v = String(value || "").toLowerCase().replace(/\s+/g, "");
+      if (!v) return true;
+      if (v === "transparent" || v === "inherit" || v === "initial" || v === "unset") return true;
+      if (v === "rgba(0,0,0,0)" || v === "hsla(0,0%,0%,0)") return true;
+      if (v.indexOf("rgba(") === 0 || v.indexOf("hsla(") === 0) {
+        var alphaRaw = v.slice(v.lastIndexOf(",") + 1, -1);
+        var alpha = parseFloat(alphaRaw);
+        if (alphaRaw.indexOf("%") !== -1) alpha = alpha / 100;
+        if (!isNaN(alpha) && alpha <= 0) return true;
+      }
+      if (/^#[0-9a-f]{8}$/.test(v) && v.slice(7, 9) === "00") return true;
+      if (/^#[0-9a-f]{4}$/.test(v) && v.charAt(3) === "0") return true;
+      return false;
+    }
+
+    function getFirstMeaningfulColor(elements, cssProp, fallback) {
+      for (var i = 0; i < elements.length; i++) {
+        var el = elements[i];
+        if (!el) continue;
+        try {
+          var value = window.getComputedStyle(el).getPropertyValue(cssProp);
+          if (value && !isTransparentLike(value)) {
+            return value.trim();
+          }
+        } catch (e) {}
+      }
+      return fallback;
+    }
+
+    var colorProbeTargets = [
+      document.querySelector("header"),
+      document.querySelector("main"),
+      document.querySelector("footer"),
+      document.body,
+      document.documentElement
+    ];
+    var gradientStart = getFirstMeaningfulColor(colorProbeTargets, "background-color", "rgb(11,11,13)");
+    var gradientEnd = getFirstMeaningfulColor(colorProbeTargets, "color", "rgb(245,158,11)");
+    copyrightStrip.style.background = "linear-gradient(135deg, " + gradientStart + " 0%, " + gradientEnd + " 100%)";
+
     if (document.body) {
       document.body.appendChild(watermarkDiv);
       document.body.appendChild(deepWatermarkDiv);
+      document.body.appendChild(copyrightStrip);
     }
 
     /* ===================================================

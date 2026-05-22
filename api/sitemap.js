@@ -57,6 +57,35 @@ const STATIC_PAGES = [
   '/journal/comment',
 ];
 
+const STATIC_HTML_PAGES = [
+  '/static-pages.html',
+  '/project-architecture-blueprint.html',
+  '/ui-design-system-overview.html',
+  '/performance-engineering-report.html',
+  '/api-reliability-playbook.html',
+  '/security-hardening-notes.html',
+  '/seo-and-indexing-guide.html',
+  '/content-strategy-manifest.html',
+  '/user-feedback-operations.html',
+  '/deployment-and-release-story.html',
+  '/data-model-governance.html',
+  '/accessibility-improvement-log.html',
+  '/mobile-experience-handbook.html',
+  '/feature-delivery-timeline.html',
+  '/monitoring-and-status-notes.html',
+  '/journal-platform-deep-dive.html',
+  '/community-and-support-framework.html',
+  '/learning-roadmap-and-goals.html',
+  '/portfolio-case-study-quicklink.html',
+  '/portfolio-case-study-studybot.html',
+  '/portfolio-case-study-transparent-clock.html',
+  '/portfolio-case-study-node-server.html',
+  '/collaboration-and-contact-workflow.html',
+  '/legal-and-compliance-summary.html',
+  '/future-innovation-lab.html',
+  '/project-retrospective-2026.html',
+];
+
 function formatDate(dateInput) {
   if (!dateInput) return STATIC_PAGE_LASTMOD_FALLBACK;
   try { return new Date(dateInput).toISOString().split('T')[0]; } catch { return STATIC_PAGE_LASTMOD_FALLBACK; }
@@ -109,6 +138,11 @@ const STATIC_ROUTE_SOURCES = {
   '/404': ['src/pages/NotFound.tsx'],
   '/user/owner': ['src/pages/UserProfile.tsx'],
 };
+
+for (const staticHtmlPage of STATIC_HTML_PAGES) {
+  const cleanPath = staticHtmlPage.replace(/^\//, '');
+  STATIC_ROUTE_SOURCES[staticHtmlPage] = [`public/${cleanPath}`];
+}
 
 const PROJECT_DETAIL_SOURCES = ['src/pages/ProjectDetail.tsx', 'src/data/projectsData.ts'];
 
@@ -262,6 +296,14 @@ async function buildSitemap(baseUrl) {
       lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES[page]),
       changefreq: page === '' ? 'daily' : 'weekly',
       priority: '1.0',
+    });
+  }
+  for (const page of STATIC_HTML_PAGES) {
+    addRoute({
+      loc: page,
+      lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES[page]),
+      changefreq: 'monthly',
+      priority: '0.6',
     });
   }
   addRoute({ loc: '/404', lastmod: latestMtimeDate(STATIC_ROUTE_SOURCES['/404']), changefreq: 'monthly', priority: '0.2' });

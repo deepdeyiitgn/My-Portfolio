@@ -434,6 +434,12 @@ export default function Footer() {
             >
               {t('footer.subscribe', 'Subscribe for updates')}
             </Link>
+            <a
+              href="/static-pages.html"
+              className="px-5 py-3 rounded-xl border border-zinc-800 text-zinc-300 text-xs font-black uppercase tracking-widest hover:border-amber-500/40 hover:text-amber-500 transition-colors text-center"
+            >
+              Static Pages
+            </a>
           </div>
         </div>
       </div>
