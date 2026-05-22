@@ -1,5 +1,6 @@
 const { MongoClient, ObjectId } = require('mongodb');
 const { randomBytes, createHash, timingSafeEqual } = require('crypto');
+const { resolveTxt } = require('node:dns').promises;
 
 let cachedDb = null;
 async function connectToDatabase() {
@@ -29,6 +30,7 @@ const WATERMARK_TRACK_MAX_PER_DOMAIN_WINDOW = 12;
 const WATERMARK_HEARTBEAT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 const WATERMARK_SIGNATURE_WINDOW_MS = 10 * 60 * 1000;
 const WATERMARK_VERIFY_CHALLENGE_TTL_MS = 15 * 60 * 1000;
+const WATERMARK_DOMAIN_REVERIFY_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 const watermarkTrackRateState = new Map();
 const watermarkTrackDomainRateState = new Map();
 const watermarkReplayNonceState = new Map();
@@ -190,6 +192,31 @@ function generateWatermarkChallenge(domain) {
   };
 }
 
+function getWatermarkChallengeLine(token) {
+  return `deep-watermark-verification=${String(token || '').trim()}`;
+}
+
+function buildWatermarkTxtHost(domain) {
+  const normalizedDomain = normalizeDomain(domain);
+  return normalizedDomain ? `_deep-watermark.${normalizedDomain}` : '';
+}
+
+function buildWatermarkChallengePayload(domain, token, challengePath, challengeExpiresAt) {
+  const normalizedDomain = normalizeDomain(domain);
+  const line = getWatermarkChallengeLine(token);
+  const txtHost = buildWatermarkTxtHost(normalizedDomain);
+  return {
+    path: String(challengePath || '/.well-known/deep-watermark-verification.txt'),
+    content: line,
+    expiresAt: challengeExpiresAt || null,
+    txt: {
+      host: txtHost,
+      value: line,
+      fallbackHost: normalizedDomain,
+    },
+  };
+}
+
 async function fetchText(url, timeoutMs = 5000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -204,15 +231,58 @@ async function fetchText(url, timeoutMs = 5000) {
   }
 }
 
-async function verifyWatermarkDomainChallenge(domain, token, challengePath) {
+async function verifyWatermarkDomainFileChallenge(domain, token, challengePath) {
   const normalizedDomain = normalizeDomain(domain);
   if (!normalizedDomain || !token) return false;
   const path = String(challengePath || '/.well-known/deep-watermark-verification.txt');
   const httpsText = await fetchText(`https://${normalizedDomain}${path}`);
-  const expectedLine = `deep-watermark-verification=${token}`;
+  const expectedLine = getWatermarkChallengeLine(token);
   if (httpsText.split('\n').map((line) => line.trim()).includes(expectedLine)) return true;
   const httpText = await fetchText(`http://${normalizedDomain}${path}`);
   return httpText.split('\n').map((line) => line.trim()).includes(expectedLine);
+}
+
+async function resolveTxtWithTimeout(hostname, timeoutMs = 5000) {
+  const host = String(hostname || '').trim().toLowerCase();
+  if (!host) return [];
+  const timeout = new Promise((resolve) => {
+    setTimeout(() => resolve([]), timeoutMs);
+  });
+  try {
+    const records = await Promise.race([resolveTxt(host), timeout]);
+    if (!Array.isArray(records)) return [];
+    return records
+      .map((entry) => Array.isArray(entry) ? entry.join('') : String(entry || ''))
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+async function verifyWatermarkDomainTxtChallenge(domain, token) {
+  const normalizedDomain = normalizeDomain(domain);
+  const txtHost = buildWatermarkTxtHost(normalizedDomain);
+  const expectedLine = getWatermarkChallengeLine(token);
+  if (!normalizedDomain || !expectedLine) return false;
+  const hosts = [txtHost, normalizedDomain].filter(Boolean);
+  for (const host of hosts) {
+    const records = await resolveTxtWithTimeout(host);
+    if (records.includes(expectedLine)) return true;
+  }
+  return false;
+}
+
+async function verifyWatermarkDomainOwnership(domain, token, challengePath) {
+  const [fileValid, txtValid] = await Promise.all([
+    verifyWatermarkDomainFileChallenge(domain, token, challengePath),
+    verifyWatermarkDomainTxtChallenge(domain, token),
+  ]);
+  return {
+    ok: fileValid && txtValid,
+    fileValid,
+    txtValid,
+  };
 }
 
 function sanitizeTitle(raw) {
@@ -385,11 +455,12 @@ module.exports = async (req, res) => {
         ok: true,
         domain,
         verificationState: 'pending',
-        challenge: {
-          path: challenge.challengePath,
-          content: challenge.challengeContent,
-          expiresAt: challenge.challengeExpiresAt,
-        },
+        challenge: buildWatermarkChallengePayload(
+          domain,
+          challenge.token,
+          challenge.challengePath,
+          challenge.challengeExpiresAt,
+        ),
       });
     }
 
@@ -404,23 +475,39 @@ module.exports = async (req, res) => {
       if (!site) return res.status(404).json({ ok: false, message: 'Site not found' });
       const challengeExpiresAt = site?.challengeExpiresAt ? new Date(site.challengeExpiresAt) : null;
       const challengeExpiryMs = challengeExpiresAt ? challengeExpiresAt.getTime() : Number.NaN;
-      if (!site.challengeTokenHash || !Number.isFinite(challengeExpiryMs) || challengeExpiryMs < Date.now()) {
+      const isAlreadyVerified = String(site.verificationState || '').toLowerCase() === 'verified';
+      if (!site.challengeTokenHash || (!isAlreadyVerified && (!Number.isFinite(challengeExpiryMs) || challengeExpiryMs < Date.now()))) {
         return res.status(400).json({ ok: false, message: 'Challenge missing or expired, register again.' });
       }
       const challengeToken = String(site.challengeToken || '').trim();
       if (!challengeToken || (site.challengeTokenHash && !safeTokenEquals(sha256Hex(challengeToken), String(site.challengeTokenHash || '')))) {
         return res.status(400).json({ ok: false, message: 'Challenge token mismatch' });
       }
-      const challengeValid = await verifyWatermarkDomainChallenge(domain, challengeToken, site.challengePath);
-      if (!challengeValid) {
+      const ownershipCheck = await verifyWatermarkDomainOwnership(domain, challengeToken, site.challengePath);
+      if (!ownershipCheck.ok) {
+        const now = new Date();
         await watermarkSitesCol.updateOne(
           { domain },
-          { $set: { verificationState: 'pending', trust: 'low', updatedAt: new Date() } },
+          {
+            $set: {
+              verificationState: 'pending',
+              trust: 'low',
+              tokenMatched: false,
+              updatedAt: now,
+              lastDomainVerificationCheckAt: now,
+              nextDomainVerificationCheckAt: new Date(now.getTime() + WATERMARK_DOMAIN_REVERIFY_INTERVAL_MS),
+            },
+          },
         );
-        return res.status(400).json({ ok: false, message: 'Challenge file not found on domain' });
+        return res.status(400).json({
+          ok: false,
+          message: `Domain verification failed (${ownershipCheck.fileValid ? 'file:ok' : 'file:missing'}, ${ownershipCheck.txtValid ? 'txt:ok' : 'txt:missing'})`,
+          checks: ownershipCheck,
+        });
       }
 
-      const issuedToken = randomBytes(32).toString('hex');
+      const existingToken = String(site.siteToken || '').trim();
+      const issuedToken = existingToken || randomBytes(32).toString('hex');
       const now = new Date();
       await watermarkSitesCol.updateOne(
         { domain },
@@ -435,13 +522,8 @@ module.exports = async (req, res) => {
             verifiedAt: now,
             updatedAt: now,
             nextAllowedHeartbeatAt: now,
-          },
-          $unset: {
-            challengeTokenHash: '',
-            challengeToken: '',
-            challengePath: '',
-            challengeExpiresAt: '',
-            challengeIssuedAt: '',
+            lastDomainVerificationCheckAt: now,
+            nextDomainVerificationCheckAt: new Date(now.getTime() + WATERMARK_DOMAIN_REVERIFY_INTERVAL_MS),
           },
         },
       );
@@ -451,6 +533,7 @@ module.exports = async (req, res) => {
         verificationState: 'verified',
         siteToken: issuedToken,
         nextAllowedHeartbeatAt: now,
+        checks: ownershipCheck,
       });
     }
 
@@ -482,6 +565,31 @@ module.exports = async (req, res) => {
       if (nextAllowed.getTime() > now.getTime()) {
         return res.status(202).json({ ok: true, skipped: true, nextAllowedHeartbeatAt: nextAllowed });
       }
+      const verificationToken = String(site.challengeToken || '').trim();
+      if (!verificationToken || (site.challengeTokenHash && !safeTokenEquals(sha256Hex(verificationToken), String(site.challengeTokenHash || '')))) {
+        return res.status(403).json({ ok: false, message: 'Domain verification token missing; re-register domain challenge' });
+      }
+      const ownershipCheck = await verifyWatermarkDomainOwnership(domain, verificationToken, site.challengePath);
+      if (!ownershipCheck.ok) {
+        await watermarkSitesCol.updateOne(
+          { domain },
+          {
+            $set: {
+              verificationState: 'pending',
+              trust: 'low',
+              tokenMatched: false,
+              updatedAt: now,
+              lastDomainVerificationCheckAt: now,
+              nextDomainVerificationCheckAt: new Date(now.getTime() + WATERMARK_DOMAIN_REVERIFY_INTERVAL_MS),
+            },
+          },
+        );
+        return res.status(403).json({
+          ok: false,
+          message: 'Domain ownership check failed for weekly verification. Re-verify from dashboard.',
+          checks: ownershipCheck,
+        });
+      }
 
       const dayBucket = getDayBucket(now);
       const title = sanitizeTitle(req.body?.title);
@@ -497,6 +605,8 @@ module.exports = async (req, res) => {
             lastSeenAt: now,
             lastHeartbeatAt: now,
             nextAllowedHeartbeatAt: new Date(now.getTime() + WATERMARK_HEARTBEAT_INTERVAL_MS),
+            lastDomainVerificationCheckAt: now,
+            nextDomainVerificationCheckAt: new Date(now.getTime() + WATERMARK_DOMAIN_REVERIFY_INTERVAL_MS),
           },
           $inc: { hits: 1 },
           $push: { heartbeatBuckets: { $each: [dayBucket], $slice: -90 } },
@@ -521,6 +631,11 @@ module.exports = async (req, res) => {
             nextAllowedHeartbeatAt: 1,
             tokenMatched: 1,
             siteToken: 1,
+            challengeToken: 1,
+            challengePath: 1,
+            challengeExpiresAt: 1,
+            lastDomainVerificationCheckAt: 1,
+            nextDomainVerificationCheckAt: 1,
           },
         },
       );
@@ -531,7 +646,17 @@ module.exports = async (req, res) => {
         ok: true,
         site: {
           ...site,
-          ...(trustedDashboard ? { siteToken: site.siteToken || '' } : {}),
+          ...(trustedDashboard ? {
+            siteToken: site.siteToken || '',
+            ...(site.challengeToken ? {
+              challenge: buildWatermarkChallengePayload(
+                domain,
+                site.challengeToken,
+                site.challengePath,
+                site.challengeExpiresAt || null,
+              ),
+            } : {}),
+          } : {}),
         },
       });
     }
@@ -633,6 +758,8 @@ module.exports = async (req, res) => {
               lastSeenAt: 1,
               lastHeartbeatAt: 1,
               nextAllowedHeartbeatAt: 1,
+              lastDomainVerificationCheckAt: 1,
+              nextDomainVerificationCheckAt: 1,
               approvedAt: 1,
             },
           })

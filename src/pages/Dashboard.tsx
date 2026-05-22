@@ -87,6 +87,8 @@ interface WatermarkSiteAdmin {
   lastSeenAt?: string;
   lastHeartbeatAt?: string;
   nextAllowedHeartbeatAt?: string;
+  lastDomainVerificationCheckAt?: string;
+  nextDomainVerificationCheckAt?: string;
 }
 
 // ── Storage types ─────────────────────────────────────────────────────────────
@@ -1358,8 +1360,12 @@ export default function Dashboard() {
   const [watermarkChallengePath, setWatermarkChallengePath] = useState('');
   const [watermarkChallengeContent, setWatermarkChallengeContent] = useState('');
   const [watermarkChallengeExpiry, setWatermarkChallengeExpiry] = useState('');
+  const [watermarkTxtHost, setWatermarkTxtHost] = useState('');
+  const [watermarkTxtValue, setWatermarkTxtValue] = useState('');
   const [watermarkChallengeLoading, setWatermarkChallengeLoading] = useState(false);
   const [watermarkVerifyLoading, setWatermarkVerifyLoading] = useState(false);
+  const [watermarkStatusLoading, setWatermarkStatusLoading] = useState(false);
+  const [watermarkVerifyPopupOpen, setWatermarkVerifyPopupOpen] = useState(false);
   const RAW_WATERMARK_SCRIPT_URL = String(import.meta.env.VITE_WATERMARK_SCRIPT_URL || '').trim();
   const WATERMARK_SCRIPT_URL = RAW_WATERMARK_SCRIPT_URL || DEFAULT_WATERMARK_SCRIPT_URL;
   const watermarkEmbedSnippet = watermarkDomainToken
@@ -2393,6 +2399,8 @@ export default function Dashboard() {
       setWatermarkChallengePath(String(d?.challenge?.path || ''));
       setWatermarkChallengeContent(String(d?.challenge?.content || ''));
       setWatermarkChallengeExpiry(String(d?.challenge?.expiresAt || ''));
+      setWatermarkTxtHost(String(d?.challenge?.txt?.host || ''));
+      setWatermarkTxtValue(String(d?.challenge?.txt?.value || ''));
       setWatermarkDomainVerification(String(d?.verificationState || 'pending'));
       setWatermarkDomainToken('');
       showToast('Verification challenge issued');
@@ -2423,16 +2431,53 @@ export default function Dashboard() {
       }
       setWatermarkDomainVerification(String(d.verificationState || 'verified'));
       setWatermarkDomainToken(String(d.siteToken || ''));
-      setWatermarkChallengePath('');
-      setWatermarkChallengeContent('');
-      setWatermarkChallengeExpiry('');
+      if (d?.checks?.fileValid === false || d?.checks?.txtValid === false) {
+        showToast('Verification failed for one or more methods', 'error');
+        return;
+      }
       showToast('Domain verified and secure token issued');
+      await fetchWatermarkDomainStatus(domain, { silent: true });
       fetchWatermarkSites(watermarkPage, watermarkStatusFilter);
     } catch {
       showToast('Network error', 'error');
     } finally {
       setWatermarkVerifyLoading(false);
     }
+  };
+
+  const fetchWatermarkDomainStatus = useCallback(async (domainRaw: string, opts?: { silent?: boolean }) => {
+    const domain = domainRaw.trim().toLowerCase();
+    if (!domain) return;
+    setWatermarkStatusLoading(true);
+    try {
+      const r = await fetch(`/api/projects?action=watermark-status&domain=${encodeURIComponent(domain)}`);
+      const d = await r.json();
+      if (!d.ok) {
+        if (!opts?.silent) showToast(d.message || 'Failed to load domain verification state', 'error');
+        return;
+      }
+      const site = d.site || {};
+      const challenge = site.challenge || {};
+      setWatermarkDomainInput(domain);
+      setWatermarkDomainVerification(String(site.verificationState || 'unknown'));
+      setWatermarkDomainToken(String(site.siteToken || ''));
+      setWatermarkChallengePath(String(challenge.path || ''));
+      setWatermarkChallengeContent(String(challenge.content || ''));
+      setWatermarkChallengeExpiry(String(challenge.expiresAt || ''));
+      setWatermarkTxtHost(String(challenge?.txt?.host || ''));
+      setWatermarkTxtValue(String(challenge?.txt?.value || ''));
+      if (!opts?.silent) showToast('Loaded existing verification details');
+    } catch {
+      if (!opts?.silent) showToast('Network error', 'error');
+    } finally {
+      setWatermarkStatusLoading(false);
+    }
+  }, []);
+
+  const openWatermarkVerifyPopup = async (domain: string) => {
+    setWatermarkVerifyPopupOpen(true);
+    setWatermarkDomainInput(domain);
+    await fetchWatermarkDomainStatus(domain, { silent: true });
   };
 
   // ── Loading state ───────────────────────────────────────────────────────
@@ -2745,6 +2790,7 @@ export default function Dashboard() {
               />
             </div>
           )}
+
         </div>
       )}
 
@@ -2876,16 +2922,31 @@ export default function Dashboard() {
                 {watermarkVerifyLoading ? 'Verifying...' : 'Verify Domain'}
               </button>
             </div>
+            <button
+              onClick={() => fetchWatermarkDomainStatus(watermarkDomainInput)}
+              disabled={watermarkStatusLoading || !watermarkDomainInput.trim()}
+              className={`${btnCls} bg-indigo-500/15 border border-indigo-500/30 text-indigo-200 hover:bg-indigo-500/25 disabled:opacity-50 inline-flex items-center gap-2`}
+            >
+              {watermarkStatusLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+              {watermarkStatusLoading ? 'Loading...' : 'Load Existing Codes'}
+            </button>
             <p className="text-[11px] text-zinc-500">
               Verification state: <span className="uppercase text-zinc-300">{watermarkDomainVerification || 'unknown'}</span>{' '}
-              {watermarkDomainToken ? '• secure domain token ready for snippet.' : '• run challenge + verify to issue domain token.'}
+              {watermarkDomainToken ? '• secure domain token ready for snippet.' : '• run challenge + verify to issue domain token using both methods.'}
             </p>
             {watermarkChallengePath && watermarkChallengeContent && (
               <div className="text-[11px] text-zinc-400 bg-zinc-950/60 border border-zinc-800 rounded-xl p-3 space-y-1">
-                <p>Create this file on your domain:</p>
+                <p className="text-zinc-300">Method 1 — Create this file on your domain:</p>
                 <p className="font-mono text-amber-400 break-all">{watermarkChallengePath}</p>
                 <p>With exact content:</p>
                 <p className="font-mono text-emerald-300 break-all">{watermarkChallengeContent}</p>
+                {watermarkTxtHost && watermarkTxtValue && (
+                  <>
+                    <p className="text-zinc-300 mt-2">Method 2 — Add DNS TXT record:</p>
+                    <p className="font-mono text-amber-400 break-all">Host: {watermarkTxtHost}</p>
+                    <p className="font-mono text-emerald-300 break-all">Value: {watermarkTxtValue}</p>
+                  </>
+                )}
                 {watermarkChallengeExpiry && <p>Expires: {new Date(watermarkChallengeExpiry).toLocaleString()}</p>}
               </div>
             )}
@@ -2968,10 +3029,14 @@ export default function Dashboard() {
                         <span className="text-zinc-600">Hits: {site.hits || 0}</span>
                         {site.lastSeenAt && <span className="text-zinc-600">Seen: {new Date(site.lastSeenAt).toLocaleDateString()}</span>}
                         {site.nextAllowedHeartbeatAt && <span className="text-zinc-600">Next Heartbeat: {new Date(site.nextAllowedHeartbeatAt).toLocaleDateString()}</span>}
+                        {site.nextDomainVerificationCheckAt && <span className="text-zinc-600">Next Verify: {new Date(site.nextDomainVerificationCheckAt).toLocaleDateString()}</span>}
                       </div>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 shrink-0">
+                    <button onClick={() => openWatermarkVerifyPopup(site.domain)} className={`${btnCls} bg-sky-500/10 border border-sky-500/40 text-sky-300 hover:bg-sky-500/20 text-xs px-3 py-1.5`}>
+                      Verify
+                    </button>
                     <button onClick={() => handleApproveWatermark(site)} className={`${btnCls} bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20 text-xs px-3 py-1.5`}>
                       Approve
                     </button>
@@ -2998,6 +3063,65 @@ export default function Dashboard() {
               <button onClick={() => { const p = Math.max(1, watermarkPage - 1); setWatermarkPage(p); fetchWatermarkSites(p, watermarkStatusFilter); }} disabled={watermarkPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}><ChevronLeft size={14} /> Prev</button>
               <span className="text-zinc-500 text-sm">Page {watermarkPage} / {watermarkTotalPages}</span>
               <button onClick={() => { const p = Math.min(watermarkTotalPages, watermarkPage + 1); setWatermarkPage(p); fetchWatermarkSites(p, watermarkStatusFilter); }} disabled={watermarkPage >= watermarkTotalPages} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center gap-1`}>Next <ChevronRight size={14} /></button>
+            </div>
+          )}
+
+          {watermarkVerifyPopupOpen && (
+            <div className="fixed inset-0 z-[1100] bg-black/70 backdrop-blur-sm flex items-center justify-center px-4">
+              <div className="w-full max-w-2xl bg-zinc-900 border border-zinc-700 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-white font-bold">Verify Domain (Both Methods)</h4>
+                  <button
+                    type="button"
+                    onClick={() => setWatermarkVerifyPopupOpen(false)}
+                    className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <p className="text-[12px] text-zinc-400">
+                  Domain: <span className="text-zinc-200 font-mono">{watermarkDomainInput || '—'}</span>
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={handleIssueWatermarkChallenge}
+                    disabled={watermarkChallengeLoading || !watermarkDomainInput.trim()}
+                    className={`${btnCls} bg-zinc-800 text-zinc-200 hover:bg-zinc-700 disabled:opacity-50`}
+                  >
+                    {watermarkChallengeLoading ? 'Issuing...' : 'Issue Challenge'}
+                  </button>
+                  <button
+                    onClick={handleVerifyWatermarkDomain}
+                    disabled={watermarkVerifyLoading || !watermarkDomainInput.trim()}
+                    className={`${btnCls} bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 disabled:opacity-50`}
+                  >
+                    {watermarkVerifyLoading ? 'Verifying...' : 'Verify Domain'}
+                  </button>
+                  <button
+                    onClick={() => fetchWatermarkDomainStatus(watermarkDomainInput, { silent: true })}
+                    disabled={watermarkStatusLoading || !watermarkDomainInput.trim()}
+                    className={`${btnCls} bg-indigo-500/15 border border-indigo-500/30 text-indigo-200 hover:bg-indigo-500/25 disabled:opacity-50 inline-flex items-center gap-2`}
+                  >
+                    {watermarkStatusLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                    Reload Codes
+                  </button>
+                </div>
+                {watermarkChallengePath && watermarkChallengeContent && (
+                  <div className="text-[11px] text-zinc-400 bg-zinc-950/60 border border-zinc-800 rounded-xl p-3 space-y-1">
+                    <p className="text-zinc-300">Method 1 — File path:</p>
+                    <p className="font-mono text-amber-400 break-all">{watermarkChallengePath}</p>
+                    <p>File content:</p>
+                    <p className="font-mono text-emerald-300 break-all">{watermarkChallengeContent}</p>
+                    {watermarkTxtHost && watermarkTxtValue && (
+                      <>
+                        <p className="text-zinc-300 mt-2">Method 2 — DNS TXT:</p>
+                        <p className="font-mono text-amber-400 break-all">Host: {watermarkTxtHost}</p>
+                        <p className="font-mono text-emerald-300 break-all">Value: {watermarkTxtValue}</p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
