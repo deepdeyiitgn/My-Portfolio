@@ -475,8 +475,7 @@ module.exports = async (req, res) => {
       if (!site) return res.status(404).json({ ok: false, message: 'Site not found' });
       const challengeExpiresAt = site?.challengeExpiresAt ? new Date(site.challengeExpiresAt) : null;
       const challengeExpiryMs = challengeExpiresAt ? challengeExpiresAt.getTime() : Number.NaN;
-      const isAlreadyVerified = String(site.verificationState || '').toLowerCase() === 'verified';
-      if (!site.challengeTokenHash || (!isAlreadyVerified && (!Number.isFinite(challengeExpiryMs) || challengeExpiryMs < Date.now()))) {
+      if (!site.challengeTokenHash || !Number.isFinite(challengeExpiryMs) || challengeExpiryMs < Date.now()) {
         return res.status(400).json({ ok: false, message: 'Challenge missing or expired, register again.' });
       }
       const challengeToken = String(site.challengeToken || '').trim();

@@ -2431,10 +2431,6 @@ export default function Dashboard() {
       }
       setWatermarkDomainVerification(String(d.verificationState || 'verified'));
       setWatermarkDomainToken(String(d.siteToken || ''));
-      if (d?.checks?.fileValid === false || d?.checks?.txtValid === false) {
-        showToast('Verification failed for one or more methods', 'error');
-        return;
-      }
       showToast('Domain verified and secure token issued');
       await fetchWatermarkDomainStatus(domain, { silent: true });
       fetchWatermarkSites(watermarkPage, watermarkStatusFilter);
