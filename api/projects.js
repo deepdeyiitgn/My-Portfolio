@@ -493,6 +493,7 @@ module.exports = async (req, res) => {
               verificationState: 'pending',
               trust: 'low',
               tokenMatched: false,
+              hidden: true,
               updatedAt: now,
               lastDomainVerificationCheckAt: now,
               nextDomainVerificationCheckAt: new Date(now.getTime() + WATERMARK_DOMAIN_REVERIFY_INTERVAL_MS),
@@ -519,6 +520,7 @@ module.exports = async (req, res) => {
             status: site.status === 'declined' ? 'pending' : site.status,
             siteToken: issuedToken,
             siteTokenHash: sha256Hex(issuedToken),
+            hidden: false,
             verifiedAt: now,
             updatedAt: now,
             nextAllowedHeartbeatAt: now,
@@ -567,6 +569,20 @@ module.exports = async (req, res) => {
       }
       const verificationToken = String(site.challengeToken || '').trim();
       if (!verificationToken || (site.challengeTokenHash && !safeTokenEquals(sha256Hex(verificationToken), String(site.challengeTokenHash || '')))) {
+        await watermarkSitesCol.updateOne(
+          { domain },
+          {
+            $set: {
+              verificationState: 'pending',
+              trust: 'low',
+              tokenMatched: false,
+              hidden: true,
+              updatedAt: now,
+              lastDomainVerificationCheckAt: now,
+              nextDomainVerificationCheckAt: new Date(now.getTime() + WATERMARK_DOMAIN_REVERIFY_INTERVAL_MS),
+            },
+          },
+        );
         return res.status(403).json({ ok: false, message: 'Domain verification token missing; re-register domain challenge' });
       }
       const ownershipCheck = await verifyWatermarkDomainOwnership(domain, verificationToken, site.challengePath);
@@ -578,6 +594,7 @@ module.exports = async (req, res) => {
               verificationState: 'pending',
               trust: 'low',
               tokenMatched: false,
+              hidden: true,
               updatedAt: now,
               lastDomainVerificationCheckAt: now,
               nextDomainVerificationCheckAt: new Date(now.getTime() + WATERMARK_DOMAIN_REVERIFY_INTERVAL_MS),
