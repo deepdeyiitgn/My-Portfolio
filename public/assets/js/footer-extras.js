@@ -552,10 +552,14 @@
       if (!v) return true;
       if (v === "transparent" || v === "inherit" || v === "initial" || v === "unset") return true;
       if (v === "rgba(0,0,0,0)" || v === "hsla(0,0%,0%,0)") return true;
-      if (/^rgba\(.+,(0|0\.\d+)\)$/.test(v)) return true;
-      if (/^hsla\(.+,(0|0\.\d+)\)$/.test(v)) return true;
+      if (v.indexOf("rgba(") === 0 || v.indexOf("hsla(") === 0) {
+        var alphaRaw = v.slice(v.lastIndexOf(",") + 1, -1);
+        var alpha = parseFloat(alphaRaw);
+        if (alphaRaw.indexOf("%") !== -1) alpha = alpha / 100;
+        if (!isNaN(alpha) && alpha <= 0) return true;
+      }
       if (/^#[0-9a-f]{8}$/.test(v) && v.slice(7, 9) === "00") return true;
-      if (/^#[0-9a-f]{4}$/.test(v) && v.slice(3, 4) === "0") return true;
+      if (/^#[0-9a-f]{4}$/.test(v) && v.charAt(3) === "0") return true;
       return false;
     }
 
