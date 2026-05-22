@@ -102,6 +102,27 @@ export const projectsData: Project[] = [
     screenshotUrl: '/69eb01798f30a15224010404.png' 
   },
   {
+    id: 'birthday-surprise-app',
+    title: 'Birthday Surprise App | Interactive Ecosystem',
+    shortDescription: 'A magical, multi-profile interactive web application featuring personalized gamified journeys and hardware integrations.',
+    fullDescription: 'A highly interactive React frontend designed to deliver bespoke digital birthday experiences. It features a smart URL-based authentication system that routes different users to entirely unique visual themes, custom-animated timelines, and manifestation games. It also leverages advanced browser APIs, including an isolated multi-track audio controller for seamless crossfading and MediaStream Microphone API integration allowing users to physically "blow out" a digital candle.',
+    techStack: ['React 19', 'TypeScript', 'Tailwind CSS', 'Vite 6', 'HTML5 Audio API', 'MediaStream API'],
+    liveUrl: 'https://m.qlynk.me/?pass=demo@123',
+    githubUrl: 'https://m.qlynk.me/?pass=demo@123',
+    logoUrl: 'https://m.qlynk.me/favicon.jpeg',
+    category: 'Interactive Web App / Gamification',
+    problem: 'Needed a scalable, engaging way to celebrate multiple birthdays with deeply personalized, zero-crossover digital experiences served from a single application architecture.',
+    solution: 'Engineered a multi-profile React application utilizing URL-based secure routing, dynamic state isolation, physics-based gamification, and custom hardware access for immersive interactions.',
+    impact: 'Created a highly engaging bespoke digital gifting platform that handles 8 entirely distinct user journeys, showcasing advanced frontend state management, CSS keyframe animations, and complex media handling.',
+    metrics: [
+      { label: 'Profiles', value: '8 Unique Experiences' },
+      { label: 'Hardware UI', value: 'Mic-Detected Candle' },
+      { label: 'Audio System', value: 'Isolated Track Crossfading' },
+    ],
+    architectureLayers: ['React 19 View Layer', 'URL Authentication Logic', 'MediaStream Input', 'Custom Audio Controller Class'],
+    screenshotUrl: '/m-qlynk-me-1024x768desktop-192b9e.png'
+  },
+  {
     id: 'qlynk-node-server',
     title: 'QLYNK Node Server',
     shortDescription: 'Highly secure private cloud storage and streaming datacenter.',
