@@ -771,6 +771,8 @@
        so browser status bar does not preview the URL.
        Includes mailto:, tel:, and # anchor links.
     =================================================== */
+
+    /* === PREVIEW LINK PROTECTION COMMENTED OUT ===
     var allLinks = document.querySelectorAll("a[href]");
     allLinks.forEach(function (link) {
       var href = link.getAttribute("href");
@@ -799,6 +801,7 @@
         }
       });
     });
+    ============================================= */
 
   }
 
