@@ -330,6 +330,66 @@ function normalizeImages(images) {
   return Array.from(unique);
 }
 
+function normalizeTagList(input, { hashtags = false } = {}) {
+  const rawList = Array.isArray(input)
+    ? input
+    : String(input || '')
+      .split(/[,\n\s]+/)
+      .filter(Boolean);
+  const unique = new Set();
+  for (const raw of rawList) {
+    const base = String(raw || '').trim().toLowerCase();
+    if (!base) continue;
+    const withoutHash = hashtags ? base.replace(/^#+/, '') : base;
+    const token = withoutHash.replace(/[^a-z0-9-_]/g, '');
+    if (!token) continue;
+    unique.add(token);
+  }
+  return Array.from(unique);
+}
+
+function tokenizeSearchText(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9#\s-]/g, ' ')
+    .split(/\s+/)
+    .map((token) => token.replace(/^#+/, '').trim())
+    .filter((token) => token.length >= 2);
+}
+
+function trigramSet(text) {
+  const clean = String(text || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!clean) return new Set();
+  if (clean.length <= 3) return new Set([clean]);
+  const set = new Set();
+  for (let i = 0; i <= clean.length - 3; i += 1) {
+    set.add(clean.slice(i, i + 3));
+  }
+  return set;
+}
+
+function jaccardScore(a, b) {
+  if (!a.size || !b.size) return 0;
+  let intersection = 0;
+  for (const value of a) {
+    if (b.has(value)) intersection += 1;
+  }
+  const union = a.size + b.size - intersection;
+  return union > 0 ? intersection / union : 0;
+}
+
+function scoreCandidateText(queryNorm, queryTokens, candidateText) {
+  const candidateNorm = String(candidateText || '').toLowerCase();
+  if (!candidateNorm) return 0;
+  let tokenHits = 0;
+  for (const token of queryTokens) {
+    if (candidateNorm.includes(token)) tokenHits += 1;
+  }
+  const tokenScore = queryTokens.length ? tokenHits / queryTokens.length : 0;
+  const triScore = jaccardScore(trigramSet(queryNorm), trigramSet(candidateNorm));
+  return (tokenScore * 0.72) + (triScore * 0.28);
+}
+
 function getCooldownKey(ip, scope) {
   return `${scope}:${String(ip || 'unknown')}`;
 }
@@ -1558,6 +1618,48 @@ module.exports = async (req, res) => {
         return json(res, 200, { ok: true, current, history });
       }
 
+      if (action === 'suggest') {
+        const q = String(getParam(req, 'q') || '').trim();
+        const normalizedQuery = q.toLowerCase();
+        const queryTokens = tokenizeSearchText(normalizedQuery);
+        const analyticsCol = db.collection('search_analytics');
+        const journalsCol = db.collection('journals');
+
+        const [trendingDocs, journalDocs] = await Promise.all([
+          analyticsCol.find({}).sort({ count: -1, lastSearched: -1 }).limit(40).toArray(),
+          journalsCol.find({ published: true }, { projection: { title: 1, keywords: 1, hashtags: 1 } }).sort({ createdAt: -1 }).limit(80).toArray(),
+        ]);
+
+        const candidates = new Set();
+        for (const row of trendingDocs) {
+          const query = String(row?.query || '').trim();
+          if (query) candidates.add(query);
+        }
+        for (const journal of journalDocs) {
+          const title = String(journal?.title || '').trim();
+          if (title) candidates.add(title);
+          normalizeTagList(journal?.keywords).forEach((kw) => candidates.add(kw));
+          normalizeTagList(journal?.hashtags, { hashtags: true }).forEach((tag) => candidates.add(`#${tag}`));
+        }
+
+        const entries = Array.from(candidates);
+        if (!normalizedQuery) {
+          return json(res, 200, { ok: true, suggestions: entries.slice(0, 8) });
+        }
+
+        const scored = entries
+          .map((value) => ({
+            value,
+            score: scoreCandidateText(normalizedQuery, queryTokens, value),
+          }))
+          .filter((item) => item.score >= 0.1)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 8)
+          .map((item) => item.value);
+
+        return json(res, 200, { ok: true, suggestions: scored });
+      }
+
       // --- NAYA: Global Search & Easter Egg Engine ---
       if (action === 'search') {
         const q = getParam(req, 'q') || '';
@@ -1588,77 +1690,17 @@ module.exports = async (req, res) => {
           { upsert: true }
         );
 
-        // --- Loose Multi-Keyword Matching ---
-        // Escape each keyword for safe regex use, then build an $and clause so
-        // every keyword must appear in at least one of the indexed fields.
-        const keywords = normalizedQuery.split(/\s+/).filter(Boolean);
-        const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const buildCharTokens = (terms) => {
-          const tokenSet = new Set();
-          terms.forEach((term) => {
-            const clean = String(term || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (clean.length < 3) return;
-            for (let size = 3; size <= Math.min(6, clean.length); size += 1) {
-              for (let i = 0; i <= clean.length - size; i += 1) {
-                tokenSet.add(clean.slice(i, i + size));
-              }
-            }
-          });
-          return Array.from(tokenSet).sort((a, b) => b.length - a.length).slice(0, 40);
-        };
-        const charTokens = buildCharTokens(keywords);
-        const snippetTokens = Array.from(new Set([...keywords, ...charTokens])).slice(0, 40);
+        const queryTokens = tokenizeSearchText(normalizedQuery);
+        const snippetTokens = Array.from(new Set(queryTokens)).slice(0, 40);
 
-        const keywordConditions = keywords.map(kw => {
-          const kwRegex = new RegExp(escapeRegex(kw), 'i');
-          return {
-            $or: [
-              { title: kwRegex },
-              { summary: kwRegex },
-              { content: kwRegex },
-              { categoryName: kwRegex }
-            ]
-          };
-        });
-
-        const journalsCol = db.collection('journals');
-        let matchedJournals = [];
-        if (keywordConditions.length > 0) {
-          matchedJournals = await journalsCol.find({
-            published: true,
-            $and: keywordConditions,
-          }).sort({ createdAt: -1 }).toArray();
-        }
-        if (matchedJournals.length === 0 && charTokens.length > 0) {
-          const charRegexConditions = charTokens.map((token) => {
-            const tokenRegex = new RegExp(escapeRegex(token), 'i');
-            return {
-              $or: [
-                { title: tokenRegex },
-                { summary: tokenRegex },
-                { content: tokenRegex },
-                { categoryName: tokenRegex },
-              ],
-            };
-          });
-          matchedJournals = await journalsCol.find({
-            published: true,
-            $or: charRegexConditions,
-          }).sort({ createdAt: -1 }).limit(40).toArray();
-        }
-
-        // --- Multi-Keyword Snippet Generator ---
-        // Strips HTML, locates each keyword, and highlights ALL keywords in every snippet.
         const getSnippets = (text, kws) => {
           if (!text || !kws.length) return [];
           const plainText = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-
           const snippets = [];
           let count = 0;
-
           for (const kw of kws) {
             if (count >= 3) break;
-            const regex = new RegExp(escapeRegex(kw), 'gi');
+            const regex = new RegExp(escapeRegexLiteral(kw), 'gi');
             let match;
             while ((match = regex.exec(plainText)) !== null && count < 3) {
               const start = Math.max(0, match.index - 40);
@@ -1666,62 +1708,105 @@ module.exports = async (req, res) => {
               let snippet = plainText.substring(start, end);
               if (start > 0) snippet = '...' + snippet;
               if (end < plainText.length) snippet += '...';
-
-              // Highlight every matched keyword in this snippet
               for (const hw of kws) {
                 snippet = snippet.replace(
-                  new RegExp(`(${escapeRegex(hw)})`, 'gi'),
+                  new RegExp(`(${escapeRegexLiteral(hw)})`, 'gi'),
                   '<mark class="bg-amber-500/20 text-amber-500 rounded px-1 font-bold">$1</mark>'
                 );
               }
               snippets.push(snippet);
-              count++;
+              count += 1;
             }
           }
-
           return snippets.length > 0
             ? snippets
             : [plainText.substring(0, 120) + (plainText.length > 120 ? '...' : '')];
         };
 
-        const journalResults = matchedJournals.map(j => ({
-          _id: j._id,
-          type: 'Journal',
-          title: j.title,
-          url: `/journal/view/${j.slug || j._id}`,
-          category: j.categoryName,
-          snippets: getSnippets(
-            [j.title, j.summary, j.content].filter(Boolean).join(' | '),
-            snippetTokens
-          ),
-          createdAtIST: j.createdAtIST
-        }));
+        const regexOr = queryTokens.slice(0, 10).map((token) => {
+          const tokenRegex = new RegExp(escapeRegexLiteral(token), 'i');
+          return {
+            $or: [
+              { title: tokenRegex },
+              { summary: tokenRegex },
+              { content: tokenRegex },
+              { categoryName: tokenRegex },
+              { keywords: tokenRegex },
+              { hashtags: tokenRegex },
+            ],
+          };
+        });
+
+        const journalsCol = db.collection('journals');
+        const journalCandidates = await journalsCol.find(
+          queryTokens.length > 0
+            ? { published: true, $or: regexOr }
+            : { published: true },
+          { projection: { _id: 1, slug: 1, title: 1, summary: 1, content: 1, categoryName: 1, keywords: 1, hashtags: 1, createdAtIST: 1, createdAt: 1 } },
+        ).sort({ createdAt: -1 }).limit(80).toArray();
+
+        const journalResults = journalCandidates
+          .map((j) => {
+            const tagText = `${normalizeTagList(j.keywords).join(' ')} ${normalizeTagList(j.hashtags, { hashtags: true }).join(' ')}`.trim();
+            const score = (
+              scoreCandidateText(normalizedQuery, queryTokens, String(j.title || '')) * 0.42
+              + scoreCandidateText(normalizedQuery, queryTokens, String(j.summary || '')) * 0.22
+              + scoreCandidateText(normalizedQuery, queryTokens, String(j.content || '')) * 0.2
+              + scoreCandidateText(normalizedQuery, queryTokens, String(j.categoryName || '')) * 0.06
+              + scoreCandidateText(normalizedQuery, queryTokens, tagText) * 0.1
+            );
+            return { journal: j, score };
+          })
+          .filter((item) => item.score >= 0.08)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 30)
+          .map(({ journal: j }) => ({
+            _id: j._id,
+            type: 'Journal',
+            title: j.title,
+            url: `/journal/view/${j.slug || j._id}`,
+            category: j.categoryName,
+            snippets: getSnippets(
+              [
+                j.title,
+                j.summary,
+                normalizeTagList(j.keywords).join(', '),
+                normalizeTagList(j.hashtags, { hashtags: true }).map((tag) => `#${tag}`).join(' '),
+                j.content,
+              ].filter(Boolean).join(' | '),
+              snippetTokens
+            ),
+            createdAtIST: j.createdAtIST
+          }));
 
         // Community users
         const usersCol = db.collection('users');
         const publicUserFilter = await applyVisibleProfileUserFilter(db, PUBLIC_USER_FILTER);
-        const strictUserQuery = keywords.length
-          ? { $and: [publicUserFilter, ...keywords.map((kw) => ({ $or: [{ userName: new RegExp(escapeRegex(kw), 'i') }, { userId: new RegExp(escapeRegex(kw), 'i') }, { profileTitle: new RegExp(escapeRegex(kw), 'i') }, { bio: new RegExp(escapeRegex(kw), 'i') }, { description: new RegExp(escapeRegex(kw), 'i') }] }))] }
-          : publicUserFilter;
-        let matchedUsers = await usersCol.find(strictUserQuery).sort({ lastCommentAt: -1, firstCommentAt: -1 }).limit(8).toArray();
-        if (matchedUsers.length === 0 && charTokens.length > 0) {
-          const charUserOr = charTokens.map((token) => {
-            const tokenRegex = new RegExp(escapeRegex(token), 'i');
-            return {
-              $or: [
-                { userName: tokenRegex },
-                { userId: tokenRegex },
-                { profileTitle: tokenRegex },
-                { bio: tokenRegex },
-                { description: tokenRegex },
-              ],
-            };
-          });
-          matchedUsers = await usersCol.find({ $and: [publicUserFilter, { $or: charUserOr }] }).sort({ lastCommentAt: -1, firstCommentAt: -1 }).limit(8).toArray();
-        }
+        const userRegexOr = queryTokens.slice(0, 8).map((token) => {
+          const tokenRegex = new RegExp(escapeRegexLiteral(token), 'i');
+          return {
+            $or: [
+              { userName: tokenRegex },
+              { userId: tokenRegex },
+              { profileTitle: tokenRegex },
+              { bio: tokenRegex },
+              { description: tokenRegex },
+            ],
+          };
+        });
+        const matchedUsers = await usersCol.find(
+          queryTokens.length ? { $and: [publicUserFilter, { $or: userRegexOr }] } : publicUserFilter
+        ).sort({ lastCommentAt: -1, firstCommentAt: -1 }).limit(30).toArray();
         const userResults = matchedUsers
-          .filter((u) => String(u?.userId || '').trim())
-          .map((u) => ({
+          .map((u) => {
+            const candidateText = [u.userName, u.userId, u.profileTitle, u.description, u.bio].filter(Boolean).join(' | ');
+            const score = scoreCandidateText(normalizedQuery, queryTokens, candidateText);
+            return { user: u, score };
+          })
+          .filter((item) => item.score >= 0.08)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 8)
+          .map(({ user: u }) => ({
             _id: `user-${u.userId}`,
             type: 'User',
             title: u.userName || u.userId,
@@ -1738,30 +1823,27 @@ module.exports = async (req, res) => {
 
         // Comment permalinks
         const commentsCol = db.collection('comments');
-        const strictCommentQuery = keywords.length
-          ? {
-              isDeleted: { $ne: true },
-              $and: keywords.map((kw) => ({ text: new RegExp(escapeRegex(kw), 'i') })),
-            }
-          : { isDeleted: { $ne: true } };
-        let commentQuery = await applyVisibleCommentUserFilter(db, strictCommentQuery);
-        let matchedComments = await commentsCol.find(commentQuery).sort({ createdAt: -1 }).limit(12).toArray();
-        if (matchedComments.length === 0 && charTokens.length > 0) {
-          const charCommentRegex = charTokens.map((token) => new RegExp(escapeRegex(token), 'i'));
-          const fallbackCommentQuery = await applyVisibleCommentUserFilter(db, {
-            isDeleted: { $ne: true },
-            $or: charCommentRegex.map((rgx) => ({ text: rgx })),
-          });
-          commentQuery = fallbackCommentQuery;
-          matchedComments = await commentsCol.find(commentQuery).sort({ createdAt: -1 }).limit(12).toArray();
-        }
-        const relatedJournalIds = [...new Set(matchedComments.map((c) => String(c?.journalId || '')).filter((v) => ObjectId.isValid(v)))].map((v) => new ObjectId(v));
+        const commentRegexOr = queryTokens.slice(0, 8).map((token) => ({ text: new RegExp(escapeRegexLiteral(token), 'i') }));
+        const commentFilter = await applyVisibleCommentUserFilter(db, queryTokens.length
+          ? { isDeleted: { $ne: true }, $or: commentRegexOr }
+          : { isDeleted: { $ne: true } });
+        const matchedComments = await commentsCol.find(commentFilter).sort({ createdAt: -1 }).limit(40).toArray();
+        const scoredComments = matchedComments
+          .map((comment) => ({
+            comment,
+            score: scoreCandidateText(normalizedQuery, queryTokens, `${comment?.text || ''} ${comment?.userName || ''}`),
+          }))
+          .filter((item) => item.score >= 0.08)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 12)
+          .map((item) => item.comment);
+        const relatedJournalIds = [...new Set(scoredComments.map((c) => String(c?.journalId || '')).filter((v) => ObjectId.isValid(v)))].map((v) => new ObjectId(v));
         const relatedJournals = relatedJournalIds.length
           ? await journalsCol.find({ _id: { $in: relatedJournalIds }, published: true }, { projection: { _id: 1, slug: 1, title: 1 } }).toArray()
           : [];
         const journalMap = {};
         relatedJournals.forEach((j) => { journalMap[String(j._id)] = j; });
-        const commentResults = matchedComments
+        const commentResults = scoredComments
           .filter((c) => c?._id && c?.journalId && journalMap[String(c.journalId)])
           .map((c) => {
             const j = journalMap[String(c.journalId)];
@@ -3116,6 +3198,9 @@ module.exports = async (req, res) => {
       const contentType = String(body.contentType || 'richtext').trim();
       const publish = Boolean(body.publish);
       const images = normalizeImages(body.images);
+      const externalVideoThumbnail = String(body.externalVideoThumbnail || '').trim();
+      const keywords = normalizeTagList(body.keywords);
+      const hashtags = normalizeTagList(body.hashtags, { hashtags: true });
 
       if (!title) return json(res, 400, { ok: false, message: 'Title is required' });
       if (!content) return json(res, 400, { ok: false, message: 'Content is required' });
@@ -3123,7 +3208,7 @@ module.exports = async (req, res) => {
       const slug = slugify(title);
       const now = new Date();
       const doc = {
-        title, slug, summary, content, contentType, categorySlug, categoryName, images,
+        title, slug, summary, content, contentType, categorySlug, categoryName, images, externalVideoThumbnail, keywords, hashtags,
         published: publish,
         publishedAt: publish ? now : null,
         publishedAtIST: publish ? nowIST() : null,
@@ -3472,6 +3557,9 @@ module.exports = async (req, res) => {
         categorySlug: body.categorySlug !== undefined ? String(body.categorySlug).trim() : existing.categorySlug,
         categoryName: body.categoryName !== undefined ? String(body.categoryName).trim() : existing.categoryName,
         images: body.images !== undefined ? normalizeImages(body.images) : normalizeImages(existing.images),
+        externalVideoThumbnail: body.externalVideoThumbnail !== undefined ? String(body.externalVideoThumbnail || '').trim() : String(existing.externalVideoThumbnail || ''),
+        keywords: body.keywords !== undefined ? normalizeTagList(body.keywords) : normalizeTagList(existing.keywords),
+        hashtags: body.hashtags !== undefined ? normalizeTagList(body.hashtags, { hashtags: true }) : normalizeTagList(existing.hashtags, { hashtags: true }),
         published: publish,
         publishedAt: publish ? (existing.publishedAt || now) : (existing.publishedAt || null),
         publishedAtIST: publish ? (existing.publishedAtIST || nowIST()) : (existing.publishedAtIST || null),

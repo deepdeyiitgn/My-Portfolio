@@ -22,6 +22,9 @@ interface Journal {
   likes?: number;
   views?: number;
   images?: string[];
+  externalVideoThumbnail?: string;
+  keywords?: string[];
+  hashtags?: string[];
 }
 
 function sessionLikeKey(id: string) {
@@ -177,12 +180,17 @@ export default function JournalView() {
     .map((img) => sanitizeImageUrl(img))
     .filter(Boolean);
   const shareImage = images[0] || '/assets/images/myphoto.png';
+  const seoKeywords = [
+    ...((Array.isArray(journal.keywords) ? journal.keywords : []).map((kw) => String(kw || '').trim()).filter(Boolean)),
+    ...((Array.isArray(journal.hashtags) ? journal.hashtags : []).map((tag) => `#${String(tag || '').trim().replace(/^#+/, '')}`).filter(Boolean)),
+  ];
 
   return (
     <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 space-y-8">
       <SEO
         title={`${journal.title} | Journal`}
         description={journal.summary || 'Journal post'}
+        keywords={seoKeywords.join(', ')}
         route={`/journal/view/${journalRouteKey}`}
         image={shareImage}
         type="article"
@@ -212,6 +220,24 @@ export default function JournalView() {
 
         <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white">{journal.title}</h1>
         {journal.summary && <p className="text-zinc-400 max-w-4xl">{journal.summary}</p>}
+        {(Array.isArray(journal.keywords) && journal.keywords.length > 0) || (Array.isArray(journal.hashtags) && journal.hashtags.length > 0) ? (
+          <div className="flex flex-wrap gap-2">
+            {(Array.isArray(journal.keywords) ? journal.keywords : []).map((kw) => (
+              <span key={`kw-${kw}`} className="px-2.5 py-1 rounded-full border border-emerald-500/30 text-emerald-400 text-[10px] font-mono">
+                {kw}
+              </span>
+            ))}
+            {(Array.isArray(journal.hashtags) ? journal.hashtags : []).map((tag) => {
+              const clean = String(tag || '').replace(/^#+/, '');
+              if (!clean) return null;
+              return (
+                <span key={`tag-${clean}`} className="px-2.5 py-1 rounded-full border border-fuchsia-500/30 text-fuchsia-400 text-[10px] font-mono">
+                  #{clean}
+                </span>
+              );
+            })}
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap gap-3">
           <button onClick={handleShare} className="px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:border-amber-500/40 hover:text-amber-500 text-sm font-bold flex items-center gap-2">
