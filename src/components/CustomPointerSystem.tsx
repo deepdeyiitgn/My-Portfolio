@@ -15,6 +15,8 @@ const DRAG_THRESHOLD_PIXELS = 2;
 const POINTER_VARIANT_CYCLE_INTERVAL_MS = 1200;
 const SHORTCUT_MESSAGE_DISPLAY_DURATION_MS = 3200;
 const DESKTOP_MIN_WIDTH_PIXELS = 768;
+const POINTER_GLOW_CORE_CLASS = 'absolute left-[8px] top-[8px] w-5 h-5 rounded-full bg-amber-300/35 blur-[8px]';
+const POINTER_GLOW_RING_CLASS = 'absolute left-[6px] top-[6px] w-7 h-7 rounded-full border border-amber-300/30';
 
 function parsePrefsCookie(): PointerPrefs {
   if (typeof document === 'undefined') return { customEnabled: true, nativeVisible: true };
@@ -329,8 +331,8 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
           style={{ transform: `translate3d(${position.x - 5}px, ${position.y - 4}px, 0)` }}
         >
           <div className="relative dd-pointer-float">
-            <span aria-hidden="true" className="absolute left-[8px] top-[8px] w-5 h-5 rounded-full bg-amber-300/35 blur-[8px]" />
-            <span aria-hidden="true" className="absolute left-[6px] top-[6px] w-7 h-7 rounded-full border border-amber-300/30" />
+            <span aria-hidden="true" className={POINTER_GLOW_CORE_CLASS} />
+            <span aria-hidden="true" className={POINTER_GLOW_RING_CLASS} />
             {renderPointerSvg(activeVariant, isMouseDown)}
             {(isMouseDown || isSelecting) && (
               <span
