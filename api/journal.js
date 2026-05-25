@@ -338,6 +338,28 @@ function stripHtmlForTagScan(value) {
     .trim();
 }
 
+const AUTO_TAG_STOP_WORDS = new Set([
+  'THE', 'AND', 'FOR', 'WITH', 'THIS', 'THAT', 'FROM', 'INTO', 'YOUR', 'YOU', 'ARE', 'WAS', 'WERE', 'HAVE', 'HAS',
+  'HAD', 'NOT', 'BUT', 'CAN', 'WILL', 'GET', 'HOW', 'WHY', 'WHEN', 'WHERE', 'WHAT', 'WHO', 'THEIR', 'THEM', 'THEN',
+  'THAN', 'ALSO', 'ABOUT', 'AFTER', 'BEFORE', 'UNDER', 'OVER', 'VERY', 'JUST', 'LIKE', 'MOST', 'MORE', 'LESS',
+  'OUR', 'OUT', 'ITS', 'IT', 'A', 'AN', 'TO', 'OF', 'ON', 'AT', 'BY', 'AS', 'OR',
+]);
+
+// High-frequency internet-search technology words (curated, no third-party API key required).
+const AUTO_TAG_INTERNET_POPULAR_TERMS = new Set([
+  'AI', 'AGENT', 'ALGORITHM', 'API', 'APP', 'APPLICATION', 'AUTOMATION', 'BACKEND', 'BLOCKCHAIN', 'BUG',
+  'CHATGPT', 'CI', 'CLOUD', 'CODING', 'CYBERSECURITY', 'DATA', 'DATABASE', 'DEBUG', 'DEPLOYMENT', 'DEVOPS',
+  'DOCKER', 'FRONTEND', 'GITHUB', 'INTERNET', 'JAVASCRIPT', 'LEARNING', 'LLM', 'MACHINE', 'MODEL', 'MONGODB',
+  'NEXTJS', 'NODEJS', 'OPENAI', 'OPTIMIZATION', 'PERFORMANCE', 'PYTHON', 'REACT', 'SCALABLE', 'SECURITY', 'SEO',
+  'SOFTWARE', 'STARTUP', 'SYSTEM', 'TYPESCRIPT', 'UI', 'UX', 'VITE', 'WEB', 'WEBSITE',
+]);
+
+// Project-domain/system words to prioritize for this repository's journal ecosystem.
+const AUTO_TAG_SYSTEM_TERMS = new Set([
+  'DEEP', 'DEY', 'PORTFOLIO', 'JOURNAL', 'DASHBOARD', 'FEATURE', 'STATUS', 'COMMENT', 'FEEDBACK', 'WATERMARK',
+  'SITEMAP', 'ROUTING', 'SEO', 'VERCEL', 'MONGODB', 'NODEJS', 'REACT', 'TYPESCRIPT', 'BUILD', 'DEPLOYMENT',
+]);
+
 function normalizeTagList(input, { hashtags = false, maxItems = null } = {}) {
   const rawList = Array.isArray(input)
     ? input
@@ -362,12 +384,61 @@ function normalizeTagList(input, { hashtags = false, maxItems = null } = {}) {
 
 function generateAutoTagsFromJournalText({ title = '', summary = '', content = '', maxItems = 7 } = {}) {
   const source = [title, summary, stripHtmlForTagScan(content)].filter(Boolean).join(' ');
-  const words = source
+  const rawWords = source
     .replace(/[^a-zA-Z0-9\s-_]/g, ' ')
     .split(/\s+/)
-    .map((word) => String(word || '').trim())
-    .filter((word) => word.length >= 3);
-  const normalized = normalizeTagList(words, { maxItems });
+    .map((word) => String(word || '').trim().toUpperCase())
+    .filter((word) => word.length >= 2 && word.length <= 40)
+    .map((word) => word.replace(/[^A-Z0-9-_]/g, ''))
+    .filter(Boolean)
+    .filter((word) => !AUTO_TAG_STOP_WORDS.has(word));
+  const titleWords = String(title || '')
+    .replace(/[^a-zA-Z0-9\s-_]/g, ' ')
+    .split(/\s+/)
+    .map((word) => String(word || '').trim().toUpperCase().replace(/[^A-Z0-9-_]/g, ''))
+    .filter((word) => word.length >= 2);
+  const titleWordSet = new Set(titleWords);
+
+  const wordCount = new Map();
+  for (const word of rawWords) {
+    wordCount.set(word, Number(wordCount.get(word) || 0) + 1);
+  }
+  const maxFrequency = Math.max(1, ...Array.from(wordCount.values()));
+
+  const scored = Array.from(wordCount.entries()).map(([word, frequency]) => {
+    const lengthScore = Math.min(word.length, 16) / 16; // longer/specific words get more weight
+    const uniqueCharScore = word.length ? (new Set(word.split('')).size / word.length) : 0; // uniqueness in token
+    const frequencyScore = frequency / maxFrequency; // repeated words in content
+    const internetPopularityBonus = AUTO_TAG_INTERNET_POPULAR_TERMS.has(word) ? 0.22 : 0;
+    const systemUsageBonus = AUTO_TAG_SYSTEM_TERMS.has(word) ? 0.25 : 0;
+    const titleBonus = titleWordSet.has(word) ? 0.2 : 0;
+
+    // Cryptographic deterministic tie-break (stable, non-random ordering when scores are close).
+    const hashHex = crypto.createHash('sha256').update(word).digest('hex').slice(0, 8);
+    const cryptographicTieBreaker = parseInt(hashHex, 16) / 0xffffffff;
+
+    const score =
+      (frequencyScore * 0.36) +
+      (lengthScore * 0.17) +
+      (uniqueCharScore * 0.12) +
+      internetPopularityBonus +
+      systemUsageBonus +
+      titleBonus;
+
+    return { word, frequency, score, cryptographicTieBreaker };
+  });
+
+  const rankedWords = scored
+    .sort((a, b) => (
+      (b.score - a.score) ||
+      (b.frequency - a.frequency) ||
+      (b.word.length - a.word.length) ||
+      (b.cryptographicTieBreaker - a.cryptographicTieBreaker) ||
+      a.word.localeCompare(b.word)
+    ))
+    .map((item) => item.word);
+
+  const normalized = normalizeTagList(rankedWords, { maxItems });
   return {
     keywords: normalized.slice(0, maxItems),
     hashtags: normalized.slice(0, maxItems),
