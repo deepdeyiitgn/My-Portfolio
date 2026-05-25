@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import StatusWidget from './components/StatusWidget';
 import LoadingScreen from './components/LoadingScreen';
 import CustomPointerSystem from './components/CustomPointerSystem';
+import GoogleAuthGate from './components/GoogleAuthGate';
 
 // Lazy Loaded Pages
 const Home = lazy(() => import('./pages/Home'));
@@ -72,6 +73,9 @@ const JournalAllComments = lazy(() => import('./pages/JournalAllComments'));
 const AllUsers = lazy(() => import('./pages/AllUsers'));
 const Feedback = lazy(() => import('./pages/Feedback'));
 const UserProfile = lazy(() => import('./pages/UserProfile'));
+const Community = lazy(() => import('./pages/Community'));
+const Updates = lazy(() => import('./pages/Updates'));
+const Notification = lazy(() => import('./pages/Notification'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const MIN_LOADER_MS = 3000;
 const PROGRESS_UPDATE_INTERVAL_MS = 120;
@@ -428,6 +432,9 @@ function AnimatedRoutes() {
             <Route path="/user" element={<AllUsers />} />
             <Route path="/feedback" element={<Feedback />} />
             <Route path="/user/:userId" element={<UserProfile />} />
+            <Route path="/community" element={<GoogleAuthGate><Community /></GoogleAuthGate>} />
+            <Route path="/updates" element={<GoogleAuthGate><Updates /></GoogleAuthGate>} />
+            <Route path="/notification" element={<GoogleAuthGate><Notification /></GoogleAuthGate>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

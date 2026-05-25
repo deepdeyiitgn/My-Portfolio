@@ -4,9 +4,11 @@ import { ExternalLink, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { linksData, LinkItem } from '../data/linksData';
 import SEO from '../components/SEO';
+import { useExternalLinkProxy } from '../hooks/useExternalLinkProxy';
 
 export default function Links() {
   const [dynamicLinks, setDynamicLinks] = useState<LinkItem[]>(linksData);
+  const { openExternal } = useExternalLinkProxy();
 
   useEffect(() => {
     const loadLinks = async () => {
@@ -155,10 +157,9 @@ export default function Links() {
                         <ArrowRight size={18} className={`transition-all group-hover:translate-x-1 ${currentStyle.arrow}`} />
                       </Link>
                     ) : (
-                      <a
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => openExternal(link.url, '/links')}
                         className={`group relative w-full flex items-center justify-between p-5 backdrop-blur-md border rounded-3xl transition-all duration-500 ${currentStyle.container}`}
                       >
                         <div className="flex items-center gap-5">
@@ -175,7 +176,7 @@ export default function Links() {
                           </div>
                         </div>
                         <ExternalLink size={18} className={`transition-all group-hover:translate-x-1 ${currentStyle.arrow}`} />
-                      </a>
+                      </button>
                     )}
                   </motion.div>
                 );

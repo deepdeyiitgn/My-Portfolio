@@ -8,6 +8,7 @@ import {
   ChevronLeft, ChevronRight, Loader2, AlertCircle, ArrowDownUp, Link2, ShieldBan,
 } from 'lucide-react';
 import { CrownBadgeIcon, VerifiedTickIcon } from './IdentityBadges';
+import { useExternalLinkProxy } from '../hooks/useExternalLinkProxy';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -98,7 +99,7 @@ function getSafeHttpUrl(url: string): string | null {
 
 // ── Link Warning Modal ────────────────────────────────────────────────────────
 
-function LinkWarningModal({ url, onClose }: { url: string; onClose: () => void }) {
+function LinkWarningModal({ url, onClose, onProceed }: { url: string; onClose: () => void; onProceed: (url: string) => void }) {
   return (
     <div className="fixed inset-0 z-[600] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <motion.div
@@ -127,15 +128,16 @@ function LinkWarningModal({ url, onClose }: { url: string; onClose: () => void }
           >
             Cancel
           </button>
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={onClose}
+          <button
+            type="button"
+            onClick={() => {
+              onProceed(url);
+              onClose();
+            }}
             className="flex-1 py-2.5 rounded-xl bg-amber-500 text-black text-sm font-bold hover:bg-amber-400 transition-colors flex items-center justify-center gap-2"
           >
             <ExternalLink size={14} /> Open Anyway
-          </a>
+          </button>
         </div>
       </motion.div>
     </div>
@@ -144,7 +146,17 @@ function LinkWarningModal({ url, onClose }: { url: string; onClose: () => void }
 
 // ── Render comment text with clickable links ──────────────────────────────────
 
-function CommentText({ text, onLinkClick, trustedLinks }: { text: string; onLinkClick: (url: string) => void; trustedLinks?: boolean }) {
+function CommentText({
+  text,
+  onLinkClick,
+  trustedLinks,
+  trustedUrlBuilder,
+}: {
+  text: string;
+  onLinkClick: (url: string) => void;
+  trustedLinks?: boolean;
+  trustedUrlBuilder?: (url: string) => string;
+}) {
   const parts: Array<{ type: 'text' | 'link'; value: string }> = [];
   let last = 0;
   let match: RegExpExecArray | null;
@@ -165,7 +177,7 @@ function CommentText({ text, onLinkClick, trustedLinks }: { text: string; onLink
           return trustedLinks ? (
             <a
               key={i}
-              href={safeUrl}
+              href={trustedUrlBuilder ? trustedUrlBuilder(safeUrl) : safeUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-amber-400 underline hover:text-amber-300 transition-colors break-all"
@@ -420,7 +432,12 @@ function CommentItem({
             </div>
           ) : (
             <p className="text-zinc-300 text-sm leading-relaxed">
-              <CommentText text={comment.text} onLinkClick={onLinkClick} trustedLinks={isVerifiedComment} />
+              <CommentText
+                text={comment.text}
+                onLinkClick={onLinkClick}
+                trustedLinks={isVerifiedComment}
+                trustedUrlBuilder={(url) => buildProxyRedirectUrl(url, '/journal')}
+              />
             </p>
           )}
 
@@ -569,6 +586,7 @@ function CommentItem({
 // ── Main CommentSection Component ─────────────────────────────────────────────
 
 export default function CommentSection({ journalId }: { journalId: string }) {
+  const { openExternal, buildProxyRedirectUrl } = useExternalLinkProxy();
   const [currentUser, setCurrentUser] = useState<GoogleUser | null>(null);
   const [isOwner, setIsOwner] = useState(false);
 
@@ -1006,7 +1024,11 @@ export default function CommentSection({ journalId }: { journalId: string }) {
       <AnimatePresence>
         {warnUrl && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <LinkWarningModal url={warnUrl} onClose={() => setWarnUrl(null)} />
+            <LinkWarningModal
+              url={warnUrl}
+              onClose={() => setWarnUrl(null)}
+              onProceed={(url) => openExternal(url, '/journal')}
+            />
           </motion.div>
         )}
       </AnimatePresence>

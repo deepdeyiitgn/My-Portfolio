@@ -39,6 +39,7 @@ const he = require('he');
 const fs = require('fs');
 const path = require('path');
 const dns = require('dns').promises;
+const net = require('net');
 
 let cachedClient = null;
 let cachedSpaTemplate = null;
@@ -55,6 +56,14 @@ let cachedRenderFeatureMeta = null;
 let cachedRenderFeatureMetaMtime = 0;
 const STATUS_MONITOR_CONFIG_ID = 'status_monitor_config';
 const STATUS_MONITOR_MODES = ['live', 'stop', 'maintenance', 'hiatus'];
+const COMMUNITY_ALLOWED_PROXY_MEDIA = new Set(['image', 'audio', 'og']);
+const COMMUNITY_ALLOWED_PROXY_CONTENT_TYPES = {
+  image: /^image\//i,
+  audio: /^audio\//i,
+};
+const MAX_PROXY_FETCH_BYTES = 8 * 1024 * 1024;
+const COMMUNITY_REACTION_MAX_DISTINCT = 7;
+let communityIndexesReady = false;
 const RENDER_STATIC_PAGE_META = {
   '/': {
     title: 'Deep Dey | Software Architect & JEE 2027 Aspirant',
@@ -317,6 +326,85 @@ function getParam(req, name) {
     return url.searchParams.get(name);
   } catch {
     return (req.query && req.query[name]) || null;
+  }
+
+  function isLocalOrPrivateHostname(hostname = '') {
+    const host = String(hostname || '').trim().toLowerCase();
+    if (!host) return true;
+    if (['localhost', '127.0.0.1', '::1'].includes(host)) return true;
+    if (host.endsWith('.local') || host.endsWith('.internal')) return true;
+    if (net.isIP(host) === 4) {
+      if (host.startsWith('10.')) return true;
+      if (host.startsWith('127.')) return true;
+      if (host.startsWith('192.168.')) return true;
+      if (host.startsWith('169.254.')) return true;
+      const second = Number(host.split('.')[1] || 0);
+      if (host.startsWith('172.') && second >= 16 && second <= 31) return true;
+    }
+    return false;
+  }
+
+  async function assertSafeExternalUrl(rawUrl) {
+    let parsed;
+    try {
+      parsed = new URL(String(rawUrl || '').trim());
+    } catch {
+      throw new Error('Invalid target URL.');
+    }
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      throw new Error('Only http/https URLs are allowed.');
+    }
+    if (isLocalOrPrivateHostname(parsed.hostname)) {
+      throw new Error('Local/private network targets are blocked.');
+    }
+    try {
+      const [a4, a6] = await Promise.allSettled([
+        dns.resolve4(parsed.hostname),
+        dns.resolve6(parsed.hostname),
+      ]);
+      const ips = [
+        ...(a4.status === 'fulfilled' ? a4.value : []),
+        ...(a6.status === 'fulfilled' ? a6.value : []),
+      ];
+      if (ips.some((ip) => isLocalOrPrivateHostname(ip))) {
+        throw new Error('Target resolved to a private IP.');
+      }
+    } catch (error) {
+      if (String(error?.message || '').includes('private')) throw error;
+    }
+    return parsed;
+  }
+
+  function extractOpenGraphFromHtml(html, fallbackUrl) {
+    const source = String(html || '');
+    const findMeta = (prop) => {
+      const regex = new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]*content=["']([^"']+)["'][^>]*>`, 'i');
+      const matched = source.match(regex);
+      return matched?.[1] ? he.decode(matched[1]) : '';
+    };
+    const title = findMeta('og:title') || source.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] || fallbackUrl;
+    const description = findMeta('og:description') || findMeta('description') || '';
+    const image = findMeta('og:image') || '';
+    return {
+      title: String(title || '').trim(),
+      description: String(description || '').trim(),
+      image: String(image || '').trim(),
+    };
+  }
+
+  async function ensureCommunityIndexes(db) {
+    if (communityIndexesReady) return;
+    await Promise.allSettled([
+      db.collection('community_posts').createIndex({ createdAt: -1 }),
+      db.collection('community_posts').createIndex({ pinned: -1, createdAt: -1 }),
+      db.collection('updates_feed').createIndex({ createdAt: -1 }),
+      db.collection('user_notifications').createIndex({ userId: 1, read: 1, createdAt: -1 }),
+      db.collection('push_subscriptions').createIndex({ userId: 1, endpoint: 1 }, { unique: true }),
+      db.collection('link_analytics_events').createIndex({ targetHost: 1, createdAt: -1 }),
+      db.collection('link_analytics_events').createIndex({ sourcePage: 1, createdAt: -1 }),
+      db.collection('link_analytics_events').createIndex({ userId: 1, createdAt: -1 }),
+    ]);
+    communityIndexesReady = true;
   }
 }
 
@@ -1547,12 +1635,202 @@ module.exports = async (req, res) => {
 
     const db = await getDb();
     const col = db.collection('journals');
+    await ensureCommunityIndexes(db);
 
     // ==========================================
     // GET REQUESTS
     // ==========================================
     if (req.method === 'GET') {
       const action = getParam(req, 'action');
+
+      if (action === 'proxy-fetch') {
+        try {
+          const media = String(getParam(req, 'media') || 'image').trim().toLowerCase();
+          const target = String(getParam(req, 'target') || '').trim();
+          if (!COMMUNITY_ALLOWED_PROXY_MEDIA.has(media)) {
+            return json(res, 400, { ok: false, message: 'Unsupported proxy media type.' });
+          }
+          const parsed = await assertSafeExternalUrl(target);
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 10000);
+          const upstream = await fetch(parsed.toString(), { signal: controller.signal, redirect: 'follow' });
+          clearTimeout(timer);
+          if (!upstream.ok) return json(res, upstream.status, { ok: false, message: 'Upstream request failed.' });
+
+          if (media === 'og') {
+            const contentType = String(upstream.headers.get('content-type') || '').toLowerCase();
+            if (!contentType.includes('text/html')) return json(res, 200, { ok: true, title: target, description: '', image: '' });
+            const html = await upstream.text();
+            const og = extractOpenGraphFromHtml(html, target);
+            return json(res, 200, { ok: true, ...og });
+          }
+
+          const contentType = String(upstream.headers.get('content-type') || '');
+          const typeRegex = COMMUNITY_ALLOWED_PROXY_CONTENT_TYPES[media];
+          if (!typeRegex || !typeRegex.test(contentType)) {
+            return json(res, 415, { ok: false, message: 'Blocked by media-type policy.' });
+          }
+          const buf = Buffer.from(await upstream.arrayBuffer());
+          if (buf.length > MAX_PROXY_FETCH_BYTES) {
+            return json(res, 413, { ok: false, message: 'Proxied asset too large.' });
+          }
+          res.statusCode = 200;
+          res.setHeader('Content-Type', contentType || (media === 'image' ? 'image/jpeg' : 'audio/mpeg'));
+          res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+          res.end(buf);
+          return;
+        } catch (error) {
+          return json(res, 400, { ok: false, message: String(error?.message || 'Proxy fetch failed.') });
+        }
+      }
+
+      if (action === 'proxy-redirect') {
+        const target = String(getParam(req, 'target') || '').trim();
+        const sourcePage = String(getParam(req, 'sourcePage') || 'unknown').trim().slice(0, 120) || 'unknown';
+        try {
+          const parsed = await assertSafeExternalUrl(target);
+          const credential = String(getParam(req, 'credential') || '').trim();
+          const tokenUser = credential ? await verifyGoogleToken(credential) : null;
+          const eventDoc = {
+            targetUrl: parsed.toString(),
+            targetHost: parsed.hostname.toLowerCase(),
+            sourcePage,
+            ip: getClientIp(req),
+            loggedIn: Boolean(tokenUser?.userId),
+            userId: tokenUser?.userId || null,
+            userName: tokenUser?.name || null,
+            userAgent: String(req.headers['user-agent'] || '').slice(0, 500),
+            createdAt: new Date(),
+            createdAtIST: nowIST(),
+          };
+          await db.collection('link_analytics_events').insertOne(eventDoc);
+          res.statusCode = 302;
+          res.setHeader('Location', parsed.toString());
+          res.end();
+          return;
+        } catch (error) {
+          return json(res, 400, { ok: false, message: String(error?.message || 'Invalid redirect target.') });
+        }
+      }
+
+      if (action === 'community-feed') {
+        const page = Math.max(1, parseInt(String(getParam(req, 'page') || '1'), 10) || 1);
+        const limit = Math.min(50, Math.max(1, parseInt(String(getParam(req, 'limit') || '20'), 10) || 20));
+        const skip = (page - 1) * limit;
+        const credential = String(getParam(req, 'credential') || '').trim();
+        const tokenUser = credential ? await verifyGoogleToken(credential) : null;
+        const postsCol = db.collection('community_posts');
+        const [rows, total] = await Promise.all([
+          postsCol.find({}).sort({ pinned: -1, createdAt: -1 }).skip(skip).limit(limit).toArray(),
+          postsCol.countDocuments({}),
+        ]);
+        const posts = rows.map((row) => {
+          const reactionMap = row.reactions && typeof row.reactions === 'object' ? row.reactions : {};
+          const userReactions = row.userReactions && typeof row.userReactions === 'object' ? row.userReactions : {};
+          const me = tokenUser?.userId ? (Array.isArray(userReactions[tokenUser.userId]) ? userReactions[tokenUser.userId] : []) : [];
+          const reactions = Object.entries(reactionMap)
+            .map(([emoji, count]) => ({
+              emoji,
+              count: Number(count || 0),
+              reacted: me.includes(emoji),
+            }))
+            .sort((a, b) => b.count - a.count);
+          const poll = row.poll && typeof row.poll === 'object'
+            ? {
+                ...row.poll,
+                votedOptionByUser: tokenUser?.userId ? (row.pollVotes?.[tokenUser.userId] || null) : null,
+              }
+            : null;
+          return {
+            ...row,
+            _id: String(row._id),
+            reactions,
+            poll,
+          };
+        });
+        return json(res, 200, { ok: true, posts, page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) });
+      }
+
+      if (action === 'updates-feed') {
+        const page = Math.max(1, parseInt(String(getParam(req, 'page') || '1'), 10) || 1);
+        const limit = Math.min(20, Math.max(1, parseInt(String(getParam(req, 'limit') || '20'), 10) || 20));
+        const skip = (page - 1) * limit;
+        const updatesCol = db.collection('updates_feed');
+        const [items, total] = await Promise.all([
+          updatesCol.find({}).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray(),
+          updatesCol.countDocuments({}),
+        ]);
+        return json(res, 200, {
+          ok: true,
+          items: items.map((item) => ({ ...item, _id: String(item._id) })),
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+        });
+      }
+
+      if (action === 'link-analytics') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const page = Math.max(1, parseInt(String(getParam(req, 'page') || '1'), 10) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(String(getParam(req, 'limit') || '20'), 10) || 20));
+        const skip = (page - 1) * limit;
+        const host = String(getParam(req, 'host') || '').trim().toLowerCase();
+        const sourcePage = String(getParam(req, 'sourcePage') || '').trim();
+        const loggedIn = String(getParam(req, 'loggedIn') || '').trim().toLowerCase();
+        const userId = String(getParam(req, 'userId') || '').trim();
+        const from = String(getParam(req, 'from') || '').trim();
+        const to = String(getParam(req, 'to') || '').trim();
+        const filter = {};
+        if (host) filter.targetHost = host;
+        if (sourcePage) filter.sourcePage = sourcePage;
+        if (loggedIn === 'true' || loggedIn === 'false') filter.loggedIn = loggedIn === 'true';
+        if (userId) filter.userId = userId;
+        const createdAt = {};
+        if (from) {
+          const fromDate = new Date(from);
+          if (!Number.isNaN(fromDate.getTime())) createdAt.$gte = fromDate;
+        }
+        if (to) {
+          const toDate = new Date(to);
+          if (!Number.isNaN(toDate.getTime())) createdAt.$lte = toDate;
+        }
+        if (Object.keys(createdAt).length > 0) filter.createdAt = createdAt;
+        const analyticsCol = db.collection('link_analytics_events');
+        const [rows, total, byHost, bySource, byUser] = await Promise.all([
+          analyticsCol.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray(),
+          analyticsCol.countDocuments(filter),
+          analyticsCol.aggregate([{ $match: filter }, { $group: { _id: '$targetHost', total: { $sum: 1 } } }, { $sort: { total: -1 } }, { $limit: 15 }]).toArray(),
+          analyticsCol.aggregate([{ $match: filter }, { $group: { _id: '$sourcePage', total: { $sum: 1 } } }, { $sort: { total: -1 } }, { $limit: 15 }]).toArray(),
+          analyticsCol.aggregate([{ $match: filter }, { $group: { _id: '$userId', total: { $sum: 1 } } }, { $sort: { total: -1 } }, { $limit: 15 }]).toArray(),
+        ]);
+        return json(res, 200, {
+          ok: true,
+          items: rows.map((row) => ({ ...row, _id: String(row._id) })),
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+          aggregates: {
+            byHost: byHost.map((entry) => ({ host: String(entry._id || 'unknown'), total: Number(entry.total || 0) })),
+            bySource: bySource.map((entry) => ({ sourcePage: String(entry._id || 'unknown'), total: Number(entry.total || 0) })),
+            byUser: byUser.map((entry) => ({ userId: entry._id ? String(entry._id) : 'guest', total: Number(entry.total || 0) })),
+          },
+        });
+      }
+
+      if (action === 'notification-feed') {
+        return json(res, 405, { ok: false, message: 'Use POST for notification-feed.' });
+      }
+
+      if (action === 'updates-system-log') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const since = String(getParam(req, 'since') || '').trim();
+        const dateFilter = since ? new Date(since) : null;
+        const filter = dateFilter && !Number.isNaN(dateFilter.getTime()) ? { createdAt: { $gte: dateFilter } } : {};
+        const rows = await db.collection('updates_feed').find(filter).sort({ createdAt: -1 }).limit(200).toArray();
+        return json(res, 200, { ok: true, items: rows.map((item) => ({ ...item, _id: String(item._id) })) });
+      }
 
       if (action === 'render-page') {
         try {
@@ -1630,7 +1908,12 @@ module.exports = async (req, res) => {
           clusterTotalSize = listResult.totalSize || 0;
         } catch { /* Atlas M0 may not allow this — fall back to current DB size */ }
 
-        const collectionNames = ['journals', 'projects', 'timeline', 'categories', 'feedback_categories', 'feedbacks', 'live_status', 'settings', 'config', 'search_analytics', 'comments', 'blocked_users', 'users'];
+        const collectionNames = [
+          'journals', 'projects', 'timeline', 'categories', 'feedback_categories', 'feedbacks',
+          'live_status', 'settings', 'config', 'search_analytics', 'comments', 'blocked_users', 'users',
+          'community_posts', 'community_polls', 'updates_feed', 'user_notifications', 'push_subscriptions',
+          'link_analytics_events',
+        ];
         const collections = {};
         for (const name of collectionNames) {
           try {
@@ -2792,6 +3075,284 @@ module.exports = async (req, res) => {
     // ==========================================
     if (req.method === 'POST') {
       const action = getParam(req, 'action');
+
+      if (action === 'community-post') {
+        const body = await readBody(req);
+        const ownerPosting = isAuthenticated(req);
+        const credential = String(body.credential || '').trim();
+        const tokenUser = ownerPosting ? null : await verifyGoogleToken(credential);
+        if (!ownerPosting && !tokenUser) return json(res, 401, { ok: false, message: 'Authentication required' });
+
+        const text = String(body.text || '').trim().slice(0, 8000);
+        const attachments = Array.isArray(body.attachments) ? body.attachments.slice(0, 16) : [];
+        const poll = body.poll && typeof body.poll === 'object' ? body.poll : null;
+        if (!text && attachments.length === 0 && !poll) {
+          return json(res, 400, { ok: false, message: 'Message cannot be empty.' });
+        }
+        const normalizedAttachments = attachments.map((item, idx) => ({
+          id: String(item?.id || `att-${idx}`),
+          kind: String(item?.kind || 'document'),
+          name: String(item?.name || '').slice(0, 300),
+          url: String(item?.url || '').slice(0, 4000),
+          size: Number(item?.size || 0) || undefined,
+          mimeType: String(item?.mimeType || '').slice(0, 200),
+          durationSec: Number(item?.durationSec || 0) || undefined,
+          thumbnailUrl: String(item?.thumbnailUrl || '').slice(0, 4000),
+          latitude: Number(item?.latitude || 0) || undefined,
+          longitude: Number(item?.longitude || 0) || undefined,
+          ogTitle: String(item?.ogTitle || '').slice(0, 300),
+          ogDescription: String(item?.ogDescription || '').slice(0, 600),
+          ogImage: String(item?.ogImage || '').slice(0, 4000),
+        }));
+        const pollDoc = poll
+          ? {
+              id: String(poll.id || `poll-${Date.now()}`),
+              question: String(poll.question || '').trim().slice(0, 300),
+              options: Array.isArray(poll.options)
+                ? poll.options.slice(0, 8).map((option, index) => ({
+                    id: String(option?.id || `opt-${index}`),
+                    label: String(option?.label || '').trim().slice(0, 200),
+                    votes: Number(option?.votes || 0) || 0,
+                  })).filter((option) => option.label)
+                : [],
+            }
+          : null;
+        const now = new Date();
+        const postDoc = {
+          text,
+          attachments: normalizedAttachments,
+          poll: pollDoc,
+          pollVotes: {},
+          reactions: {},
+          userReactions: {},
+          pinned: false,
+          createdBy: ownerPosting
+            ? { userId: 'owner', userName: 'Deep Dey (Owner)', userPic: '/assets/images/myphoto.png', isOwner: true }
+            : { userId: tokenUser.userId, userName: tokenUser.name, userPic: tokenUser.picture || '', isOwner: false },
+          createdAt: now,
+          createdAtIST: nowIST(),
+          updatedAt: now,
+        };
+        const result = await db.collection('community_posts').insertOne(postDoc);
+
+        const systemUpdate = {
+          kind: 'system',
+          title: 'New Community Broadcast',
+          message: ownerPosting
+            ? 'Deep Dey posted in Community.'
+            : `${tokenUser?.name || 'A member'} posted in Community.`,
+          ctaLabel: 'Open Community',
+          ctaUrl: '/community',
+          createdAt: now,
+          createdAtIST: nowIST(),
+        };
+        await db.collection('updates_feed').insertOne(systemUpdate);
+
+        return json(res, 201, { ok: true, post: { ...postDoc, _id: result.insertedId } });
+      }
+
+      if (action === 'community-react') {
+        const body = await readBody(req);
+        const credential = String(body.credential || '').trim();
+        const tokenUser = await verifyGoogleToken(credential);
+        if (!tokenUser) return json(res, 401, { ok: false, message: 'Authentication required' });
+        const postId = String(body.postId || '').trim();
+        const emoji = String(body.emoji || '').trim().slice(0, 10);
+        if (!postId || !ObjectId.isValid(postId)) return json(res, 400, { ok: false, message: 'Valid postId required' });
+        if (!emoji) return json(res, 400, { ok: false, message: 'Emoji required' });
+        const postsCol = db.collection('community_posts');
+        const existing = await postsCol.findOne({ _id: new ObjectId(postId) });
+        if (!existing) return json(res, 404, { ok: false, message: 'Post not found' });
+        const reactionMap = existing.reactions && typeof existing.reactions === 'object' ? { ...existing.reactions } : {};
+        const userReactions = existing.userReactions && typeof existing.userReactions === 'object' ? { ...existing.userReactions } : {};
+        const mine = Array.isArray(userReactions[tokenUser.userId]) ? [...userReactions[tokenUser.userId]] : [];
+        const hasEmoji = mine.includes(emoji);
+        if (hasEmoji) {
+          userReactions[tokenUser.userId] = mine.filter((item) => item !== emoji);
+          reactionMap[emoji] = Math.max(0, Number(reactionMap[emoji] || 0) - 1);
+          if (!reactionMap[emoji]) delete reactionMap[emoji];
+        } else {
+          if (!reactionMap[emoji] && Object.keys(reactionMap).length >= COMMUNITY_REACTION_MAX_DISTINCT) {
+            return json(res, 400, { ok: false, message: `Maximum ${COMMUNITY_REACTION_MAX_DISTINCT} distinct emojis allowed.` });
+          }
+          userReactions[tokenUser.userId] = [...new Set([...mine, emoji])].slice(-COMMUNITY_REACTION_MAX_DISTINCT);
+          reactionMap[emoji] = Number(reactionMap[emoji] || 0) + 1;
+        }
+        await postsCol.updateOne(
+          { _id: new ObjectId(postId) },
+          { $set: { reactions: reactionMap, userReactions, updatedAt: new Date() } },
+        );
+        const reactions = Object.entries(reactionMap).map(([entryEmoji, count]) => ({
+          emoji: entryEmoji,
+          count: Number(count || 0),
+          reacted: Array.isArray(userReactions[tokenUser.userId]) && userReactions[tokenUser.userId].includes(entryEmoji),
+        })).sort((a, b) => b.count - a.count);
+        return json(res, 200, { ok: true, reactions });
+      }
+
+      if (action === 'community-poll-vote') {
+        const body = await readBody(req);
+        const credential = String(body.credential || '').trim();
+        const tokenUser = await verifyGoogleToken(credential);
+        if (!tokenUser) return json(res, 401, { ok: false, message: 'Authentication required' });
+        const postId = String(body.postId || '').trim();
+        const optionId = String(body.optionId || '').trim();
+        if (!postId || !ObjectId.isValid(postId)) return json(res, 400, { ok: false, message: 'Valid postId required' });
+        const postsCol = db.collection('community_posts');
+        const existing = await postsCol.findOne({ _id: new ObjectId(postId) });
+        if (!existing || !existing.poll) return json(res, 404, { ok: false, message: 'Poll not found' });
+        const poll = { ...existing.poll };
+        const pollVotes = existing.pollVotes && typeof existing.pollVotes === 'object' ? { ...existing.pollVotes } : {};
+        const previousOptionId = String(pollVotes[tokenUser.userId] || '');
+        if (previousOptionId === optionId) {
+          return json(res, 200, { ok: true, poll: { ...poll, votedOptionByUser: optionId } });
+        }
+        poll.options = (Array.isArray(poll.options) ? poll.options : []).map((option) => {
+          const currentVotes = Number(option?.votes || 0);
+          if (String(option.id) === previousOptionId) return { ...option, votes: Math.max(0, currentVotes - 1) };
+          if (String(option.id) === optionId) return { ...option, votes: currentVotes + 1 };
+          return { ...option, votes: currentVotes };
+        });
+        pollVotes[tokenUser.userId] = optionId;
+        await postsCol.updateOne({ _id: new ObjectId(postId) }, { $set: { poll, pollVotes, updatedAt: new Date() } });
+        return json(res, 200, { ok: true, poll: { ...poll, votedOptionByUser: optionId } });
+      }
+
+      if (action === 'community-pin') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const body = await readBody(req);
+        const postId = String(body.postId || '').trim();
+        const pinned = Boolean(body.pinned);
+        if (!postId || !ObjectId.isValid(postId)) return json(res, 400, { ok: false, message: 'Valid postId required' });
+        await db.collection('community_posts').updateOne({ _id: new ObjectId(postId) }, { $set: { pinned, updatedAt: new Date() } });
+        return json(res, 200, { ok: true });
+      }
+
+      if (action === 'community-delete') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const body = await readBody(req);
+        const postId = String(body.postId || '').trim();
+        if (!postId || !ObjectId.isValid(postId)) return json(res, 400, { ok: false, message: 'Valid postId required' });
+        await db.collection('community_posts').deleteOne({ _id: new ObjectId(postId) });
+        return json(res, 200, { ok: true });
+      }
+
+      if (action === 'updates-create') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const body = await readBody(req);
+        const title = String(body.title || '').trim().slice(0, 180);
+        const message = String(body.message || '').trim().slice(0, 1200);
+        const ctaLabel = String(body.ctaLabel || '').trim().slice(0, 80);
+        const ctaUrl = String(body.ctaUrl || '').trim().slice(0, 4000);
+        if (!title || !message) return json(res, 400, { ok: false, message: 'title and message are required' });
+        const now = new Date();
+        const doc = { kind: 'admin', title, message, ctaLabel, ctaUrl, createdAt: now, createdAtIST: nowIST() };
+        const result = await db.collection('updates_feed').insertOne(doc);
+        return json(res, 201, { ok: true, item: { ...doc, _id: result.insertedId } });
+      }
+
+      if (action === 'updates-delete') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const body = await readBody(req);
+        const id = String(body.id || body.updateId || '').trim();
+        if (!id || !ObjectId.isValid(id)) return json(res, 400, { ok: false, message: 'Valid id required' });
+        await db.collection('updates_feed').deleteOne({ _id: new ObjectId(id) });
+        return json(res, 200, { ok: true });
+      }
+
+      if (action === 'notification-feed') {
+        const body = await readBody(req);
+        const credential = String(body.credential || '').trim();
+        const tokenUser = await verifyGoogleToken(credential);
+        if (!tokenUser) return json(res, 401, { ok: false, message: 'Authentication required' });
+        const items = await db.collection('user_notifications')
+          .find({ userId: tokenUser.userId })
+          .sort({ createdAt: -1 })
+          .limit(200)
+          .toArray();
+        return json(res, 200, { ok: true, items: items.map((item) => ({ ...item, _id: String(item._id) })) });
+      }
+
+      if (action === 'notification-mark-read') {
+        const body = await readBody(req);
+        const credential = String(body.credential || '').trim();
+        const tokenUser = await verifyGoogleToken(credential);
+        if (!tokenUser) return json(res, 401, { ok: false, message: 'Authentication required' });
+        const id = String(body.id || '').trim();
+        if (!id || !ObjectId.isValid(id)) return json(res, 400, { ok: false, message: 'Valid id required' });
+        await db.collection('user_notifications').updateOne(
+          { _id: new ObjectId(id), userId: tokenUser.userId },
+          { $set: { read: true, readAt: new Date() } },
+        );
+        return json(res, 200, { ok: true });
+      }
+
+      if (action === 'notification-preferences') {
+        const body = await readBody(req);
+        const credential = String(body.credential || '').trim();
+        const tokenUser = await verifyGoogleToken(credential);
+        if (!tokenUser) return json(res, 401, { ok: false, message: 'Authentication required' });
+        const preferences = body.preferences && typeof body.preferences === 'object' ? body.preferences : {};
+        await db.collection('users').updateOne(
+          { userId: tokenUser.userId },
+          { $set: { notificationPreferences: preferences, notificationPreferencesUpdatedAt: new Date() } },
+          { upsert: true },
+        );
+        return json(res, 200, { ok: true });
+      }
+
+      if (action === 'push-subscribe') {
+        const body = await readBody(req);
+        const credential = String(body.credential || '').trim();
+        const tokenUser = await verifyGoogleToken(credential);
+        if (!tokenUser) return json(res, 401, { ok: false, message: 'Authentication required' });
+        const subscription = body.subscription && typeof body.subscription === 'object' ? body.subscription : null;
+        const endpoint = String(subscription?.endpoint || '').trim();
+        const p256dh = String(subscription?.keys?.p256dh || '').trim();
+        const auth = String(subscription?.keys?.auth || '').trim();
+        if (!endpoint || !p256dh || !auth) return json(res, 400, { ok: false, message: 'Valid push subscription required' });
+        await db.collection('push_subscriptions').updateOne(
+          { userId: tokenUser.userId, endpoint },
+          {
+            $set: {
+              userId: tokenUser.userId,
+              endpoint,
+              keys: { p256dh, auth },
+              userName: tokenUser.name,
+              updatedAt: new Date(),
+            },
+            $setOnInsert: { createdAt: new Date() },
+          },
+          { upsert: true },
+        );
+        return json(res, 200, { ok: true });
+      }
+
+      if (action === 'push-unsubscribe') {
+        const body = await readBody(req);
+        const credential = String(body.credential || '').trim();
+        const tokenUser = await verifyGoogleToken(credential);
+        if (!tokenUser) return json(res, 401, { ok: false, message: 'Authentication required' });
+        const endpoint = String(body.endpoint || '').trim();
+        if (!endpoint) return json(res, 400, { ok: false, message: 'endpoint required' });
+        await db.collection('push_subscriptions').deleteOne({ userId: tokenUser.userId, endpoint });
+        return json(res, 200, { ok: true });
+      }
+
+      if (action === 'push-dispatch') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const body = await readBody(req);
+        const userId = String(body.userId || '').trim();
+        const title = String(body.title || '').trim().slice(0, 180);
+        const message = String(body.message || '').trim().slice(0, 1200);
+        const link = String(body.link || '/notification').trim().slice(0, 4000);
+        if (!userId || !title || !message) return json(res, 400, { ok: false, message: 'userId/title/message required' });
+        const now = new Date();
+        const doc = { userId, title, message, type: 'admin', link, read: false, createdAt: now, createdAtIST: nowIST() };
+        await db.collection('user_notifications').insertOne(doc);
+        const subs = await db.collection('push_subscriptions').countDocuments({ userId });
+        return json(res, 200, { ok: true, queuedNotifications: subs });
+      }
 
       if (action === 'status-monitor-config') {
         if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });

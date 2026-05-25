@@ -47,7 +47,7 @@ interface Journal {
   images?: string[];
 }
 
-type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'watermarks' | 'status' | 'storage' | 'users' | 'feedback';
+type Tab = 'journals' | 'categories' | 'settings' | 'journey' | 'projects' | 'watermarks' | 'status' | 'storage' | 'users' | 'feedback' | 'analytics';
 type StatusMonitorMode = 'live' | 'stop' | 'maintenance' | 'hiatus';
 type WatermarkStatusFilter = 'all' | 'pending' | 'approved' | 'declined';
 
@@ -156,6 +156,17 @@ interface UserDoc {
     updatedAt?: string;
     updatedAtIST?: string;
   }>>;
+}
+
+interface LinkAnalyticsItem {
+  _id: string;
+  targetUrl: string;
+  targetHost: string;
+  sourcePage: string;
+  ip: string;
+  userId: string | null;
+  loggedIn: boolean;
+  createdAt: string;
 }
 
 interface BlockDoc {
@@ -1581,6 +1592,18 @@ export default function Dashboard() {
     pinnedCount: 0,
     categoriesCount: 0,
   });
+  const [analyticsRows, setAnalyticsRows] = useState<LinkAnalyticsItem[]>([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsPage, setAnalyticsPage] = useState(1);
+  const [analyticsTotalPages, setAnalyticsTotalPages] = useState(1);
+  const [analyticsHostFilter, setAnalyticsHostFilter] = useState('');
+  const [analyticsSourceFilter, setAnalyticsSourceFilter] = useState('');
+  const [analyticsLoginFilter, setAnalyticsLoginFilter] = useState<'all' | 'true' | 'false'>('all');
+  const [analyticsAggregates, setAnalyticsAggregates] = useState<{
+    byHost: Array<{ host: string; total: number }>;
+    bySource: Array<{ sourcePage: string; total: number }>;
+    byUser: Array<{ userId: string; total: number }>;
+  }>({ byHost: [], bySource: [], byUser: [] });
 
   // ── Comments storage sub-tab state ────────────────────────────────────────
   const [commentPosts, setCommentPosts] = useState<JournalCommentStat[]>([]);
@@ -1739,6 +1762,39 @@ export default function Dashboard() {
     } catch { /* ignore */ }
     finally { setUsersLoading(false); }
   }, []);
+
+  const fetchLinkAnalytics = useCallback(async (
+    p = 1,
+    opts?: { host?: string; sourcePage?: string; loggedIn?: 'all' | 'true' | 'false' },
+  ) => {
+    setAnalyticsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        action: 'link-analytics',
+        page: String(p),
+        limit: '20',
+      });
+      const host = String(opts?.host ?? analyticsHostFilter).trim();
+      const sourcePage = String(opts?.sourcePage ?? analyticsSourceFilter).trim();
+      const loggedIn = String(opts?.loggedIn ?? analyticsLoginFilter).trim() as 'all' | 'true' | 'false';
+      if (host) params.set('host', host);
+      if (sourcePage) params.set('sourcePage', sourcePage);
+      if (loggedIn !== 'all') params.set('loggedIn', loggedIn);
+      const response = await fetch(`/api/journal?${params.toString()}`);
+      const payload = await response.json();
+      if (payload?.ok) {
+        setAnalyticsRows(Array.isArray(payload.items) ? payload.items : []);
+        setAnalyticsPage(Number(payload.page || p));
+        setAnalyticsTotalPages(Math.max(1, Number(payload.totalPages || 1)));
+        setAnalyticsAggregates({
+          byHost: Array.isArray(payload?.aggregates?.byHost) ? payload.aggregates.byHost : [],
+          bySource: Array.isArray(payload?.aggregates?.bySource) ? payload.aggregates.bySource : [],
+          byUser: Array.isArray(payload?.aggregates?.byUser) ? payload.aggregates.byUser : [],
+        });
+      }
+    } catch { /* ignore */ }
+    finally { setAnalyticsLoading(false); }
+  }, [analyticsHostFilter, analyticsLoginFilter, analyticsSourceFilter]);
 
   const fetchUserComments = useCallback(async (userId: string, p = 1) => {
     setUserCommentsLoading(true);
@@ -1998,6 +2054,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (tab === 'users' && authenticated) fetchUsers(1);
   }, [tab, authenticated, fetchUsers]);
+
+  useEffect(() => {
+    if (tab === 'analytics' && authenticated) fetchLinkAnalytics(1);
+  }, [tab, authenticated, fetchLinkAnalytics]);
 
   useEffect(() => {
     if (tab === 'settings' && authenticated) {
@@ -2808,6 +2868,7 @@ export default function Dashboard() {
           { id: 'categories', label: 'Categories', icon: <Tag size={14} /> },
           { id: 'journey', label: 'Journey', icon: <Clock size={14} /> },
           { id: 'storage', label: 'Storage', icon: <HardDrive size={14} /> },
+          { id: 'analytics', label: 'Analytics', icon: <Activity size={14} /> },
           { id: 'users', label: 'Users', icon: <Users size={14} /> },
           { id: 'settings', label: 'Settings', icon: <Settings size={14} /> },
         ] as { id: Tab; label: string; icon: ReactNode }[]).map((t) => (
@@ -4338,6 +4399,81 @@ export default function Dashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {tab === 'analytics' && (
+        <div className="space-y-5">
+          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 space-y-3">
+            <div className="grid md:grid-cols-4 gap-3">
+              <input value={analyticsHostFilter} onChange={(e) => setAnalyticsHostFilter(e.target.value)} className={inputCls} placeholder="Filter by host" />
+              <input value={analyticsSourceFilter} onChange={(e) => setAnalyticsSourceFilter(e.target.value)} className={inputCls} placeholder="Filter by source page" />
+              <select value={analyticsLoginFilter} onChange={(e) => setAnalyticsLoginFilter(e.target.value as 'all' | 'true' | 'false')} className={inputCls}>
+                <option value="all">All visitors</option>
+                <option value="true">Logged in only</option>
+                <option value="false">Guests only</option>
+              </select>
+              <button
+                onClick={() => fetchLinkAnalytics(1)}
+                className={`${btnCls} bg-amber-500 text-black hover:bg-amber-400 flex items-center justify-center gap-2`}
+              >
+                <RefreshCw size={14} /> Apply
+              </button>
+            </div>
+            <div className="grid md:grid-cols-3 gap-3">
+              <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
+                <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Top Hosts</p>
+                <div className="mt-2 space-y-1">
+                  {analyticsAggregates.byHost.slice(0, 5).map((item) => <p key={item.host} className="text-zinc-300 text-xs font-mono">{item.host} · {item.total}</p>)}
+                </div>
+              </div>
+              <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
+                <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Top Sources</p>
+                <div className="mt-2 space-y-1">
+                  {analyticsAggregates.bySource.slice(0, 5).map((item) => <p key={item.sourcePage} className="text-zinc-300 text-xs font-mono">{item.sourcePage} · {item.total}</p>)}
+                </div>
+              </div>
+              <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
+                <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Top Users</p>
+                <div className="mt-2 space-y-1">
+                  {analyticsAggregates.byUser.slice(0, 5).map((item) => <p key={`${item.userId}-${item.total}`} className="text-zinc-300 text-xs font-mono">{item.userId || 'guest'} · {item.total}</p>)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl overflow-hidden">
+            <div className="grid grid-cols-[1.4fr_0.8fr_0.8fr_0.7fr_1fr] text-[10px] uppercase tracking-widest text-zinc-500 font-mono border-b border-zinc-800 px-4 py-2">
+              <span>Target URL</span>
+              <span>Host</span>
+              <span>Source</span>
+              <span>User</span>
+              <span>Time</span>
+            </div>
+            {analyticsLoading ? (
+              <div className="p-6 text-zinc-500 text-sm">Loading analytics…</div>
+            ) : analyticsRows.length === 0 ? (
+              <div className="p-6 text-zinc-600 text-sm">No analytics rows found.</div>
+            ) : (
+              <div className="divide-y divide-zinc-800">
+                {analyticsRows.map((row) => (
+                  <div key={row._id} className="grid grid-cols-[1.4fr_0.8fr_0.8fr_0.7fr_1fr] gap-2 px-4 py-3 text-xs">
+                    <span className="text-zinc-300 truncate" title={row.targetUrl}>{row.targetUrl}</span>
+                    <span className="text-zinc-400">{row.targetHost}</span>
+                    <span className="text-zinc-400">{row.sourcePage}</span>
+                    <span className="text-zinc-400">{row.userId || 'guest'}</span>
+                    <span className="text-zinc-500">{new Date(row.createdAt).toLocaleString('en-IN')}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-center gap-3">
+            <button onClick={() => fetchLinkAnalytics(Math.max(1, analyticsPage - 1))} disabled={analyticsPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40`}>Prev</button>
+            <span className="text-zinc-500 text-sm">Page {analyticsPage} / {analyticsTotalPages}</span>
+            <button onClick={() => fetchLinkAnalytics(Math.min(analyticsTotalPages, analyticsPage + 1))} disabled={analyticsPage >= analyticsTotalPages} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40`}>Next</button>
+          </div>
+        </div>
+      )}
 
       {/* ── Users Tab ────────────────────────────────────────────────────── */}
       {tab === 'users' && (

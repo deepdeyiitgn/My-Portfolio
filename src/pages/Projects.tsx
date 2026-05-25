@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { projectsData } from '../data/projectsData';
 import { ExternalLink, ArrowRight, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { getGoogleFaviconUrl, getWatermarkStatusBadgeClass } from '../utils/watermark';
+import { useExternalLinkProxy } from '../hooks/useExternalLinkProxy';
 // import ProjectPlaceholder from '../components/ProjectPlaceholder';
 import SEO from '../components/SEO';
 
@@ -27,6 +28,7 @@ export default function Projects() {
   const [watermarkTotalPages, setWatermarkTotalPages] = useState(1);
   const [loadingWatermarks, setLoadingWatermarks] = useState(false);
   const [selectedWatermarkSite, setSelectedWatermarkSite] = useState<WatermarkSite | null>(null);
+  const { openExternal } = useExternalLinkProxy();
 
   useEffect(() => {
     const fetchSites = async () => {
@@ -144,14 +146,13 @@ export default function Projects() {
                   <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                 </Link>
                 
-                <a
-                  href={project.liveUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={() => openExternal(project.liveUrl, '/projects')}
                   className="p-2 text-zinc-600 hover:text-amber-500 transition-colors"
                 >
                   <ExternalLink size={18} />
-                </a>
+                </button>
               </div>
             </div>
           </motion.div>
@@ -268,7 +269,7 @@ export default function Projects() {
               </button>
               <button
                 onClick={() => {
-                  window.open(selectedWatermarkSite.url, '_blank', 'noopener,noreferrer');
+                  openExternal(selectedWatermarkSite.url, '/projects');
                   setSelectedWatermarkSite(null);
                 }}
                 className="px-4 py-2 rounded-xl bg-amber-500 text-black hover:bg-amber-400 text-sm font-bold"
