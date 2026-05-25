@@ -80,7 +80,7 @@ interface WatermarkSiteAdmin {
   hits?: number;
   trust?: 'trusted' | 'low';
   tokenMatched?: boolean;
-  verificationState?: 'pending' | 'verified' | 'manual' | 'legacy';
+  verificationState?: 'pending' | 'verified' | 'manual' | 'legacy' | 'expired';
   createdAt?: string;
   updatedAt?: string;
   approvedAt?: string;
@@ -2933,7 +2933,7 @@ export default function Dashboard() {
             </button>
             <p className="text-[11px] text-zinc-500">
               Verification state: <span className="uppercase text-zinc-300">{watermarkDomainVerification || 'unknown'}</span>{' '}
-              {watermarkDomainToken ? '• Secure domain token ready for snippet.' : '• run challenge + verify to issue domain token using both methods.'}
+              {watermarkDomainToken ? '• Secure domain token ready for snippet.' : '• run challenge + verify to issue domain token using file OR DNS method.'}
             </p>
             {watermarkChallengePath && watermarkChallengeContent && (
               <div className="text-[11px] text-zinc-400 bg-zinc-950/60 border border-zinc-800 rounded-xl p-3 space-y-1">
@@ -2943,7 +2943,8 @@ export default function Dashboard() {
                 <p className="font-mono text-emerald-300 break-all">{watermarkChallengeContent}</p>
                 {watermarkTxtHost && watermarkTxtValue && (
                   <>
-                    <p className="text-zinc-300 mt-2">Method 2 — Add DNS TXT record:</p>
+                    <p className="text-zinc-300 mt-2">OR</p>
+                    <p className="text-zinc-300">Method 2 — Add DNS TXT record:</p>
                     <p className="font-mono text-amber-400 break-all">Host: {watermarkTxtHost}</p>
                     <p className="font-mono text-emerald-300 break-all">Value: {watermarkTxtValue}</p>
                   </>
@@ -3025,7 +3026,7 @@ export default function Dashboard() {
                         <span className={`uppercase px-1.5 py-0.5 rounded ${getWatermarkStatusBadgeClass(site.status)}`}>{site.status}</span>
                         <span className="text-zinc-600">Source: <span className="uppercase">{site.source || 'auto'}</span></span>
                         <span className="text-zinc-600">Trust: <span className={`uppercase ${site.trust === 'trusted' ? 'text-emerald-400' : 'text-amber-400'}`}>{site.trust || 'low'}</span></span>
-                        <span className="text-zinc-600">Verify: <span className={`uppercase ${site.verificationState === 'verified' || site.verificationState === 'manual' ? 'text-emerald-400' : 'text-amber-400'}`}>{site.verificationState || 'pending'}</span></span>
+                        <span className="text-zinc-600">Verify: <span className={`uppercase ${site.verificationState === 'verified' || site.verificationState === 'manual' ? 'text-emerald-400' : site.verificationState === 'expired' ? 'text-red-400' : 'text-amber-400'}`}>{site.verificationState || 'pending'}</span></span>
                         <span className="text-zinc-600">Hidden: <span className="uppercase">{site.hidden ? 'Yes' : 'No'}</span></span>
                         <span className="text-zinc-600">Hits: {site.hits || 0}</span>
                         {site.lastSeenAt && <span className="text-zinc-600">Seen: {new Date(site.lastSeenAt).toLocaleDateString()}</span>}
@@ -3071,7 +3072,7 @@ export default function Dashboard() {
             <div className="fixed inset-0 z-[1100] bg-black/70 backdrop-blur-sm flex items-center justify-center px-4">
               <div className="w-full max-w-2xl bg-zinc-900 border border-zinc-700 rounded-2xl p-5 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-white font-bold">Verify Domain (Both Methods)</h4>
+                  <h4 className="text-white font-bold">Verify Domain (Method 1 OR Method 2)</h4>
                   <button
                     type="button"
                     onClick={() => setWatermarkVerifyPopupOpen(false)}
@@ -3115,7 +3116,8 @@ export default function Dashboard() {
                     <p className="font-mono text-emerald-300 break-all">{watermarkChallengeContent}</p>
                     {watermarkTxtHost && watermarkTxtValue && (
                       <>
-                        <p className="text-zinc-300 mt-2">Method 2 — DNS TXT:</p>
+                        <p className="text-zinc-300 mt-2">OR</p>
+                        <p className="text-zinc-300">Method 2 — DNS TXT:</p>
                         <p className="font-mono text-amber-400 break-all">Host: {watermarkTxtHost}</p>
                         <p className="font-mono text-emerald-300 break-all">Value: {watermarkTxtValue}</p>
                       </>
