@@ -15,6 +15,12 @@ const DRAG_THRESHOLD_PIXELS = 2;
 const POINTER_VARIANT_CYCLE_INTERVAL_MS = 1200;
 const SHORTCUT_MESSAGE_DISPLAY_DURATION_MS = 3200;
 const DESKTOP_MIN_WIDTH_PIXELS = 768;
+const POINTER_GLOW_CORE_POSITION_CLASS = 'left-[8px] top-[8px]';
+const POINTER_GLOW_RING_POSITION_CLASS = 'left-[6px] top-[6px]';
+const POINTER_GLOW_CORE_SIZE_CLASS = 'w-5 h-5';
+const POINTER_GLOW_RING_SIZE_CLASS = 'w-7 h-7';
+const POINTER_GLOW_CORE_CLASS = `absolute ${POINTER_GLOW_CORE_POSITION_CLASS} ${POINTER_GLOW_CORE_SIZE_CLASS} rounded-full bg-amber-300/35 blur-[8px]`;
+const POINTER_GLOW_RING_CLASS = `absolute ${POINTER_GLOW_RING_POSITION_CLASS} ${POINTER_GLOW_RING_SIZE_CLASS} rounded-full border border-amber-300/30`;
 
 function parsePrefsCookie(): PointerPrefs {
   if (typeof document === 'undefined') return { customEnabled: true, nativeVisible: true };
@@ -64,10 +70,19 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
   const [cycleIndex, setCycleIndex] = useState(0);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const pointerPositionRef = useRef({ x: 0, y: 0 });
+  const isMouseDownRef = useRef(false);
+  const isDraggingRef = useRef(false);
+  const isSelectingRef = useRef(false);
+  const nativeVisibleRef = useRef(initialPrefs.nativeVisible);
 
   useEffect(() => {
     writePrefsCookie({ customEnabled, nativeVisible });
   }, [customEnabled, nativeVisible]);
+
+  useEffect(() => {
+    nativeVisibleRef.current = nativeVisible;
+  }, [nativeVisible]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -97,18 +112,18 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const root = document.documentElement;
-    if (supportsDesktopPointer && !nativeVisible) {
+    if (supportsDesktopPointer && customEnabled && !nativeVisible) {
       root.classList.add('dd-hide-native-cursor');
     } else {
       root.classList.remove('dd-hide-native-cursor');
     }
     return () => root.classList.remove('dd-hide-native-cursor');
-  }, [nativeVisible, supportsDesktopPointer]);
+  }, [nativeVisible, supportsDesktopPointer, customEnabled]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const root = document.documentElement;
-    if (supportsDesktopPointer && nativeVisible) {
+    if (supportsDesktopPointer && nativeVisible && customEnabled) {
       root.classList.add('dd-use-system-cursor');
       root.style.setProperty('--dd-system-cursor', POINTER_SYSTEM_CURSORS[pointerMode]);
     } else {
@@ -120,67 +135,96 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
       root.classList.remove('dd-use-system-cursor');
       root.style.removeProperty('--dd-system-cursor');
     };
-  }, [nativeVisible, pointerMode, supportsDesktopPointer]);
+  }, [nativeVisible, pointerMode, supportsDesktopPointer, customEnabled]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const onMouseMove = (event: MouseEvent) => {
-      setMouseDetected(true);
-      setIsInsideViewport(true);
-      setPosition({ x: event.clientX, y: event.clientY });
+    const resolvePointerModeAtPoint = (x: number, y: number, selectionOverride?: boolean): PointerMode => {
+      const hasSelection = selectionOverride ?? ((window.getSelection()?.toString().trim().length || 0) > 0);
+      if (isDraggingRef.current) return 'drag';
+      if (hasSelection) return 'select';
 
-      const element = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
-      if (!element) {
-        setPointerMode(isDragging ? 'drag' : 'default');
-        return;
-      }
+      const element = document.elementFromPoint(x, y) as HTMLElement | null;
+      if (!element) return isMouseDownRef.current ? 'click' : 'default';
 
       const style = window.getComputedStyle(element);
       const cursorValue = style.cursor;
       const isInputElement = Boolean(element.closest('input, textarea, select, [contenteditable="true"]'));
       const isInteractive = Boolean(element.closest('a, button, [role="button"], summary, label[for]'));
 
-      if (isDragging) {
-        setPointerMode('drag');
-      } else if (isSelecting) {
-        setPointerMode('select');
-      } else if (isInputElement) {
-        setPointerMode('input');
-      } else if (cursorValue.includes('text')) {
-        setPointerMode('text');
-      } else if (isMouseDown) {
-        setPointerMode('click');
-      } else if (isInteractive || cursorValue.includes('pointer')) {
-        setPointerMode('action');
-      } else {
-        setPointerMode('default');
+      if (isInputElement) return 'input';
+      if (cursorValue.includes('text')) return 'text';
+      if (isMouseDownRef.current) return 'click';
+      if (isInteractive || cursorValue.includes('pointer')) return 'action';
+      return 'default';
+    };
+
+    const onMouseMove = (event: MouseEvent) => {
+      setMouseDetected(true);
+      setIsInsideViewport(true);
+      setPosition({ x: event.clientX, y: event.clientY });
+      pointerPositionRef.current = { x: event.clientX, y: event.clientY };
+
+      if (isMouseDownRef.current && dragStartRef.current) {
+        const diffX = Math.abs(event.clientX - dragStartRef.current.x);
+        const diffY = Math.abs(event.clientY - dragStartRef.current.y);
+        if (diffX > DRAG_THRESHOLD_PIXELS || diffY > DRAG_THRESHOLD_PIXELS) {
+          if (!isDraggingRef.current) {
+            isDraggingRef.current = true;
+            setIsDragging(true);
+          }
+        }
       }
+
+      const hasSelection = (window.getSelection()?.toString().trim().length || 0) > 0;
+      if (hasSelection !== isSelectingRef.current) {
+        isSelectingRef.current = hasSelection;
+        setIsSelecting(hasSelection);
+      }
+
+      setPointerMode(resolvePointerModeAtPoint(event.clientX, event.clientY, hasSelection));
     };
 
     const onMouseDown = (event: MouseEvent) => {
+      isMouseDownRef.current = true;
+      isDraggingRef.current = false;
       setIsMouseDown(true);
+      setIsDragging(false);
       dragStartRef.current = { x: event.clientX, y: event.clientY };
       setPointerMode('click');
     };
 
     const onMouseUp = () => {
+      isMouseDownRef.current = false;
+      isDraggingRef.current = false;
       setIsMouseDown(false);
       setIsDragging(false);
       dragStartRef.current = null;
+      setPointerMode(resolvePointerModeAtPoint(pointerPositionRef.current.x, pointerPositionRef.current.y));
     };
 
     const onMouseLeaveWindow = () => setIsInsideViewport(false);
     const onMouseEnterWindow = () => setIsInsideViewport(true);
 
     const onSelectionChange = () => {
-      const selectionText = window.getSelection()?.toString().trim() || '';
-      setIsSelecting(selectionText.length > 0);
+      const hasSelection = (window.getSelection()?.toString().trim().length || 0) > 0;
+      if (hasSelection !== isSelectingRef.current) {
+        isSelectingRef.current = hasSelection;
+        setIsSelecting(hasSelection);
+      }
+      setPointerMode(resolvePointerModeAtPoint(pointerPositionRef.current.x, pointerPositionRef.current.y, hasSelection));
     };
 
     const onTouchStart = () => {
+      isMouseDownRef.current = false;
+      isDraggingRef.current = false;
+      isSelectingRef.current = false;
       setMouseDetected(false);
       setIsInsideViewport(false);
+      setIsMouseDown(false);
+      setIsDragging(false);
+      setIsSelecting(false);
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -203,7 +247,7 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
         event.preventDefault();
         setCustomEnabled((prev) => {
           const next = !prev;
-          if (!next && !nativeVisible) {
+          if (!next && !nativeVisibleRef.current) {
             setNativeVisible(true);
             setShortcutMessage('Custom pointer hidden. Native cursor restored for safety.');
             return false;
@@ -214,15 +258,7 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
       }
     };
 
-    const onDragMove = (event: MouseEvent) => {
-      if (!isMouseDown || !dragStartRef.current) return;
-      const diffX = Math.abs(event.clientX - dragStartRef.current.x);
-      const diffY = Math.abs(event.clientY - dragStartRef.current.y);
-      if (diffX > DRAG_THRESHOLD_PIXELS || diffY > DRAG_THRESHOLD_PIXELS) setIsDragging(true);
-    };
-
     window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mousemove', onDragMove);
     window.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mouseup', onMouseUp);
     window.addEventListener('touchstart', onTouchStart, { passive: true });
@@ -233,7 +269,6 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
 
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mousemove', onDragMove);
       window.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mouseup', onMouseUp);
       window.removeEventListener('touchstart', onTouchStart);
@@ -242,7 +277,7 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
       window.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('selectionchange', onSelectionChange);
     };
-  }, [isDragging, isMouseDown, isSelecting, nativeVisible]);
+  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCycleIndex((prev) => prev + 1), POINTER_VARIANT_CYCLE_INTERVAL_MS);
@@ -329,6 +364,8 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
           style={{ transform: `translate3d(${position.x - 5}px, ${position.y - 4}px, 0)` }}
         >
           <div className="relative dd-pointer-float">
+            <span aria-hidden="true" className={POINTER_GLOW_CORE_CLASS} />
+            <span aria-hidden="true" className={POINTER_GLOW_RING_CLASS} />
             {renderPointerSvg(activeVariant, isMouseDown)}
             {(isMouseDown || isSelecting) && (
               <span

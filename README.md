@@ -56,6 +56,137 @@ All while the author simultaneously prepares for **JEE Advanced 2027** targeting
 
 ---
 
+## 🖱️ Cursor SVG Exports
+
+All cursor SVG assets are now exported in the public folder:
+
+- `public/cursors/visual/` → custom floating cursor variants used by the pointer renderer
+- `public/cursors/system/` → SVGs used in CSS system cursor mode by interaction type
+- `public/cursors/manifest.json` → export index
+
+### Custom Cursor Variants (`public/cursors/visual`)
+
+| SVG | Preview | Purpose |
+| :-- | :--: | :-- |
+| `comet.svg` | <img src="public/cursors/visual/comet.svg" width="26" /> | Default pointer style with amber comet gradient |
+| `neon-needle.svg` | <img src="public/cursors/visual/neon-needle.svg" width="26" /> | Default precision-style pointer |
+| `prism-arrow.svg` | <img src="public/cursors/visual/prism-arrow.svg" width="26" /> | Default prism/glass pointer |
+| `orbit.svg` | <img src="public/cursors/visual/orbit.svg" width="26" /> | Default pointer with orbit ring accent |
+| `pulse-core.svg` | <img src="public/cursors/visual/pulse-core.svg" width="26" /> | Default pointer with core glow |
+| `aurora-dart.svg` | <img src="public/cursors/visual/aurora-dart.svg" width="26" /> | Default pointer with aurora cyan highlight |
+| `glass-arrow.svg` | <img src="public/cursors/visual/glass-arrow.svg" width="26" /> | Default semi-glass arrow style |
+| `vector-wing.svg` | <img src="public/cursors/visual/vector-wing.svg" width="26" /> | Action/hover state pointer |
+| `quantum-tip.svg` | <img src="public/cursors/visual/quantum-tip.svg" width="26" /> | Action state dark-tech pointer |
+| `flare-triangle.svg` | <img src="public/cursors/visual/flare-triangle.svg" width="26" /> | Action state with flare accent |
+| `spark-lance.svg` | <img src="public/cursors/visual/spark-lance.svg" width="26" /> | Action state with spark burst |
+| `scribe.svg` | <img src="public/cursors/visual/scribe.svg" width="26" /> | Text/input editing state |
+| `input-beam.svg` | <img src="public/cursors/visual/input-beam.svg" width="26" /> | Text/input I-beam style |
+| `ink-beam.svg` | <img src="public/cursors/visual/ink-beam.svg" width="26" /> | Text/input beam with accent node |
+| `selection-ring.svg` | <img src="public/cursors/visual/selection-ring.svg" width="26" /> | Selection state ring cursor |
+| `anchor-grid.svg` | <img src="public/cursors/visual/anchor-grid.svg" width="26" /> | Selection/drag anchor marker |
+| `click-burst.svg` | <img src="public/cursors/visual/click-burst.svg" width="26" /> | Click feedback state |
+| `nova-click.svg` | <img src="public/cursors/visual/nova-click.svg" width="26" /> | Click state with pulse orb |
+| `drag-node.svg` | <img src="public/cursors/visual/drag-node.svg" width="26" /> | Drag movement indicator |
+| `magnet-drag.svg` | <img src="public/cursors/visual/magnet-drag.svg" width="26" /> | Drag state with magnet cross lines |
+
+### System Cursor SVGs (`public/cursors/system`)
+
+| SVG | Preview | Used for |
+| :-- | :--: | :-- |
+| `default.svg` | <img src="public/cursors/system/default.svg" width="26" /> | Normal resting pointer |
+| `action.svg` | <img src="public/cursors/system/action.svg" width="26" /> | Hovering interactive elements |
+| `text.svg` | <img src="public/cursors/system/text.svg" width="26" /> | Text caret areas |
+| `input.svg` | <img src="public/cursors/system/input.svg" width="26" /> | Input-focused form fields |
+| `select.svg` | <img src="public/cursors/system/select.svg" width="26" /> | Active text selection |
+| `click.svg` | <img src="public/cursors/system/click.svg" width="26" /> | Mouse down / click state |
+| `drag.svg` | <img src="public/cursors/system/drag.svg" width="26" /> | Dragging interactions |
+
+## 🧩 Project SVG Export Folder
+
+All project SVGs are now also exported under `public/project-svg/`.
+
+- `public/project-svg/brand/` → core brand SVG icons used around the app
+- `public/project-svg/cursors/` → mirrored cursor SVG exports
+- `public/project-svg/manifest.json` → export index
+
+### Brand SVGs (`public/project-svg/brand`)
+
+| SVG | Preview | Purpose |
+| :-- | :--: | :-- |
+| `quicklink-logo.svg` | <img src="public/project-svg/brand/quicklink-logo.svg" width="26" /> | QuickLink branding mark |
+| `crown.svg` | <img src="public/project-svg/brand/crown.svg" width="26" /> | Owner/crown identity icon |
+| `verified.svg` | <img src="public/project-svg/brand/verified.svg" width="26" /> | Verified badge icon |
+
+---
+
+## 📚 Complete SVG Inventory (All Files)
+
+This is the full list of all tracked project SVG files (**60 files**).
+
+| File Path | Preview | What work it does | How to use |
+| :-- | :--: | :-- | :-- |
+| `public/crown.svg` | <img src="public/crown.svg" width="24" /> | Primary crown icon used for owner/identity branding. | `<img src="/crown.svg" alt="..." />` |
+| `public/cursors/system/action.svg` | <img src="public/cursors/system/action.svg" width="24" /> | System-cursor SVG for `action` interaction mode in CSS cursor mapping. | `<img src="/cursors/system/action.svg" alt="..." />` |
+| `public/cursors/system/click.svg` | <img src="public/cursors/system/click.svg" width="24" /> | System-cursor SVG for `click` interaction mode in CSS cursor mapping. | `<img src="/cursors/system/click.svg" alt="..." />` |
+| `public/cursors/system/default.svg` | <img src="public/cursors/system/default.svg" width="24" /> | System-cursor SVG for `default` interaction mode in CSS cursor mapping. | `<img src="/cursors/system/default.svg" alt="..." />` |
+| `public/cursors/system/drag.svg` | <img src="public/cursors/system/drag.svg" width="24" /> | System-cursor SVG for `drag` interaction mode in CSS cursor mapping. | `<img src="/cursors/system/drag.svg" alt="..." />` |
+| `public/cursors/system/input.svg` | <img src="public/cursors/system/input.svg" width="24" /> | System-cursor SVG for `input` interaction mode in CSS cursor mapping. | `<img src="/cursors/system/input.svg" alt="..." />` |
+| `public/cursors/system/select.svg` | <img src="public/cursors/system/select.svg" width="24" /> | System-cursor SVG for `select` interaction mode in CSS cursor mapping. | `<img src="/cursors/system/select.svg" alt="..." />` |
+| `public/cursors/system/text.svg` | <img src="public/cursors/system/text.svg" width="24" /> | System-cursor SVG for `text` interaction mode in CSS cursor mapping. | `<img src="/cursors/system/text.svg" alt="..." />` |
+| `public/cursors/visual/anchor-grid.svg` | <img src="public/cursors/visual/anchor-grid.svg" width="24" /> | Custom floating pointer variant (`anchor-grid`) used by the runtime pointer renderer. | `<img src="/cursors/visual/anchor-grid.svg" alt="..." />` |
+| `public/cursors/visual/aurora-dart.svg` | <img src="public/cursors/visual/aurora-dart.svg" width="24" /> | Custom floating pointer variant (`aurora-dart`) used by the runtime pointer renderer. | `<img src="/cursors/visual/aurora-dart.svg" alt="..." />` |
+| `public/cursors/visual/click-burst.svg` | <img src="public/cursors/visual/click-burst.svg" width="24" /> | Custom floating pointer variant (`click-burst`) used by the runtime pointer renderer. | `<img src="/cursors/visual/click-burst.svg" alt="..." />` |
+| `public/cursors/visual/comet.svg` | <img src="public/cursors/visual/comet.svg" width="24" /> | Custom floating pointer variant (`comet`) used by the runtime pointer renderer. | `<img src="/cursors/visual/comet.svg" alt="..." />` |
+| `public/cursors/visual/drag-node.svg` | <img src="public/cursors/visual/drag-node.svg" width="24" /> | Custom floating pointer variant (`drag-node`) used by the runtime pointer renderer. | `<img src="/cursors/visual/drag-node.svg" alt="..." />` |
+| `public/cursors/visual/flare-triangle.svg` | <img src="public/cursors/visual/flare-triangle.svg" width="24" /> | Custom floating pointer variant (`flare-triangle`) used by the runtime pointer renderer. | `<img src="/cursors/visual/flare-triangle.svg" alt="..." />` |
+| `public/cursors/visual/glass-arrow.svg` | <img src="public/cursors/visual/glass-arrow.svg" width="24" /> | Custom floating pointer variant (`glass-arrow`) used by the runtime pointer renderer. | `<img src="/cursors/visual/glass-arrow.svg" alt="..." />` |
+| `public/cursors/visual/ink-beam.svg` | <img src="public/cursors/visual/ink-beam.svg" width="24" /> | Custom floating pointer variant (`ink-beam`) used by the runtime pointer renderer. | `<img src="/cursors/visual/ink-beam.svg" alt="..." />` |
+| `public/cursors/visual/input-beam.svg` | <img src="public/cursors/visual/input-beam.svg" width="24" /> | Custom floating pointer variant (`input-beam`) used by the runtime pointer renderer. | `<img src="/cursors/visual/input-beam.svg" alt="..." />` |
+| `public/cursors/visual/magnet-drag.svg` | <img src="public/cursors/visual/magnet-drag.svg" width="24" /> | Custom floating pointer variant (`magnet-drag`) used by the runtime pointer renderer. | `<img src="/cursors/visual/magnet-drag.svg" alt="..." />` |
+| `public/cursors/visual/neon-needle.svg` | <img src="public/cursors/visual/neon-needle.svg" width="24" /> | Custom floating pointer variant (`neon-needle`) used by the runtime pointer renderer. | `<img src="/cursors/visual/neon-needle.svg" alt="..." />` |
+| `public/cursors/visual/nova-click.svg` | <img src="public/cursors/visual/nova-click.svg" width="24" /> | Custom floating pointer variant (`nova-click`) used by the runtime pointer renderer. | `<img src="/cursors/visual/nova-click.svg" alt="..." />` |
+| `public/cursors/visual/orbit.svg` | <img src="public/cursors/visual/orbit.svg" width="24" /> | Custom floating pointer variant (`orbit`) used by the runtime pointer renderer. | `<img src="/cursors/visual/orbit.svg" alt="..." />` |
+| `public/cursors/visual/prism-arrow.svg` | <img src="public/cursors/visual/prism-arrow.svg" width="24" /> | Custom floating pointer variant (`prism-arrow`) used by the runtime pointer renderer. | `<img src="/cursors/visual/prism-arrow.svg" alt="..." />` |
+| `public/cursors/visual/pulse-core.svg` | <img src="public/cursors/visual/pulse-core.svg" width="24" /> | Custom floating pointer variant (`pulse-core`) used by the runtime pointer renderer. | `<img src="/cursors/visual/pulse-core.svg" alt="..." />` |
+| `public/cursors/visual/quantum-tip.svg` | <img src="public/cursors/visual/quantum-tip.svg" width="24" /> | Custom floating pointer variant (`quantum-tip`) used by the runtime pointer renderer. | `<img src="/cursors/visual/quantum-tip.svg" alt="..." />` |
+| `public/cursors/visual/scribe.svg` | <img src="public/cursors/visual/scribe.svg" width="24" /> | Custom floating pointer variant (`scribe`) used by the runtime pointer renderer. | `<img src="/cursors/visual/scribe.svg" alt="..." />` |
+| `public/cursors/visual/selection-ring.svg` | <img src="public/cursors/visual/selection-ring.svg" width="24" /> | Custom floating pointer variant (`selection-ring`) used by the runtime pointer renderer. | `<img src="/cursors/visual/selection-ring.svg" alt="..." />` |
+| `public/cursors/visual/spark-lance.svg` | <img src="public/cursors/visual/spark-lance.svg" width="24" /> | Custom floating pointer variant (`spark-lance`) used by the runtime pointer renderer. | `<img src="/cursors/visual/spark-lance.svg" alt="..." />` |
+| `public/cursors/visual/vector-wing.svg` | <img src="public/cursors/visual/vector-wing.svg" width="24" /> | Custom floating pointer variant (`vector-wing`) used by the runtime pointer renderer. | `<img src="/cursors/visual/vector-wing.svg" alt="..." />` |
+| `public/project-svg/brand/crown.svg` | <img src="public/project-svg/brand/crown.svg" width="24" /> | Mirrored export copy of the crown brand icon. | `<img src="/project-svg/brand/crown.svg" alt="..." />` |
+| `public/project-svg/brand/quicklink-logo.svg` | <img src="public/project-svg/brand/quicklink-logo.svg" width="24" /> | Mirrored export copy of the QuickLink brand logo. | `<img src="/project-svg/brand/quicklink-logo.svg" alt="..." />` |
+| `public/project-svg/brand/verified.svg` | <img src="public/project-svg/brand/verified.svg" width="24" /> | Mirrored export copy of the verified badge icon. | `<img src="/project-svg/brand/verified.svg" alt="..." />` |
+| `public/project-svg/cursors/system/action.svg` | <img src="public/project-svg/cursors/system/action.svg" width="24" /> | Mirrored export of system cursor `action` for centralized project SVG listing. | `<img src="/project-svg/cursors/system/action.svg" alt="..." />` |
+| `public/project-svg/cursors/system/click.svg` | <img src="public/project-svg/cursors/system/click.svg" width="24" /> | Mirrored export of system cursor `click` for centralized project SVG listing. | `<img src="/project-svg/cursors/system/click.svg" alt="..." />` |
+| `public/project-svg/cursors/system/default.svg` | <img src="public/project-svg/cursors/system/default.svg" width="24" /> | Mirrored export of system cursor `default` for centralized project SVG listing. | `<img src="/project-svg/cursors/system/default.svg" alt="..." />` |
+| `public/project-svg/cursors/system/drag.svg` | <img src="public/project-svg/cursors/system/drag.svg" width="24" /> | Mirrored export of system cursor `drag` for centralized project SVG listing. | `<img src="/project-svg/cursors/system/drag.svg" alt="..." />` |
+| `public/project-svg/cursors/system/input.svg` | <img src="public/project-svg/cursors/system/input.svg" width="24" /> | Mirrored export of system cursor `input` for centralized project SVG listing. | `<img src="/project-svg/cursors/system/input.svg" alt="..." />` |
+| `public/project-svg/cursors/system/select.svg` | <img src="public/project-svg/cursors/system/select.svg" width="24" /> | Mirrored export of system cursor `select` for centralized project SVG listing. | `<img src="/project-svg/cursors/system/select.svg" alt="..." />` |
+| `public/project-svg/cursors/system/text.svg` | <img src="public/project-svg/cursors/system/text.svg" width="24" /> | Mirrored export of system cursor `text` for centralized project SVG listing. | `<img src="/project-svg/cursors/system/text.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/anchor-grid.svg` | <img src="public/project-svg/cursors/visual/anchor-grid.svg" width="24" /> | Mirrored export of visual cursor `anchor-grid` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/anchor-grid.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/aurora-dart.svg` | <img src="public/project-svg/cursors/visual/aurora-dart.svg" width="24" /> | Mirrored export of visual cursor `aurora-dart` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/aurora-dart.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/click-burst.svg` | <img src="public/project-svg/cursors/visual/click-burst.svg" width="24" /> | Mirrored export of visual cursor `click-burst` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/click-burst.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/comet.svg` | <img src="public/project-svg/cursors/visual/comet.svg" width="24" /> | Mirrored export of visual cursor `comet` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/comet.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/drag-node.svg` | <img src="public/project-svg/cursors/visual/drag-node.svg" width="24" /> | Mirrored export of visual cursor `drag-node` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/drag-node.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/flare-triangle.svg` | <img src="public/project-svg/cursors/visual/flare-triangle.svg" width="24" /> | Mirrored export of visual cursor `flare-triangle` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/flare-triangle.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/glass-arrow.svg` | <img src="public/project-svg/cursors/visual/glass-arrow.svg" width="24" /> | Mirrored export of visual cursor `glass-arrow` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/glass-arrow.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/ink-beam.svg` | <img src="public/project-svg/cursors/visual/ink-beam.svg" width="24" /> | Mirrored export of visual cursor `ink-beam` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/ink-beam.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/input-beam.svg` | <img src="public/project-svg/cursors/visual/input-beam.svg" width="24" /> | Mirrored export of visual cursor `input-beam` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/input-beam.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/magnet-drag.svg` | <img src="public/project-svg/cursors/visual/magnet-drag.svg" width="24" /> | Mirrored export of visual cursor `magnet-drag` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/magnet-drag.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/neon-needle.svg` | <img src="public/project-svg/cursors/visual/neon-needle.svg" width="24" /> | Mirrored export of visual cursor `neon-needle` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/neon-needle.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/nova-click.svg` | <img src="public/project-svg/cursors/visual/nova-click.svg" width="24" /> | Mirrored export of visual cursor `nova-click` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/nova-click.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/orbit.svg` | <img src="public/project-svg/cursors/visual/orbit.svg" width="24" /> | Mirrored export of visual cursor `orbit` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/orbit.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/prism-arrow.svg` | <img src="public/project-svg/cursors/visual/prism-arrow.svg" width="24" /> | Mirrored export of visual cursor `prism-arrow` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/prism-arrow.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/pulse-core.svg` | <img src="public/project-svg/cursors/visual/pulse-core.svg" width="24" /> | Mirrored export of visual cursor `pulse-core` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/pulse-core.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/quantum-tip.svg` | <img src="public/project-svg/cursors/visual/quantum-tip.svg" width="24" /> | Mirrored export of visual cursor `quantum-tip` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/quantum-tip.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/scribe.svg` | <img src="public/project-svg/cursors/visual/scribe.svg" width="24" /> | Mirrored export of visual cursor `scribe` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/scribe.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/selection-ring.svg` | <img src="public/project-svg/cursors/visual/selection-ring.svg" width="24" /> | Mirrored export of visual cursor `selection-ring` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/selection-ring.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/spark-lance.svg` | <img src="public/project-svg/cursors/visual/spark-lance.svg" width="24" /> | Mirrored export of visual cursor `spark-lance` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/spark-lance.svg" alt="..." />` |
+| `public/project-svg/cursors/visual/vector-wing.svg` | <img src="public/project-svg/cursors/visual/vector-wing.svg" width="24" /> | Mirrored export of visual cursor `vector-wing` for centralized project SVG listing. | `<img src="/project-svg/cursors/visual/vector-wing.svg" alt="..." />` |
+| `public/quicklink-logo.svg` | <img src="public/quicklink-logo.svg" width="24" /> | Primary QuickLink brand logo used in public branding contexts. | `<img src="/quicklink-logo.svg" alt="..." />` |
+| `public/verified.svg` | <img src="public/verified.svg" width="24" /> | Primary verified badge icon used for verification visuals. | `<img src="/verified.svg" alt="..." />` |
+
+
 ## 🎯 Feature Highlights
 
 ### 🔭 Global Command Palette Search

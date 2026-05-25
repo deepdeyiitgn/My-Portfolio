@@ -90,21 +90,28 @@
 
 .dd-custom-pointer {
   will-change: transform;
+  mix-blend-mode: screen;
+}
+
+@media (forced-colors: active) {
+  .dd-custom-pointer {
+    mix-blend-mode: normal;
+  }
 }
 
 .dd-pointer-float {
-  animation: dd-pointer-float 1.8s ease-in-out infinite;
+  animation: dd-pointer-float 1.5s ease-in-out infinite;
 }
 
 @keyframes dd-pointer-float {
   0% {
-    transform: translateY(0) rotate(-1.5deg);
+    transform: translateY(0) rotate(-1deg) scale(1);
   }
   50% {
-    transform: translateY(-1.8px) rotate(1.2deg);
+    transform: translateY(-1.5px) rotate(0.8deg) scale(1.03);
   }
   100% {
-    transform: translateY(0) rotate(-1.5deg);
+    transform: translateY(0) rotate(-1deg) scale(1);
   }
 }
 

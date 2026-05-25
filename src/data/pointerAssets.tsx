@@ -6,13 +6,13 @@ const buildCursorUrl = (svg: string, x: number, y: number, fallback: string) =>
   `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${x} ${y}, ${fallback}`;
 
 export const POINTER_FAMILY: Record<PointerMode, string[]> = {
-  default: ['comet', 'neon-needle', 'prism-arrow', 'orbit', 'pulse-core'],
-  action: ['vector-wing', 'quantum-tip', 'flare-triangle'],
-  text: ['scribe', 'input-beam'],
+  default: ['comet', 'neon-needle', 'prism-arrow', 'orbit', 'pulse-core', 'aurora-dart', 'glass-arrow'],
+  action: ['vector-wing', 'quantum-tip', 'flare-triangle', 'spark-lance'],
+  text: ['scribe', 'input-beam', 'ink-beam'],
   input: ['input-beam', 'scribe'],
   select: ['selection-ring', 'anchor-grid'],
-  click: ['click-burst', 'pulse-core'],
-  drag: ['drag-node', 'anchor-grid'],
+  click: ['click-burst', 'pulse-core', 'nova-click'],
+  drag: ['drag-node', 'anchor-grid', 'magnet-drag'],
 };
 
 export const POINTER_SYSTEM_CURSORS: Record<PointerMode, string> = {
@@ -60,8 +60,14 @@ export const POINTER_SYSTEM_CURSORS: Record<PointerMode, string> = {
   ),
 };
 
+const POINTER_RENDER_SIZE_CLASS = 'w-[36px] h-[36px]';
+const POINTER_RENDER_GLOW_CLASS = 'drop-shadow-[0_0_20px_rgba(251,191,36,0.45)]';
+const POINTER_RENDER_CLICK_SCALE_CLASS = 'scale-[0.86]';
+const POINTER_RENDER_DEFAULT_SCALE_CLASS = 'scale-100';
+
 export function renderPointerSvg(variant: string, isClicking: boolean): ReactNode {
-  const sharedClass = `w-[34px] h-[34px] drop-shadow-[0_0_16px_rgba(245,158,11,0.45)] ${isClicking ? 'scale-90' : 'scale-100'} transition-transform duration-100`;
+  const clickStateScaleClass = isClicking ? POINTER_RENDER_CLICK_SCALE_CLASS : POINTER_RENDER_DEFAULT_SCALE_CLASS;
+  const sharedClass = `${POINTER_RENDER_SIZE_CLASS} ${POINTER_RENDER_GLOW_CLASS} ${clickStateScaleClass} transition-transform duration-100`;
 
   switch (variant) {
     case 'comet':
@@ -181,6 +187,58 @@ export function renderPointerSvg(variant: string, isClicking: boolean): ReactNod
           <path d="M5 4.5L24.2 16L14.8 18.7L16.6 29.4L5 4.5Z" fill="#f59e0b" stroke="#fef3c7" strokeWidth="1.1" />
           <path d="M22.8 10.4L29.6 17.2" stroke="#fde68a" strokeWidth="1.6" strokeLinecap="round" />
           <circle cx="29.6" cy="17.2" r="2" fill="#fbbf24" />
+        </svg>
+      );
+    case 'aurora-dart':
+      return (
+        <svg viewBox="0 0 34 34" className={sharedClass}>
+          <defs>
+            <linearGradient id="dd-ptr-aurora" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#fde68a" />
+              <stop offset="45%" stopColor="#f59e0b" />
+              <stop offset="100%" stopColor="#22d3ee" />
+            </linearGradient>
+          </defs>
+          <path d="M5 4L26 16.2L15.6 19L17.4 30L5 4Z" fill="url(#dd-ptr-aurora)" stroke="#fff7d6" strokeWidth="1.2" />
+          <circle cx="24.8" cy="9.2" r="1.5" fill="#67e8f9" />
+        </svg>
+      );
+    case 'glass-arrow':
+      return (
+        <svg viewBox="0 0 34 34" className={sharedClass}>
+          <path d="M5 4L25.5 16L15 18.8L16.8 30L5 4Z" fill="#ffffff" fillOpacity="0.2" stroke="#fde68a" strokeWidth="1.2" />
+          <path d="M8.5 8.5L22.5 16.5L14.8 18.7L15.9 25.8L8.5 8.5Z" fill="#fbbf24" fillOpacity="0.38" />
+        </svg>
+      );
+    case 'spark-lance':
+      return (
+        <svg viewBox="0 0 34 34" className={sharedClass}>
+          <path d="M4.8 4L25.4 15.6L14.8 18.8L16.8 30L4.8 4Z" fill="#f59e0b" stroke="#fef3c7" strokeWidth="1.1" />
+          <path d="M24.8 7.2L28.5 4.1M27.8 11L32.5 11M25.5 14.5L29.2 17.8" stroke="#fde68a" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      );
+    case 'ink-beam':
+      return (
+        <svg viewBox="0 0 34 34" className={sharedClass}>
+          <rect x="15.2" y="4" width="3.3" height="26" rx="1.6" fill="#f59e0b" />
+          <rect x="8.7" y="4.8" width="16" height="2.1" rx="1" fill="#fde68a" />
+          <rect x="8.7" y="27.1" width="16" height="2.1" rx="1" fill="#fde68a" />
+          <circle cx="25.8" cy="8.8" r="1.8" fill="#22d3ee" />
+        </svg>
+      );
+    case 'nova-click':
+      return (
+        <svg viewBox="0 0 34 34" className={sharedClass}>
+          <path d="M5 4L25.5 16L15.2 18.9L17 30L5 4Z" fill="#f59e0b" stroke="#fef3c7" strokeWidth="1.1" />
+          <circle cx="25.5" cy="9.2" r="3.3" fill="#fbbf24" opacity="0.24" />
+          <circle cx="25.5" cy="9.2" r="1.4" fill="#fde68a" />
+        </svg>
+      );
+    case 'magnet-drag':
+      return (
+        <svg viewBox="0 0 34 34" className={sharedClass}>
+          <path d="M5 4L24.6 15.8L15 18.8L16.9 30L5 4Z" fill="#f59e0b" stroke="#fef3c7" strokeWidth="1.1" />
+          <path d="M23.5 17.5H30.5M27 14V21M24.4 14.8L29.6 20.2" stroke="#fde68a" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       );
     default:

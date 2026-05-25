@@ -279,7 +279,7 @@ async function verifyWatermarkDomainOwnership(domain, token, challengePath) {
     verifyWatermarkDomainTxtChallenge(domain, token),
   ]);
   return {
-    ok: fileValid && txtValid,
+    ok: fileValid || txtValid,
     fileValid,
     txtValid,
   };
@@ -576,7 +576,7 @@ module.exports = async (req, res) => {
           { domain },
           {
             $set: {
-              verificationState: 'pending',
+              verificationState: 'expired',
               trust: 'low',
               tokenMatched: false,
               hidden: true,
@@ -595,7 +595,7 @@ module.exports = async (req, res) => {
           { domain },
           {
             $set: {
-              verificationState: 'pending',
+              verificationState: 'expired',
               trust: 'low',
               tokenMatched: false,
               hidden: true,
