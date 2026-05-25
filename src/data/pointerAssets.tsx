@@ -62,11 +62,11 @@ export const POINTER_SYSTEM_CURSORS: Record<PointerMode, string> = {
 
 const POINTER_VISUAL_SIZE_CLASS = 'w-[36px] h-[36px]';
 const POINTER_VISUAL_GLOW_CLASS = 'drop-shadow-[0_0_20px_rgba(251,191,36,0.45)]';
-const POINTER_CLICK_SCALE_CLASS = 'scale-[0.86]';
-const POINTER_DEFAULT_SCALE_CLASS = 'scale-100';
+const POINTER_VISUAL_CLICK_SCALE_CLASS = 'scale-[0.86]';
+const POINTER_VISUAL_DEFAULT_SCALE_CLASS = 'scale-100';
 
 export function renderPointerSvg(variant: string, isClicking: boolean): ReactNode {
-  const activeScaleClass = isClicking ? POINTER_CLICK_SCALE_CLASS : POINTER_DEFAULT_SCALE_CLASS;
+  const activeScaleClass = isClicking ? POINTER_VISUAL_CLICK_SCALE_CLASS : POINTER_VISUAL_DEFAULT_SCALE_CLASS;
   const sharedClass = `${POINTER_VISUAL_SIZE_CLASS} ${POINTER_VISUAL_GLOW_CLASS} ${activeScaleClass} transition-transform duration-100`;
 
   switch (variant) {
