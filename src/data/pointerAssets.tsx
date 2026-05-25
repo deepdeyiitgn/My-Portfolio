@@ -66,8 +66,8 @@ const POINTER_VISUAL_CLICK_SCALE_CLASS = 'scale-[0.86]';
 const POINTER_VISUAL_DEFAULT_SCALE_CLASS = 'scale-100';
 
 export function renderPointerSvg(variant: string, isClicking: boolean): ReactNode {
-  const activeScaleClass = isClicking ? POINTER_VISUAL_CLICK_SCALE_CLASS : POINTER_VISUAL_DEFAULT_SCALE_CLASS;
-  const sharedClass = `${POINTER_VISUAL_SIZE_CLASS} ${POINTER_VISUAL_GLOW_CLASS} ${activeScaleClass} transition-transform duration-100`;
+  const clickStateScaleClass = isClicking ? POINTER_VISUAL_CLICK_SCALE_CLASS : POINTER_VISUAL_DEFAULT_SCALE_CLASS;
+  const sharedClass = `${POINTER_VISUAL_SIZE_CLASS} ${POINTER_VISUAL_GLOW_CLASS} ${clickStateScaleClass} transition-transform duration-100`;
 
   switch (variant) {
     case 'comet':

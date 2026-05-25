@@ -99,13 +99,13 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const root = document.documentElement;
-    if (supportsDesktopPointer && !nativeVisible) {
+    if (supportsDesktopPointer && customEnabled && !nativeVisible) {
       root.classList.add('dd-hide-native-cursor');
     } else {
       root.classList.remove('dd-hide-native-cursor');
     }
     return () => root.classList.remove('dd-hide-native-cursor');
-  }, [nativeVisible, supportsDesktopPointer]);
+  }, [nativeVisible, supportsDesktopPointer, customEnabled]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
