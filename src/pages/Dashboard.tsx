@@ -31,6 +31,9 @@ interface Journal {
   summary: string;
   content: string;
   contentType?: string;
+  externalVideoThumbnail?: string;
+  keywords?: string[];
+  hashtags?: string[];
   categorySlug: string;
   categoryName: string;
   published: boolean;
@@ -352,11 +355,48 @@ function JournalEditor({
   onSave: (data: Partial<Journal>, publish: boolean) => Promise<void>;
   onCancel: () => void;
 }) {
+  const MAX_TAGS = 7;
+  const MAX_HASHTAGS = 7;
+  const normalizeTag = (value: string, isHash = false) => {
+    const trimmed = String(value || '').trim().toUpperCase();
+    if (!trimmed) return '';
+    const stripped = isHash ? trimmed.replace(/^#+/, '') : trimmed;
+    return stripped.replace(/[^A-Z0-9-_]/g, '');
+  };
+  const normalizeTagArray = (list: unknown, isHash = false, max = 7) => {
+    if (!Array.isArray(list)) return [];
+    const cleaned = list
+      .map((item) => normalizeTag(String(item || ''), isHash))
+      .filter(Boolean);
+    return Array.from(new Set(cleaned)).slice(0, max);
+  };
+  const buildAutoTagSet = (t: string, s: string, c: string) => {
+    const source = [t, s, c]
+      .join(' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;|&amp;|&quot;|&#39;/gi, ' ')
+      .replace(/\s+/g, ' ');
+    const words = source
+      .split(/\s+/)
+      .map((word) => normalizeTag(word))
+      .filter((word) => word.length >= 3);
+    const tokens = Array.from(new Set(words)).slice(0, MAX_TAGS);
+    return { keywords: tokens, hashtags: tokens.slice(0, MAX_HASHTAGS) };
+  };
   const [title, setTitle] = useState(initial?.title || '');
   const [summary, setSummary] = useState(initial?.summary || '');
   const [content, setContent] = useState(initial?.content || '');
   // Purana: const [contentType, setContentType] = useState(initial?.contentType || 'richtext');
   const [contentType, setContentType] = useState(initial?.contentType || 'markdown');
+  const [externalVideoThumbnail, setExternalVideoThumbnail] = useState(initial?.externalVideoThumbnail || '');
+  const [keywords, setKeywords] = useState<string[]>(
+    normalizeTagArray(initial?.keywords, false, MAX_TAGS)
+  );
+  const [hashtags, setHashtags] = useState<string[]>(
+    normalizeTagArray(initial?.hashtags, true, MAX_HASHTAGS)
+  );
+  const [keywordInput, setKeywordInput] = useState('');
+  const [hashtagInput, setHashtagInput] = useState('');
   const [images, setImages] = useState<string[]>(Array.isArray(initial?.images) ? initial.images : []);
   const [singleLinkInput, setSingleLinkInput] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -510,7 +550,7 @@ function JournalEditor({
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
-      await onSave({ title, summary, content, contentType, categorySlug, categoryName, readMinutes, images }, false);
+      await onSave({ title, summary, content, contentType, categorySlug, categoryName, readMinutes, images, externalVideoThumbnail, keywords, hashtags }, false);
     } finally {
       setSaving(false);
     }
@@ -519,10 +559,50 @@ function JournalEditor({
   const handlePublish = async () => {
     setPublishing(true);
     try {
-      await onSave({ title, summary, content, contentType, categorySlug, categoryName, readMinutes, images }, true);
+      await onSave({ title, summary, content, contentType, categorySlug, categoryName, readMinutes, images, externalVideoThumbnail, keywords, hashtags }, true);
       setShowPreview(false);
     } finally {
       setPublishing(false);
+    }
+  };
+
+  const extractTags = (input: string, isHash = false) => (
+    input
+      .split(/[,\n\s]+/)
+      .map((part) => normalizeTag(part, isHash))
+      .filter(Boolean)
+  );
+
+  const addKeywords = () => {
+    const next = extractTags(keywordInput, false);
+    if (!next.length) return;
+    setKeywords((prev) => Array.from(new Set([...prev, ...next])).slice(0, MAX_TAGS));
+    setKeywordInput('');
+  };
+
+  const addHashtags = () => {
+    const next = extractTags(hashtagInput, true);
+    if (!next.length) return;
+    setHashtags((prev) => Array.from(new Set([...prev, ...next])).slice(0, MAX_HASHTAGS));
+    setHashtagInput('');
+  };
+
+  const autoGenerateMissingTags = () => {
+    const generated = buildAutoTagSet(title, summary, content);
+    if (!generated.keywords.length && !generated.hashtags.length) return;
+    setKeywords((prev) => (prev.length ? prev : generated.keywords.slice(0, MAX_TAGS)));
+    setHashtags((prev) => (prev.length ? prev : generated.hashtags.slice(0, MAX_HASHTAGS)));
+  };
+
+  const sanitizeHttpUrl = (value: string) => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+      const parsed = new URL(raw);
+      if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+      return parsed.toString();
+    } catch {
+      return '';
     }
   };
 
@@ -562,6 +642,97 @@ function JournalEditor({
             placeholder="Brief summary shown in listings..."
             className={inputCls}
           />
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="space-y-2 border border-zinc-800 rounded-xl p-3 bg-zinc-900/20">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Tags (Max 7)</label>
+              <button
+                type="button"
+                onClick={autoGenerateMissingTags}
+                className="px-2.5 py-1 rounded-md border border-amber-500/30 text-amber-500 text-[10px] font-mono uppercase tracking-widest hover:bg-amber-500/10"
+              >
+                Auto Fill Missing
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={keywordInput}
+                onChange={(e) => setKeywordInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    addKeywords();
+                  }
+                }}
+                placeholder="Add tag (without #)"
+                className={`${inputCls} text-xs flex-1`}
+              />
+              <button type="button" onClick={addKeywords} disabled={keywords.length >= MAX_TAGS} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40`}>Add</button>
+            </div>
+            <p className="text-[10px] text-zinc-600 font-mono">{keywords.length}/{MAX_TAGS} tags · auto stored in UPPERCASE</p>
+            {keywords.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {keywords.map((kw) => (
+                  <button
+                    type="button"
+                    key={kw}
+                    onClick={() => setKeywords((prev) => prev.filter((k) => k !== kw))}
+                    className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-400 text-[10px] font-mono hover:border-red-500/40 hover:text-red-300"
+                  >
+                    {kw} ×
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2 border border-zinc-800 rounded-xl p-3 bg-zinc-900/20">
+            <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Hashtags (Max 7)</label>
+            <div className="flex gap-2">
+              <input
+                value={hashtagInput}
+                onChange={(e) => setHashtagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    addHashtags();
+                  }
+                }}
+                placeholder="Add hashtag (type word only)"
+                className={`${inputCls} text-xs flex-1`}
+              />
+              <button type="button" onClick={addHashtags} disabled={hashtags.length >= MAX_HASHTAGS} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40`}>Add</button>
+            </div>
+            <p className="text-[10px] text-zinc-600 font-mono">{hashtags.length}/{MAX_HASHTAGS} hashtags · '#' is added automatically · UPPERCASE</p>
+            {hashtags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {hashtags.map((tag) => (
+                  <button
+                    type="button"
+                    key={tag}
+                    onClick={() => setHashtags((prev) => prev.filter((t) => t !== tag))}
+                    className="px-2 py-1 rounded-md border border-fuchsia-500/30 text-fuchsia-400 text-[10px] font-mono hover:border-red-500/40 hover:text-red-300"
+                  >
+                    #{tag} ×
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Default External Video Thumbnail (Optional)</label>
+          <input
+            type="url"
+            value={externalVideoThumbnail}
+            onChange={(e) => setExternalVideoThumbnail(e.target.value)}
+            placeholder="https://example.com/thumbnail.jpg"
+            className={inputCls}
+          />
+          <p className="text-[10px] text-zinc-600 font-mono">Used as poster image for external video embeds when available.</p>
         </div>
 
         <div className="space-y-2 border border-zinc-800 rounded-xl p-4 bg-zinc-900/30">
@@ -618,15 +789,21 @@ function JournalEditor({
             <button
               type="button"
               onClick={() => {
-                const url = window.prompt('Enter Video URL (YouTube link or .mp4):');
+                const url = window.prompt('Enter Video URL (YouTube/external):');
                 if (!url?.trim()) return;
-                const trimmed = url.trim();
+                const trimmed = sanitizeHttpUrl(url);
+                if (!trimmed) return;
+                const thumbPrompt = window.prompt('Optional thumbnail URL (leave blank to skip):', externalVideoThumbnail || '');
+                const thumb = sanitizeHttpUrl(thumbPrompt || '') || '';
                 let tag: string;
-                const ytMatch = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+                const ytMatch = trimmed.match(/(?:youtube\.com\/watch\?v=|youtube\.com\/shorts\/|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+                const videoExtRegex = /\.(mp4|webm|ogg|mov|m4v|m3u8)(\?.*)?$/i;
                 if (ytMatch) {
                   tag = `<iframe src="https://www.youtube.com/embed/${ytMatch[1]}" width="100%" height="400" style="border:0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="rounded-xl my-4"></iframe>`;
+                } else if (videoExtRegex.test(trimmed)) {
+                  tag = `<video controls preload="metadata" playsinline src="${trimmed}" ${thumb ? `poster="${thumb}"` : ''} class="w-full rounded-xl my-4">Unable to play this video in browser. <a href="${trimmed}" target="_blank" rel="noopener noreferrer">Open video</a>.</video>`;
                 } else {
-                  tag = `<video controls class="w-full rounded-xl my-4"><source src="${trimmed}" type="video/mp4" />Your browser does not support video.</video>`;
+                  tag = `<iframe src="${trimmed}" width="100%" height="400" style="border:0" loading="lazy" allowfullscreen class="rounded-xl my-4"></iframe>${thumb ? `<img src="${thumb}" alt="External video thumbnail" class="w-full rounded-xl my-2" />` : ''}`;
                 }
                 setContent((prev) => prev + tag);
               }}
@@ -639,7 +816,9 @@ function JournalEditor({
               onClick={() => {
                 const url = window.prompt('Enter Audio URL:');
                 if (!url?.trim()) return;
-                const tag = `<audio controls src="${url.trim()}" class="w-full my-4">Your browser does not support audio.</audio>`;
+                const trimmed = sanitizeHttpUrl(url);
+                if (!trimmed) return;
+                const tag = `<audio controls preload="none" src="${trimmed}" class="w-full my-4">Unable to play this audio in browser. <a href="${trimmed}" target="_blank" rel="noopener noreferrer">Open audio</a>.</audio>`;
                 setContent((prev) => prev + tag);
               }}
               className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors flex items-center gap-1"

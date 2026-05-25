@@ -13,7 +13,7 @@ import { renderIcon } from '../utils/iconMap';
 // ── Types ────────────────────────────────────────────────────────────────────
 interface SearchResult {
   _id: string;
-  type: 'Journal' | 'Project' | 'FAQ' | 'System' | 'Social' | 'User' | 'Comment';
+  type: 'Journal' | 'Project' | 'FAQ' | 'System' | 'Social' | 'User' | 'Comment' | 'Tag' | 'Hashtag';
   title: string;
   url: string;
   category?: string;
@@ -30,8 +30,8 @@ const TYPEWRITER_BACKWARD_DELAY = 55;   // ms per character when erasing
 // ── ML configuration ──────────────────────────────────────────────────────────
 /** Minimum cosine-similarity score for an ML result to be included */
 const ML_SIMILARITY_THRESHOLD = 0.08;
-/** When keyword search finds fewer than this many local results, ML fallback kicks in */
-const MIN_KEYWORD_RESULTS_THRESHOLD = 2;
+/** When local relevance scoring finds fewer than this many local results, ML fallback kicks in */
+const MIN_LOCAL_RESULTS_THRESHOLD = 3;
 
 // ── Animation configuration ───────────────────────────────────────────────────
 const RESULT_STAGGER_DELAY = 0.04;  // seconds between each result card entering
@@ -74,6 +74,31 @@ function tokenize(text: string): string[] {
     .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
     .filter(w => w.length > 2 && !STOP_WORDS.has(w));
+}
+
+function trigramSet(text: string): Set<string> {
+  const clean = text.toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!clean) return new Set();
+  if (clean.length <= 3) return new Set([clean]);
+  const set = new Set<string>();
+  for (let i = 0; i <= clean.length - 3; i += 1) set.add(clean.slice(i, i + 3));
+  return set;
+}
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (!a.size || !b.size) return 0;
+  let inter = 0;
+  a.forEach((token) => { if (b.has(token)) inter += 1; });
+  return inter / (a.size + b.size - inter);
+}
+
+function scoreText(query: string, queryTokens: string[], candidate: string): number {
+  const candidateNorm = candidate.toLowerCase();
+  if (!candidateNorm.trim()) return 0;
+  const tokenHits = queryTokens.filter((token) => candidateNorm.includes(token)).length;
+  const tokenScore = queryTokens.length ? tokenHits / queryTokens.length : 0;
+  const triScore = jaccard(trigramSet(query), trigramSet(candidateNorm));
+  return tokenScore * 0.72 + triScore * 0.28;
 }
 
 function buildVector(tokens: string[], vocab: string[]): number[] {
@@ -194,6 +219,8 @@ export default function SearchResults() {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [trending, setTrending] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -239,6 +266,35 @@ export default function SearchResults() {
     localStorage.setItem('dd_search_history', JSON.stringify(updated));
   };
 
+  useEffect(() => {
+    const query = inputValue.trim();
+    if (!query) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/journal?action=suggest&q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        const backendSuggestions: string[] = data?.ok && Array.isArray(data?.suggestions) ? data.suggestions : [];
+        const historySuggestions = localHistory
+          .filter((item) => scoreText(query.toLowerCase(), tokenize(query), item) >= 0.12)
+          .slice(0, 5);
+        const merged = Array.from(new Set([...historySuggestions, ...backendSuggestions])).slice(0, 8);
+        setSuggestions(merged);
+        setShowSuggestions(true);
+      } catch {
+        const historySuggestions = localHistory
+          .filter((item) => scoreText(query.toLowerCase(), tokenize(query), item) >= 0.12)
+          .slice(0, 8);
+        setSuggestions(historySuggestions);
+        setShowSuggestions(true);
+      }
+    }, 180);
+    return () => clearTimeout(timer);
+  }, [inputValue, localHistory]);
+
   // ── Fetch trending on mount ────────────────────────────────────────────────
   useEffect(() => {
     fetch('/api/journal?action=search&q=')
@@ -272,13 +328,12 @@ export default function SearchResults() {
         }
       }
 
-      // 2. Local keyword search
-      const keywords = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      // 2. Local relevance search (FAQ + Projects + semantic triggers)
+      const normalized = q.trim().toLowerCase();
+      const queryTokens = tokenize(normalized);
 
       // Social card
-      const hasSocialMatch = keywords.some(kw =>
-        SOCIAL_TRIGGERS.some(trigger => trigger.includes(kw) || kw.includes(trigger))
-      );
+      const hasSocialMatch = SOCIAL_TRIGGERS.some(trigger => scoreText(normalized, queryTokens, trigger) >= 0.18);
       if (hasSocialMatch) {
         combinedResults.unshift({
           _id: 'social-profiles',
@@ -290,9 +345,7 @@ export default function SearchResults() {
         });
       }
 
-      const hasUserMatch = keywords.some(kw =>
-        USER_TRIGGERS.some(trigger => trigger.includes(kw) || kw.includes(trigger))
-      );
+      const hasUserMatch = USER_TRIGGERS.some(trigger => scoreText(normalized, queryTokens, trigger) >= 0.18);
       if (hasUserMatch) {
         combinedResults.unshift({
           _id: 'community-users',
@@ -304,9 +357,7 @@ export default function SearchResults() {
         });
       }
 
-      const hasCommentMatch = keywords.some(kw =>
-        COMMENT_TRIGGERS.some(trigger => trigger.includes(kw) || kw.includes(trigger))
-      );
+      const hasCommentMatch = COMMENT_TRIGGERS.some(trigger => scoreText(normalized, queryTokens, trigger) >= 0.18);
       if (hasCommentMatch) {
         combinedResults.unshift({
           _id: 'journal-comments',
@@ -318,38 +369,46 @@ export default function SearchResults() {
         });
       }
 
-      // FAQ — keyword
-      faqData.forEach(item => {
-        const haystack = `${item.question} ${item.answer}`.toLowerCase();
-        if (keywords.some(kw => haystack.includes(kw))) {
-          combinedResults.push({
-            _id: `faq-${item.id}`,
-            type: 'FAQ',
-            title: item.question,
-            url: `/faq#faq-${item.id}`,
-            snippets: getLocalSnippets(item.answer, keywords)
-          });
-        }
-      });
+      const localFaqMatches = faqData
+        .map((item) => {
+          const haystack = `${item.question} ${item.answer}`;
+          return { item, score: scoreText(normalized, queryTokens, haystack) };
+        })
+        .filter((entry) => entry.score >= 0.1)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 8)
+        .map(({ item }) => ({
+          _id: `faq-${item.id}`,
+          type: 'FAQ' as const,
+          title: item.question,
+          url: `/faq#faq-${item.id}`,
+          snippets: getLocalSnippets(item.answer, queryTokens)
+        }));
+      combinedResults.push(...localFaqMatches);
 
-      // Projects — keyword
-      projectsData.forEach(p => {
-        const haystack = `${p.title} ${p.shortDescription}`.toLowerCase();
-        if (keywords.some(kw => haystack.includes(kw))) {
-          combinedResults.push({
-            _id: `proj-${p.id}`,
-            type: 'Project',
-            title: p.title,
-            url: `/projects/${p.id}`,
-            snippets: getLocalSnippets(p.shortDescription, keywords)
-          });
-        }
-      });
+      const localProjectMatches = projectsData
+        .map((p) => {
+          const haystack = `${p.title} ${p.shortDescription} ${p.category} ${p.techStack.join(' ')}`;
+          return { p, score: scoreText(normalized, queryTokens, haystack) };
+        })
+        .filter((entry) => entry.score >= 0.1)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 8)
+        .map(({ p }) => ({
+          _id: `proj-${p.id}`,
+          type: 'Project' as const,
+          title: p.title,
+          url: `/projects/${p.id}`,
+          snippets: getLocalSnippets(`${p.shortDescription} ${p.techStack.join(' ')}`, queryTokens)
+        }));
+      combinedResults.push(...localProjectMatches);
 
-      // 3. ML fallback: if keyword search found few local results, supplement with TF-IDF
+      combinedResults = Array.from(new Map(combinedResults.map((item) => [item._id, item])).values());
+
+      // 3. ML fallback: if local relevance search found few local results, supplement with TF-IDF
       const existingIds = new Set(combinedResults.map(r => r._id));
-      const keywordLocalCount = combinedResults.filter(r => r.type === 'FAQ' || r.type === 'Project').length;
-      if (keywordLocalCount < MIN_KEYWORD_RESULTS_THRESHOLD) {
+      const localCount = combinedResults.filter(r => r.type === 'FAQ' || r.type === 'Project').length;
+      if (localCount < MIN_LOCAL_RESULTS_THRESHOLD) {
         const mlResults = mlFallbackSearch(q, existingIds);
         combinedResults = [...combinedResults, ...mlResults];
       }
@@ -365,6 +424,7 @@ export default function SearchResults() {
   useEffect(() => {
     if (rawQuery) {
       setQuery(rawQuery);
+      setShowSuggestions(false);
       performSearch(rawQuery);
     } else {
       setResults([]);
@@ -376,11 +436,15 @@ export default function SearchResults() {
 
   const handleSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (inputValue.trim()) navigate(`/search?q=${encodeURIComponent(inputValue.trim())}`);
+    if (inputValue.trim()) {
+      setShowSuggestions(false);
+      navigate(`/search?q=${encodeURIComponent(inputValue.trim())}`);
+    }
   };
 
   const jumpToQuery = (q: string) => {
     setQuery(q);
+    setShowSuggestions(false);
     navigate(`/search?q=${encodeURIComponent(q)}`);
   };
 
@@ -456,6 +520,9 @@ export default function SearchResults() {
             autoFocus
             value={inputValue}
             onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => {
+              if (suggestions.length > 0 && inputValue.trim()) setShowSuggestions(true);
+            }}
             placeholder="Search blogs, projects, FAQs, status…"
             className="w-full bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 rounded-[2rem] pl-14 pr-16 py-5 text-white text-lg focus:outline-none focus:border-amber-500/50 shadow-2xl transition-all placeholder:text-zinc-600"
           />
@@ -469,6 +536,21 @@ export default function SearchResults() {
             </button>
           )}
         </form>
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="max-w-2xl mx-auto mt-3 rounded-2xl border border-zinc-800 bg-zinc-900/95 backdrop-blur-xl p-2 shadow-2xl">
+            {suggestions.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => jumpToQuery(item)}
+                className="w-full text-left px-3 py-2 rounded-xl text-sm text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors flex items-center gap-2"
+              >
+                <Search size={13} className="text-zinc-500" />
+                <span>{item}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* ── Empty-state: Trending + History ─────────────────────────────── */}
         {!rawQuery && (
@@ -598,6 +680,8 @@ export default function SearchResults() {
                           <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${
                             r.type === 'Journal'   ? 'border-blue-500/30 text-blue-500 bg-blue-500/5' :
                             r.type === 'Project'   ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/5' :
+                            r.type === 'Tag'       ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/5' :
+                            r.type === 'Hashtag'   ? 'border-fuchsia-500/30 text-fuchsia-500 bg-fuchsia-500/5' :
                             r.type === 'Social'    ? 'border-purple-500/30 text-purple-500 bg-purple-500/5' :
                                                      'border-amber-500/30 text-amber-500 bg-amber-500/5'
                           }`}>

@@ -224,6 +224,9 @@ Quick URL triggers are available from the root route:
 ### 📓 Journal CMS with Embed Support
 Full rich text / markdown / HTML journal system backed by MongoDB. Features per-visit view counting, one-like-per-session enforcement, native share API, image galleries, and embeddable output (`/journal/embed/:id`). Embed code now always uses the journal MongoDB `_id` for stable resolution, and embeds render the actual post body for all supported content types. HTML-type posts are served by `/api/journal?action=html-file` and rendered inline (non-iframe) in journal view/embed, while markdown/richtext behavior remains unchanged. Unpublishing a post keeps existing comments/replies intact and preserves the original publish timestamp for any later re-publish.
 
+Journal tags and hashtags now support automatic generation from title, summary, and content when missing. Owner Dashboard includes an **Auto Fill Missing** control for tags/hashtags, while still allowing manual edits. Tag and hashtag values are normalized to uppercase by default for consistent indexing and routing. Auto-generation scoring now prioritizes repeated terms, longer/unique tokens, and deterministic cryptographic tie-breaking, with additional boosts for curated internet-popular terms and project/system terms (no third-party API key required).
+Tag/hashtag result pages now also expose public summary stats (total likes, views, average read time), plus the first created and latest post for the selected token.
+
 ### 📺 YouTube Live Hub
 Auto-loads the current live stream. Sidebar shows all channel content filtered by **All / Stream / Video / Shorts** tabs with newest-first sorting, views count, and Prev/Next pagination (20 per page).
 
@@ -263,6 +266,8 @@ When a user is logged into their own profile, they also get a private identity p
 
 ### 🗺️ Dynamic XML Sitemap with RAM Cache
 `/api/sitemap` auto-generates a valid XML sitemap scoped exclusively to `deepdey.vercel.app`. It covers all static routes (excluding `/dashboard` and `/journal/embed`) including `/feedback`, dynamically fetches published journals and emits **slug-based** journal URLs, comment-thread pages, comment permalink routes, and user profile URLs from MongoDB. Results are stored in-memory and refreshed every 6 hours (`Cache-Control: s-maxage=21600`). Subsequent requests within the TTL window are served instantly from RAM (`X-Sitemap-Cache: HIT`).
+
+Sitemap now also auto-includes dynamic journal tag and hashtag listing URLs (`/journal/tags/:tag`, `/journal/hastags/:hashtag`) at priority `0.4`.
 
 ### ⚙️ Vercel Free Plan Compliance (Function Limit)
 Feedback and moderation features are implemented by extending existing handlers (`/api/journal`, `/api/categories`) instead of creating new API files, keeping the deployment within the Vercel Free Plan serverless function limit.
@@ -446,6 +451,8 @@ Feedback and moderation features are implemented by extending existing handlers 
 | `/contact` | Smart 15-category contact routing form |
 | `/journal` | Journal listing with metadata (likes, views, read time) |
 | `/journal/view/:id` | Full journal article with engagement actions |
+| `/journal/tags/:tag` | Journal listing filtered by tag with total post count, first created post, latest post, and public stats |
+| `/journal/hastags/:hashtag` | Journal listing filtered by hashtag with total post count, first created post, latest post, and public stats |
 | `/journal/view/:id/comments` | Full paginated comment thread for a post |
 | `/journal/comment/:commentId` | Legacy/short permalink route for a specific comment |
 | `/journal/view/:id/comment/:commentId` | Standalone comment permalink |

@@ -9,6 +9,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Journal Tag/Hashtag Discovery Pages:** Added `/journal/tags/:tag` and `/journal/hastags/:hashtag` routes with post previews, pagination, and total post count per token.
+- **Clickable Journal Tokens:** Tags and hashtags in `JournalView` now link directly to their respective discovery pages.
+- **Search Tag/Hashtag Links:** Global search now returns direct tag and hashtag page results when query intent matches journal tokens.
+- **Sitemap Tag/Hashtag URLs:** `api/sitemap.js` now appends dynamic tag and hashtag routes with priority `0.4`.
 - **Complete Twitter Card & Open Graph SEO in `index.html`:** Added `og:image:alt`, `og:site_name`, `og:locale`, and `twitter:image:alt` to the static HTML baseline so crawlers and link-unfurlers (Twitter/X, WhatsApp, Discord, Slack) receive the full recommended tag set even before the SPA hydrates.
 - **`SEO.tsx` full tag parity:** Per-route head injection via `react-helmet-async` now also emits `og:image:alt`, `og:site_name`, `og:locale`, and `twitter:image:alt` on every page, ensuring every shareable URL carries complete social-preview metadata.
 - **Professional Feedback Management System (`/feedback`):** Added a dedicated feedback page with interactive 5-star submissions, rating-distribution summary bars, subject/sub-subject taxonomy, strict one-feedback-per-subject-sub-subject enforcement, blacklist-filtered text persistence, sorting/filtering, 20-per-page pagination, and long-text see-more modal flow.
@@ -75,6 +79,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **UserProfile Owner Page — Glowing King Style (`UserProfile.tsx`):** `/user/owner` profile card now features the same gradient-border glow frame, glowing photo halo, amber-gold name text, and 👑 Owner badge — visually distinct from regular community profiles.
 
 ### Changed
+- **Tag/Hashtag Normalization:** Journal keywords and hashtags are now normalized to uppercase for create/update/search consistency.
+- **Auto Tag Backfill Logic:** Missing journal tags/hashtags are auto-generated from title, summary, and content text.
+- **Owner Dashboard Editor:** Journal editor now includes **Auto Fill Missing** for tags/hashtags while preserving manual edit workflows.
 - **Owner auth brute-force protection:** Added in-memory IP-based login throttling on `/api/auth` with 5-attempt/minute windows and escalating lock durations (2m first lock, then +5m steps capped at 60m).
 - **Community posting hardening:** Comments, replies, and feedback now require minimum 100 characters and enforce independent per-IP 2-minute soft cooldowns in RAM for each scope.
 - **Search fallback matching upgraded:** Added character-token/substring fallback so embedded terms inside longer query strings can still return relevant journals, users, and comments.
