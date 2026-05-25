@@ -56,6 +56,69 @@ All while the author simultaneously prepares for **JEE Advanced 2027** targeting
 
 ---
 
+## 🖱️ Cursor SVG Exports
+
+All cursor SVG assets are now exported in the public folder:
+
+- `public/cursors/visual/` → custom floating cursor variants used by the pointer renderer
+- `public/cursors/system/` → SVGs used in CSS system cursor mode by interaction type
+- `public/cursors/manifest.json` → export index
+
+### Custom Cursor Variants (`public/cursors/visual`)
+
+| SVG | Preview | Purpose |
+| :-- | :--: | :-- |
+| `comet.svg` | <img src="public/cursors/visual/comet.svg" width="26" /> | Default pointer style with amber comet gradient |
+| `neon-needle.svg` | <img src="public/cursors/visual/neon-needle.svg" width="26" /> | Default precision-style pointer |
+| `prism-arrow.svg` | <img src="public/cursors/visual/prism-arrow.svg" width="26" /> | Default prism/glass pointer |
+| `orbit.svg` | <img src="public/cursors/visual/orbit.svg" width="26" /> | Default pointer with orbit ring accent |
+| `pulse-core.svg` | <img src="public/cursors/visual/pulse-core.svg" width="26" /> | Default pointer with core glow |
+| `aurora-dart.svg` | <img src="public/cursors/visual/aurora-dart.svg" width="26" /> | Default pointer with aurora cyan highlight |
+| `glass-arrow.svg` | <img src="public/cursors/visual/glass-arrow.svg" width="26" /> | Default semi-glass arrow style |
+| `vector-wing.svg` | <img src="public/cursors/visual/vector-wing.svg" width="26" /> | Action/hover state pointer |
+| `quantum-tip.svg` | <img src="public/cursors/visual/quantum-tip.svg" width="26" /> | Action state dark-tech pointer |
+| `flare-triangle.svg` | <img src="public/cursors/visual/flare-triangle.svg" width="26" /> | Action state with flare accent |
+| `spark-lance.svg` | <img src="public/cursors/visual/spark-lance.svg" width="26" /> | Action state with spark burst |
+| `scribe.svg` | <img src="public/cursors/visual/scribe.svg" width="26" /> | Text/input editing state |
+| `input-beam.svg` | <img src="public/cursors/visual/input-beam.svg" width="26" /> | Text/input I-beam style |
+| `ink-beam.svg` | <img src="public/cursors/visual/ink-beam.svg" width="26" /> | Text/input beam with accent node |
+| `selection-ring.svg` | <img src="public/cursors/visual/selection-ring.svg" width="26" /> | Selection state ring cursor |
+| `anchor-grid.svg` | <img src="public/cursors/visual/anchor-grid.svg" width="26" /> | Selection/drag anchor marker |
+| `click-burst.svg` | <img src="public/cursors/visual/click-burst.svg" width="26" /> | Click feedback state |
+| `nova-click.svg` | <img src="public/cursors/visual/nova-click.svg" width="26" /> | Click state with pulse orb |
+| `drag-node.svg` | <img src="public/cursors/visual/drag-node.svg" width="26" /> | Drag movement indicator |
+| `magnet-drag.svg` | <img src="public/cursors/visual/magnet-drag.svg" width="26" /> | Drag state with magnet cross lines |
+
+### System Cursor SVGs (`public/cursors/system`)
+
+| SVG | Preview | Used for |
+| :-- | :--: | :-- |
+| `default.svg` | <img src="public/cursors/system/default.svg" width="26" /> | Normal resting pointer |
+| `action.svg` | <img src="public/cursors/system/action.svg" width="26" /> | Hovering interactive elements |
+| `text.svg` | <img src="public/cursors/system/text.svg" width="26" /> | Text caret areas |
+| `input.svg` | <img src="public/cursors/system/input.svg" width="26" /> | Input-focused form fields |
+| `select.svg` | <img src="public/cursors/system/select.svg" width="26" /> | Active text selection |
+| `click.svg` | <img src="public/cursors/system/click.svg" width="26" /> | Mouse down / click state |
+| `drag.svg` | <img src="public/cursors/system/drag.svg" width="26" /> | Dragging interactions |
+
+## 🧩 Project SVG Export Folder
+
+All project SVGs are now also exported under `public/project-svg/`.
+
+- `public/project-svg/brand/` → core brand SVG icons used around the app
+- `public/project-svg/cursors/` → mirrored cursor SVG exports
+- `public/project-svg/manifest.json` → export index
+
+### Brand SVGs (`public/project-svg/brand`)
+
+| SVG | Preview | Purpose |
+| :-- | :--: | :-- |
+| `quicklink-logo.svg` | <img src="public/project-svg/brand/quicklink-logo.svg" width="26" /> | QuickLink branding mark |
+| `crown.svg` | <img src="public/project-svg/brand/crown.svg" width="26" /> | Owner/crown identity icon |
+| `verified.svg` | <img src="public/project-svg/brand/verified.svg" width="26" /> | Verified badge icon |
+
+---
+
 ## 🎯 Feature Highlights
 
 ### 🔭 Global Command Palette Search
