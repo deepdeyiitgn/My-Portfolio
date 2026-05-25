@@ -108,7 +108,7 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const root = document.documentElement;
-    if (supportsDesktopPointer && nativeVisible) {
+    if (supportsDesktopPointer && nativeVisible && customEnabled) {
       root.classList.add('dd-use-system-cursor');
       root.style.setProperty('--dd-system-cursor', POINTER_SYSTEM_CURSORS[pointerMode]);
     } else {
@@ -120,7 +120,7 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
       root.classList.remove('dd-use-system-cursor');
       root.style.removeProperty('--dd-system-cursor');
     };
-  }, [nativeVisible, pointerMode, supportsDesktopPointer]);
+  }, [nativeVisible, pointerMode, supportsDesktopPointer, customEnabled]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -329,6 +329,8 @@ export default function CustomPointerSystem({ showTipsAnchor = true }: { showTip
           style={{ transform: `translate3d(${position.x - 5}px, ${position.y - 4}px, 0)` }}
         >
           <div className="relative dd-pointer-float">
+            <span className="absolute left-[8px] top-[8px] w-5 h-5 rounded-full bg-amber-300/35 blur-[8px]" />
+            <span className="absolute left-[6px] top-[6px] w-7 h-7 rounded-full border border-amber-300/30" />
             {renderPointerSvg(activeVariant, isMouseDown)}
             {(isMouseDown || isSelecting) && (
               <span
