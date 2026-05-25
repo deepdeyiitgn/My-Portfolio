@@ -15,8 +15,12 @@ const DRAG_THRESHOLD_PIXELS = 2;
 const POINTER_VARIANT_CYCLE_INTERVAL_MS = 1200;
 const SHORTCUT_MESSAGE_DISPLAY_DURATION_MS = 3200;
 const DESKTOP_MIN_WIDTH_PIXELS = 768;
-const POINTER_GLOW_CORE_CLASS = 'absolute left-[8px] top-[8px] w-5 h-5 rounded-full bg-amber-300/35 blur-[8px]';
-const POINTER_GLOW_RING_CLASS = 'absolute left-[6px] top-[6px] w-7 h-7 rounded-full border border-amber-300/30';
+const POINTER_GLOW_CORE_POSITION_CLASS = 'left-[8px] top-[8px]';
+const POINTER_GLOW_RING_POSITION_CLASS = 'left-[6px] top-[6px]';
+const POINTER_GLOW_CORE_SIZE_CLASS = 'w-5 h-5';
+const POINTER_GLOW_RING_SIZE_CLASS = 'w-7 h-7';
+const POINTER_GLOW_CORE_CLASS = `absolute ${POINTER_GLOW_CORE_POSITION_CLASS} ${POINTER_GLOW_CORE_SIZE_CLASS} rounded-full bg-amber-300/35 blur-[8px]`;
+const POINTER_GLOW_RING_CLASS = `absolute ${POINTER_GLOW_RING_POSITION_CLASS} ${POINTER_GLOW_RING_SIZE_CLASS} rounded-full border border-amber-300/30`;
 
 function parsePrefsCookie(): PointerPrefs {
   if (typeof document === 'undefined') return { customEnabled: true, nativeVisible: true };
