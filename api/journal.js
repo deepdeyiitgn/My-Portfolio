@@ -330,6 +330,14 @@ function normalizeImages(images) {
   return Array.from(unique);
 }
 
+function stripHtmlForTagScan(value) {
+  return String(value || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;|&amp;|&quot;|&#39;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function normalizeTagList(input, { hashtags = false, maxItems = null } = {}) {
   const rawList = Array.isArray(input)
     ? input
@@ -338,10 +346,10 @@ function normalizeTagList(input, { hashtags = false, maxItems = null } = {}) {
       .filter(Boolean);
   const unique = new Set();
   for (const raw of rawList) {
-    const base = String(raw || '').trim().toLowerCase();
+    const base = String(raw || '').trim().toUpperCase();
     if (!base) continue;
     const withoutHash = hashtags ? base.replace(/^#+/, '') : base;
-    const token = withoutHash.replace(/[^a-z0-9-_]/g, '');
+    const token = withoutHash.replace(/[^A-Z0-9-_]/g, '');
     if (!token) continue;
     unique.add(token);
   }
@@ -350,6 +358,35 @@ function normalizeTagList(input, { hashtags = false, maxItems = null } = {}) {
     return list.slice(0, Number(maxItems));
   }
   return list;
+}
+
+function generateAutoTagsFromJournalText({ title = '', summary = '', content = '', maxItems = 7 } = {}) {
+  const source = [title, summary, stripHtmlForTagScan(content)].filter(Boolean).join(' ');
+  const words = source
+    .replace(/[^a-zA-Z0-9\s-_]/g, ' ')
+    .split(/\s+/)
+    .map((word) => String(word || '').trim())
+    .filter((word) => word.length >= 3);
+  const normalized = normalizeTagList(words, { maxItems });
+  return {
+    keywords: normalized.slice(0, maxItems),
+    hashtags: normalized.slice(0, maxItems),
+  };
+}
+
+function ensureJournalTags(doc, { maxItems = 7 } = {}) {
+  const generated = generateAutoTagsFromJournalText({
+    title: doc?.title,
+    summary: doc?.summary,
+    content: doc?.content,
+    maxItems,
+  });
+  const keywords = normalizeTagList(doc?.keywords, { maxItems });
+  const hashtags = normalizeTagList(doc?.hashtags, { hashtags: true, maxItems });
+  return {
+    keywords: keywords.length ? keywords : generated.keywords,
+    hashtags: hashtags.length ? hashtags : generated.hashtags,
+  };
 }
 
 function tokenizeSearchText(text) {
@@ -1751,7 +1788,8 @@ module.exports = async (req, res) => {
 
         const journalResults = journalCandidates
           .map((j) => {
-            const tagText = `${normalizeTagList(j.keywords).join(' ')} ${normalizeTagList(j.hashtags, { hashtags: true }).join(' ')}`.trim();
+            const ensuredTags = ensureJournalTags(j);
+            const tagText = `${ensuredTags.keywords.join(' ')} ${ensuredTags.hashtags.join(' ')}`.trim();
             const score = (
               scoreCandidateText(normalizedQuery, queryTokens, String(j.title || '')) * 0.42
               + scoreCandidateText(normalizedQuery, queryTokens, String(j.summary || '')) * 0.22
@@ -1774,13 +1812,59 @@ module.exports = async (req, res) => {
               [
                 j.title,
                 j.summary,
-                normalizeTagList(j.keywords).join(', '),
-                normalizeTagList(j.hashtags, { hashtags: true }).map((tag) => `#${tag}`).join(' '),
+                ensuredTags.keywords.join(', '),
+                ensuredTags.hashtags.map((tag) => `#${tag}`).join(' '),
                 j.content,
               ].filter(Boolean).join(' | '),
               snippetTokens
             ),
             createdAtIST: j.createdAtIST
+          }));
+
+        const keywordCounts = new Map();
+        const hashtagCounts = new Map();
+        for (const j of journalCandidates) {
+          const ensuredTags = ensureJournalTags(j);
+          for (const token of ensuredTags.keywords) {
+            keywordCounts.set(token, Number(keywordCounts.get(token) || 0) + 1);
+          }
+          for (const token of ensuredTags.hashtags) {
+            hashtagCounts.set(token, Number(hashtagCounts.get(token) || 0) + 1);
+          }
+        }
+        const tagResults = Array.from(keywordCounts.entries())
+          .map(([token, count]) => ({
+            token,
+            count,
+            score: scoreCandidateText(normalizedQuery, queryTokens, token),
+          }))
+          .filter((item) => item.score >= 0.08)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 6)
+          .map((item) => ({
+            _id: `tag-${item.token}`,
+            type: 'Tag',
+            title: `Tag: ${item.token}`,
+            url: `/journal/tags/${encodeURIComponent(item.token)}`,
+            category: 'Journal',
+            snippets: [`${item.count} journal post${item.count === 1 ? '' : 's'} available for this tag.`],
+          }));
+        const hashtagResults = Array.from(hashtagCounts.entries())
+          .map(([token, count]) => ({
+            token,
+            count,
+            score: scoreCandidateText(normalizedQuery, queryTokens, `#${token}`),
+          }))
+          .filter((item) => item.score >= 0.08)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 6)
+          .map((item) => ({
+            _id: `hashtag-${item.token}`,
+            type: 'Hashtag',
+            title: `Hashtag: #${item.token}`,
+            url: `/journal/hastags/${encodeURIComponent(item.token)}`,
+            category: 'Journal',
+            snippets: [`${item.count} journal post${item.count === 1 ? '' : 's'} available for this hashtag.`],
           }));
 
         // Community users
@@ -1862,7 +1946,7 @@ module.exports = async (req, res) => {
             };
           });
 
-        const results = [...journalResults, ...userResults, ...commentResults];
+        const results = [...tagResults, ...hashtagResults, ...journalResults, ...userResults, ...commentResults];
 
         // --- Easter Egg Logic (Trigger Custom Status Card) ---
         const easterEggTriggers = ['status', 'deep', 'doing', 'free', 'author', 'deep dey', 'admin'];
@@ -2499,6 +2583,9 @@ module.exports = async (req, res) => {
           journal = { ...entry, views: Number(entry.views || 0) + 1 };
         }
 
+        const ensuredTags = ensureJournalTags(journal);
+        journal = { ...journal, keywords: ensuredTags.keywords, hashtags: ensuredTags.hashtags };
+
         return json(res, 200, { ok: true, journal });
       }
 
@@ -2511,6 +2598,8 @@ module.exports = async (req, res) => {
 
       const categoriesParam = getParam(req, 'categories');
       const singleCategoryParam = getParam(req, 'category');
+      const tagParam = getParam(req, 'tag');
+      const hashtagParam = getParam(req, 'hashtag') || getParam(req, 'hastag');
 
       if (categoriesParam) {
         const cats = categoriesParam.split(',').map(c => c.trim()).filter(Boolean);
@@ -2520,6 +2609,9 @@ module.exports = async (req, res) => {
       } else if (singleCategoryParam) {
         filter.categorySlug = singleCategoryParam;
       }
+
+      const normalizedTag = normalizeTagList([tagParam], { maxItems: 1 })[0];
+      const normalizedHashtag = normalizeTagList([hashtagParam], { hashtags: true, maxItems: 1 })[0];
 
       const sortParam = getParam(req, 'sort') || 'recent';
       let sortObj = { publishedAt: -1, createdAt: -1 };
@@ -2534,13 +2626,35 @@ module.exports = async (req, res) => {
         sortObj = { publishedAt: -1, createdAt: -1 };
       }
 
-      const total = await col.countDocuments(filter);
-      let journals = await col
-        .find(filter)
-        .sort(sortObj)
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .toArray();
+      let total = 0;
+      let journals = [];
+      if (normalizedTag || normalizedHashtag) {
+        const scopedJournals = await col.find(filter).sort(sortObj).toArray();
+        const filteredJournals = scopedJournals
+          .map((journal) => {
+            const ensuredTags = ensureJournalTags(journal);
+            return { ...journal, keywords: ensuredTags.keywords, hashtags: ensuredTags.hashtags };
+          })
+          .filter((journal) => {
+            if (normalizedTag && !journal.keywords.includes(normalizedTag)) return false;
+            if (normalizedHashtag && !journal.hashtags.includes(normalizedHashtag)) return false;
+            return true;
+          });
+        total = filteredJournals.length;
+        journals = filteredJournals.slice((page - 1) * limit, (page - 1) * limit + limit);
+      } else {
+        total = await col.countDocuments(filter);
+        journals = await col
+          .find(filter)
+          .sort(sortObj)
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .toArray();
+        journals = journals.map((journal) => {
+          const ensuredTags = ensureJournalTags(journal);
+          return { ...journal, keywords: ensuredTags.keywords, hashtags: ensuredTags.hashtags };
+        });
+      }
 
       if (sortParam === 'relevant') {
         journals = journals.sort(() => 0.5 - Math.random());
@@ -3203,8 +3317,15 @@ module.exports = async (req, res) => {
       const publish = Boolean(body.publish);
       const images = normalizeImages(body.images);
       const externalVideoThumbnail = String(body.externalVideoThumbnail || '').trim();
-      const keywords = normalizeTagList(body.keywords, { maxItems: 7 });
-      const hashtags = normalizeTagList(body.hashtags, { hashtags: true, maxItems: 7 });
+      const ensuredCreateTags = ensureJournalTags({
+        title,
+        summary,
+        content,
+        keywords: body.keywords,
+        hashtags: body.hashtags,
+      });
+      const keywords = ensuredCreateTags.keywords;
+      const hashtags = ensuredCreateTags.hashtags;
 
       if (!title) return json(res, 400, { ok: false, message: 'Title is required' });
       if (!content) return json(res, 400, { ok: false, message: 'Content is required' });
@@ -3562,14 +3683,24 @@ module.exports = async (req, res) => {
         categoryName: body.categoryName !== undefined ? String(body.categoryName).trim() : existing.categoryName,
         images: body.images !== undefined ? normalizeImages(body.images) : normalizeImages(existing.images),
         externalVideoThumbnail: body.externalVideoThumbnail !== undefined ? String(body.externalVideoThumbnail || '').trim() : String(existing.externalVideoThumbnail || ''),
-        keywords: body.keywords !== undefined ? normalizeTagList(body.keywords, { maxItems: 7 }) : normalizeTagList(existing.keywords, { maxItems: 7 }),
-        hashtags: body.hashtags !== undefined ? normalizeTagList(body.hashtags, { hashtags: true, maxItems: 7 }) : normalizeTagList(existing.hashtags, { hashtags: true, maxItems: 7 }),
+        keywords: [],
+        hashtags: [],
         published: publish,
         publishedAt: publish ? (existing.publishedAt || now) : (existing.publishedAt || null),
         publishedAtIST: publish ? (existing.publishedAtIST || nowIST()) : (existing.publishedAtIST || null),
         updatedAt: now,
         readMinutes: estimateReadMinutes(content),
       };
+
+      const ensuredUpdateTags = ensureJournalTags({
+        title: update.title,
+        summary: update.summary,
+        content: update.content,
+        keywords: body.keywords !== undefined ? body.keywords : existing.keywords,
+        hashtags: body.hashtags !== undefined ? body.hashtags : existing.hashtags,
+      });
+      update.keywords = ensuredUpdateTags.keywords;
+      update.hashtags = ensuredUpdateTags.hashtags;
 
       await col.updateOne({ _id: new ObjectId(id) }, { $set: update });
       return json(res, 200, { ok: true, journal: { ...existing, ...update } });

@@ -223,17 +223,25 @@ export default function JournalView() {
         {(Array.isArray(journal.keywords) && journal.keywords.length > 0) || (Array.isArray(journal.hashtags) && journal.hashtags.length > 0) ? (
           <div className="flex flex-wrap gap-2">
             {(Array.isArray(journal.keywords) ? journal.keywords.slice(0, 7) : []).map((kw) => (
-              <span key={`kw-${kw}`} className="px-2.5 py-1 rounded-full border border-emerald-500/30 text-emerald-400 text-[10px] font-mono">
-                {kw}
-              </span>
+              <Link
+                key={`kw-${kw}`}
+                to={`/journal/tags/${encodeURIComponent(String(kw || '').toUpperCase())}`}
+                className="px-2.5 py-1 rounded-full border border-emerald-500/30 text-emerald-400 text-[10px] font-mono hover:border-emerald-400/70 hover:text-emerald-300 transition-colors"
+              >
+                {String(kw || '').toUpperCase()}
+              </Link>
             ))}
             {(Array.isArray(journal.hashtags) ? journal.hashtags.slice(0, 7) : []).map((tag) => {
-              const clean = String(tag || '').replace(/^#+/, '');
+              const clean = String(tag || '').replace(/^#+/, '').toUpperCase();
               if (!clean) return null;
               return (
-                <span key={`tag-${clean}`} className="px-2.5 py-1 rounded-full border border-fuchsia-500/30 text-fuchsia-400 text-[10px] font-mono">
+                <Link
+                  to={`/journal/hastags/${encodeURIComponent(clean)}`}
+                  key={`tag-${clean}`}
+                  className="px-2.5 py-1 rounded-full border border-fuchsia-500/30 text-fuchsia-400 text-[10px] font-mono hover:border-fuchsia-400/70 hover:text-fuchsia-300 transition-colors"
+                >
                   #{clean}
-                </span>
+                </Link>
               );
             })}
           </div>

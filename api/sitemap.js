@@ -99,9 +99,9 @@ function toTimestamp(dateInput) {
 
 function slugifyToken(value) {
   return String(value || '')
-    .toLowerCase()
+    .toUpperCase()
     .trim()
-    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/[^A-Z0-9\s-_]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-');
 }
@@ -342,11 +342,30 @@ async function buildSitemap(baseUrl) {
   }
 
   // Journal pages + comments/replies permalinks (slug-first)
+  const tagLastmodMap = new Map();
+  const hashtagLastmodMap = new Map();
   for (const j of journals) {
     const id = String(j?._id || '');
     if (!id) continue;
     const journalRouteKey = encodeURIComponent(getJournalRouteKey(j));
     const journalLastmod = formatDate(j.updatedAt || j.publishedAt || j.createdAt);
+    const journalTagLastmod = j.updatedAt || j.publishedAt || j.createdAt;
+    const keywords = Array.isArray(j?.keywords) ? j.keywords : [];
+    const hashtags = Array.isArray(j?.hashtags) ? j.hashtags : [];
+    for (const keyword of keywords) {
+      const token = slugifyToken(keyword);
+      if (!token) continue;
+      const prevTs = tagLastmodMap.get(token) ? toTimestamp(tagLastmodMap.get(token)) : 0;
+      const nextTs = toTimestamp(journalTagLastmod);
+      if (!prevTs || nextTs > prevTs) tagLastmodMap.set(token, journalTagLastmod);
+    }
+    for (const hashtag of hashtags) {
+      const token = slugifyToken(hashtag);
+      if (!token) continue;
+      const prevTs = hashtagLastmodMap.get(token) ? toTimestamp(hashtagLastmodMap.get(token)) : 0;
+      const nextTs = toTimestamp(journalTagLastmod);
+      if (!prevTs || nextTs > prevTs) hashtagLastmodMap.set(token, journalTagLastmod);
+    }
     addDynamicRoute({ loc: `/journal/view/${journalRouteKey}`, lastmod: journalLastmod, changefreq: 'weekly', priority: '0.7' });
 
     let commentsPageLastmodTs = toTimestamp(j.updatedAt || j.publishedAt || j.createdAt);
@@ -354,6 +373,24 @@ async function buildSitemap(baseUrl) {
     if (!topLevelCommentsResult.ok) {
       dynamicFetchFailed = true;
       logger.error('Sitemap top-level comments fetch failed', { baseUrl, journalId: id });
+    }
+
+    for (const [token, lastmodSource] of tagLastmodMap.entries()) {
+      addDynamicRoute({
+        loc: `/journal/tags/${encodeURIComponent(token)}`,
+        lastmod: formatDate(lastmodSource),
+        changefreq: 'weekly',
+        priority: '0.4',
+      });
+    }
+
+    for (const [token, lastmodSource] of hashtagLastmodMap.entries()) {
+      addDynamicRoute({
+        loc: `/journal/hastags/${encodeURIComponent(token)}`,
+        lastmod: formatDate(lastmodSource),
+        changefreq: 'weekly',
+        priority: '0.4',
+      });
     }
 
     for (const c of topLevelCommentsResult.items) {

@@ -357,6 +357,32 @@ function JournalEditor({
 }) {
   const MAX_TAGS = 7;
   const MAX_HASHTAGS = 7;
+  const normalizeTag = (value: string, isHash = false) => {
+    const trimmed = String(value || '').trim().toUpperCase();
+    if (!trimmed) return '';
+    const stripped = isHash ? trimmed.replace(/^#+/, '') : trimmed;
+    return stripped.replace(/[^A-Z0-9-_]/g, '');
+  };
+  const normalizeTagArray = (list: unknown, isHash = false, max = 7) => {
+    if (!Array.isArray(list)) return [];
+    const cleaned = list
+      .map((item) => normalizeTag(String(item || ''), isHash))
+      .filter(Boolean);
+    return Array.from(new Set(cleaned)).slice(0, max);
+  };
+  const buildAutoTagSet = (t: string, s: string, c: string) => {
+    const source = [t, s, c]
+      .join(' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;|&amp;|&quot;|&#39;/gi, ' ')
+      .replace(/\s+/g, ' ');
+    const words = source
+      .split(/\s+/)
+      .map((word) => normalizeTag(word))
+      .filter((word) => word.length >= 3);
+    const tokens = Array.from(new Set(words)).slice(0, MAX_TAGS);
+    return { keywords: tokens, hashtags: tokens.slice(0, MAX_HASHTAGS) };
+  };
   const [title, setTitle] = useState(initial?.title || '');
   const [summary, setSummary] = useState(initial?.summary || '');
   const [content, setContent] = useState(initial?.content || '');
@@ -364,10 +390,10 @@ function JournalEditor({
   const [contentType, setContentType] = useState(initial?.contentType || 'markdown');
   const [externalVideoThumbnail, setExternalVideoThumbnail] = useState(initial?.externalVideoThumbnail || '');
   const [keywords, setKeywords] = useState<string[]>(
-    Array.isArray(initial?.keywords) ? initial.keywords.slice(0, MAX_TAGS) : []
+    normalizeTagArray(initial?.keywords, false, MAX_TAGS)
   );
   const [hashtags, setHashtags] = useState<string[]>(
-    Array.isArray(initial?.hashtags) ? initial.hashtags.slice(0, MAX_HASHTAGS) : []
+    normalizeTagArray(initial?.hashtags, true, MAX_HASHTAGS)
   );
   const [keywordInput, setKeywordInput] = useState('');
   const [hashtagInput, setHashtagInput] = useState('');
@@ -540,13 +566,6 @@ function JournalEditor({
     }
   };
 
-  const normalizeTag = (value: string, isHash = false) => {
-    const trimmed = String(value || '').trim().toLowerCase();
-    if (!trimmed) return '';
-    const stripped = isHash ? trimmed.replace(/^#+/, '') : trimmed;
-    return stripped.replace(/[^a-z0-9-_]/g, '');
-  };
-
   const extractTags = (input: string, isHash = false) => (
     input
       .split(/[,\n\s]+/)
@@ -566,6 +585,13 @@ function JournalEditor({
     if (!next.length) return;
     setHashtags((prev) => Array.from(new Set([...prev, ...next])).slice(0, MAX_HASHTAGS));
     setHashtagInput('');
+  };
+
+  const autoGenerateMissingTags = () => {
+    const generated = buildAutoTagSet(title, summary, content);
+    if (!generated.keywords.length && !generated.hashtags.length) return;
+    setKeywords((prev) => (prev.length ? prev : generated.keywords.slice(0, MAX_TAGS)));
+    setHashtags((prev) => (prev.length ? prev : generated.hashtags.slice(0, MAX_HASHTAGS)));
   };
 
   const sanitizeHttpUrl = (value: string) => {
@@ -620,7 +646,16 @@ function JournalEditor({
 
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2 border border-zinc-800 rounded-xl p-3 bg-zinc-900/20">
-            <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Tags (Max 7)</label>
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Tags (Max 7)</label>
+              <button
+                type="button"
+                onClick={autoGenerateMissingTags}
+                className="px-2.5 py-1 rounded-md border border-amber-500/30 text-amber-500 text-[10px] font-mono uppercase tracking-widest hover:bg-amber-500/10"
+              >
+                Auto Fill Missing
+              </button>
+            </div>
             <div className="flex gap-2">
               <input
                 value={keywordInput}
@@ -636,7 +671,7 @@ function JournalEditor({
               />
               <button type="button" onClick={addKeywords} disabled={keywords.length >= MAX_TAGS} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40`}>Add</button>
             </div>
-            <p className="text-[10px] text-zinc-600 font-mono">{keywords.length}/{MAX_TAGS} tags</p>
+            <p className="text-[10px] text-zinc-600 font-mono">{keywords.length}/{MAX_TAGS} tags · auto stored in UPPERCASE</p>
             {keywords.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {keywords.map((kw) => (
@@ -670,7 +705,7 @@ function JournalEditor({
               />
               <button type="button" onClick={addHashtags} disabled={hashtags.length >= MAX_HASHTAGS} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40`}>Add</button>
             </div>
-            <p className="text-[10px] text-zinc-600 font-mono">{hashtags.length}/{MAX_HASHTAGS} hashtags · '#' is added automatically</p>
+            <p className="text-[10px] text-zinc-600 font-mono">{hashtags.length}/{MAX_HASHTAGS} hashtags · '#' is added automatically · UPPERCASE</p>
             {hashtags.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {hashtags.map((tag) => (

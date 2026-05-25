@@ -13,7 +13,7 @@ import { renderIcon } from '../utils/iconMap';
 // ── Types ────────────────────────────────────────────────────────────────────
 interface SearchResult {
   _id: string;
-  type: 'Journal' | 'Project' | 'FAQ' | 'System' | 'Social' | 'User' | 'Comment';
+  type: 'Journal' | 'Project' | 'FAQ' | 'System' | 'Social' | 'User' | 'Comment' | 'Tag' | 'Hashtag';
   title: string;
   url: string;
   category?: string;
@@ -680,6 +680,8 @@ export default function SearchResults() {
                           <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${
                             r.type === 'Journal'   ? 'border-blue-500/30 text-blue-500 bg-blue-500/5' :
                             r.type === 'Project'   ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/5' :
+                            r.type === 'Tag'       ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/5' :
+                            r.type === 'Hashtag'   ? 'border-fuchsia-500/30 text-fuchsia-500 bg-fuchsia-500/5' :
                             r.type === 'Social'    ? 'border-purple-500/30 text-purple-500 bg-purple-500/5' :
                                                      'border-amber-500/30 text-amber-500 bg-amber-500/5'
                           }`}>
