@@ -2628,6 +2628,7 @@ module.exports = async (req, res) => {
 
       let total = 0;
       let journals = [];
+      let fullMatchJournals = null;
       if (normalizedTag || normalizedHashtag) {
         const scopedJournals = await col.find(filter).sort(sortObj).toArray();
         const filteredJournals = scopedJournals
@@ -2640,6 +2641,7 @@ module.exports = async (req, res) => {
             if (normalizedHashtag && !journal.hashtags.includes(normalizedHashtag)) return false;
             return true;
           });
+        fullMatchJournals = filteredJournals;
         total = filteredJournals.length;
         journals = filteredJournals.slice((page - 1) * limit, (page - 1) * limit + limit);
       } else {
@@ -2660,9 +2662,56 @@ module.exports = async (req, res) => {
         journals = journals.sort(() => 0.5 - Math.random());
       }
 
+      let publicStats = null;
+      if (normalizedTag || normalizedHashtag) {
+        const allMatched = Array.isArray(fullMatchJournals) ? fullMatchJournals : [];
+        const toMs = (value) => {
+          if (!value) return 0;
+          const ts = new Date(value).getTime();
+          return Number.isFinite(ts) ? ts : 0;
+        };
+        const createdAtMs = (journal) => (
+          toMs(journal?.createdAt) || toMs(journal?.publishedAt) || toMs(journal?.updatedAt)
+        );
+        const firstPost = allMatched.length
+          ? [...allMatched].sort((a, b) => createdAtMs(a) - createdAtMs(b))[0]
+          : null;
+        const latestPost = allMatched.length
+          ? [...allMatched].sort((a, b) => createdAtMs(b) - createdAtMs(a))[0]
+          : null;
+        const totalLikes = allMatched.reduce((acc, item) => acc + Number(item?.likes || 0), 0);
+        const totalViews = allMatched.reduce((acc, item) => acc + Number(item?.views || 0), 0);
+        const totalReadMinutes = allMatched.reduce((acc, item) => acc + Number(item?.readMinutes || 0), 0);
+        const avgReadMinutes = allMatched.length ? Number((totalReadMinutes / allMatched.length).toFixed(1)) : 0;
+
+        publicStats = {
+          totalPosts: allMatched.length,
+          totalLikes,
+          totalViews,
+          averageReadMinutes: avgReadMinutes,
+          firstPost: firstPost
+            ? {
+              _id: firstPost._id,
+              slug: firstPost.slug || '',
+              title: firstPost.title || '',
+              createdAt: firstPost.createdAt || firstPost.publishedAt || firstPost.updatedAt || null,
+            }
+            : null,
+          latestPost: latestPost
+            ? {
+              _id: latestPost._id,
+              slug: latestPost.slug || '',
+              title: latestPost.title || '',
+              createdAt: latestPost.createdAt || latestPost.publishedAt || latestPost.updatedAt || null,
+            }
+            : null,
+        };
+      }
+
       return json(res, 200, {
         ok: true,
         journals,
+        publicStats,
         pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       });
     }

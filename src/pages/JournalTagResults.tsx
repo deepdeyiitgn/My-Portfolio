@@ -14,6 +14,22 @@ interface JournalItem {
   views?: number;
 }
 
+interface StatsPost {
+  _id: string;
+  slug?: string;
+  title: string;
+  createdAt: string | null;
+}
+
+interface PublicStats {
+  totalPosts: number;
+  totalLikes: number;
+  totalViews: number;
+  averageReadMinutes: number;
+  firstPost: StatsPost | null;
+  latestPost: StatsPost | null;
+}
+
 interface Pagination {
   page: number;
   limit: number;
@@ -27,6 +43,7 @@ export default function JournalTagResults() {
   const rawToken = String(isHashtagPage ? hashtag : tag).trim().toUpperCase();
   const [journals, setJournals] = useState<JournalItem[]>([]);
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 20, total: 0, totalPages: 1 });
+  const [publicStats, setPublicStats] = useState<PublicStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -43,6 +60,7 @@ export default function JournalTagResults() {
       } else {
         setJournals(Array.isArray(d.journals) ? d.journals : []);
         setPagination(d.pagination || { page: 1, limit: 20, total: 0, totalPages: 1 });
+        setPublicStats(d.publicStats || null);
       }
     } catch {
       setError('Failed to load journals');
@@ -55,6 +73,7 @@ export default function JournalTagResults() {
     if (!rawToken) {
       setJournals([]);
       setPagination({ page: 1, limit: 20, total: 0, totalPages: 1 });
+      setPublicStats(null);
       setLoading(false);
       return;
     }
@@ -66,6 +85,14 @@ export default function JournalTagResults() {
   const pageRoute = isHashtagPage
     ? `/journal/hastags/${encodeURIComponent(rawToken)}`
     : `/journal/tags/${encodeURIComponent(rawToken)}`;
+  const formatDate = (value?: string | null) => {
+    if (!value) return 'N/A';
+    const ms = new Date(value).getTime();
+    if (!Number.isFinite(ms)) return 'N/A';
+    return new Date(ms).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+  };
+  const firstPost = publicStats?.firstPost || null;
+  const latestPost = publicStats?.latestPost || null;
 
   return (
     <div className="max-w-7xl xl:max-w-screen-2xl 2xl:max-w-[1800px] mx-auto px-6 py-12 space-y-8">
@@ -85,6 +112,58 @@ export default function JournalTagResults() {
         </h1>
         <p className="text-zinc-500 text-sm">Total posts: {pagination.total}</p>
       </div>
+
+      {!loading && !error && publicStats && (
+        <section className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/20 p-4 space-y-1">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-mono">Total Likes</p>
+            <p className="text-xl font-black text-white">{publicStats.totalLikes}</p>
+          </div>
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/20 p-4 space-y-1">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-mono">Total Views</p>
+            <p className="text-xl font-black text-white">{publicStats.totalViews}</p>
+          </div>
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/20 p-4 space-y-1">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-mono">Avg Read Time</p>
+            <p className="text-xl font-black text-white">{publicStats.averageReadMinutes} min</p>
+          </div>
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/20 p-4 space-y-1">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-mono">Total Posts</p>
+            <p className="text-xl font-black text-white">{publicStats.totalPosts}</p>
+          </div>
+        </section>
+      )}
+
+      {!loading && !error && publicStats && (
+        <section className="grid md:grid-cols-2 gap-4">
+          <article className="rounded-2xl border border-zinc-800 bg-zinc-900/20 p-5 space-y-2">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-400 font-mono">First Post Created</p>
+            {firstPost ? (
+              <>
+                <Link to={`/journal/view/${encodeURIComponent(firstPost.slug || firstPost._id)}`} className="text-white font-bold hover:text-amber-400 transition-colors">
+                  {firstPost.title}
+                </Link>
+                <p className="text-xs text-zinc-500">{formatDate(firstPost.createdAt)}</p>
+              </>
+            ) : (
+              <p className="text-xs text-zinc-500">No data</p>
+            )}
+          </article>
+          <article className="rounded-2xl border border-zinc-800 bg-zinc-900/20 p-5 space-y-2">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-fuchsia-400 font-mono">Latest Post</p>
+            {latestPost ? (
+              <>
+                <Link to={`/journal/view/${encodeURIComponent(latestPost.slug || latestPost._id)}`} className="text-white font-bold hover:text-amber-400 transition-colors">
+                  {latestPost.title}
+                </Link>
+                <p className="text-xs text-zinc-500">{formatDate(latestPost.createdAt)}</p>
+              </>
+            ) : (
+              <p className="text-xs text-zinc-500">No data</p>
+            )}
+          </article>
+        </section>
+      )}
 
       {loading && (
         <div className="flex justify-center py-16">
