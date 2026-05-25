@@ -93,6 +93,12 @@
   mix-blend-mode: screen;
 }
 
+@media (forced-colors: active) {
+  .dd-custom-pointer {
+    mix-blend-mode: normal;
+  }
+}
+
 .dd-pointer-float {
   animation: dd-pointer-float 1.5s ease-in-out infinite;
 }
