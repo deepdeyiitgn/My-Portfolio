@@ -91,7 +91,6 @@
 .dd-custom-pointer {
   will-change: transform;
   mix-blend-mode: screen;
-  filter: saturate(1.08);
 }
 
 .dd-pointer-float {
