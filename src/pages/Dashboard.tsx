@@ -355,14 +355,20 @@ function JournalEditor({
   onSave: (data: Partial<Journal>, publish: boolean) => Promise<void>;
   onCancel: () => void;
 }) {
+  const MAX_TAGS = 7;
+  const MAX_HASHTAGS = 7;
   const [title, setTitle] = useState(initial?.title || '');
   const [summary, setSummary] = useState(initial?.summary || '');
   const [content, setContent] = useState(initial?.content || '');
   // Purana: const [contentType, setContentType] = useState(initial?.contentType || 'richtext');
   const [contentType, setContentType] = useState(initial?.contentType || 'markdown');
   const [externalVideoThumbnail, setExternalVideoThumbnail] = useState(initial?.externalVideoThumbnail || '');
-  const [keywords, setKeywords] = useState<string[]>(Array.isArray(initial?.keywords) ? initial.keywords : []);
-  const [hashtags, setHashtags] = useState<string[]>(Array.isArray(initial?.hashtags) ? initial.hashtags : []);
+  const [keywords, setKeywords] = useState<string[]>(
+    Array.isArray(initial?.keywords) ? initial.keywords.slice(0, MAX_TAGS) : []
+  );
+  const [hashtags, setHashtags] = useState<string[]>(
+    Array.isArray(initial?.hashtags) ? initial.hashtags.slice(0, MAX_HASHTAGS) : []
+  );
   const [keywordInput, setKeywordInput] = useState('');
   const [hashtagInput, setHashtagInput] = useState('');
   const [images, setImages] = useState<string[]>(Array.isArray(initial?.images) ? initial.images : []);
@@ -551,14 +557,14 @@ function JournalEditor({
   const addKeywords = () => {
     const next = extractTags(keywordInput, false);
     if (!next.length) return;
-    setKeywords((prev) => Array.from(new Set([...prev, ...next])));
+    setKeywords((prev) => Array.from(new Set([...prev, ...next])).slice(0, MAX_TAGS));
     setKeywordInput('');
   };
 
   const addHashtags = () => {
     const next = extractTags(hashtagInput, true);
     if (!next.length) return;
-    setHashtags((prev) => Array.from(new Set([...prev, ...next])));
+    setHashtags((prev) => Array.from(new Set([...prev, ...next])).slice(0, MAX_HASHTAGS));
     setHashtagInput('');
   };
 
@@ -614,7 +620,7 @@ function JournalEditor({
 
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2 border border-zinc-800 rounded-xl p-3 bg-zinc-900/20">
-            <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Keywords (Unlimited)</label>
+            <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Tags (Max 7)</label>
             <div className="flex gap-2">
               <input
                 value={keywordInput}
@@ -625,11 +631,12 @@ function JournalEditor({
                     addKeywords();
                   }
                 }}
-                placeholder="Add keyword and press Enter (e.g. jee, ai, physics)"
+                placeholder="Add tag (without #)"
                 className={`${inputCls} text-xs flex-1`}
               />
-              <button type="button" onClick={addKeywords} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700`}>Add</button>
+              <button type="button" onClick={addKeywords} disabled={keywords.length >= MAX_TAGS} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40`}>Add</button>
             </div>
+            <p className="text-[10px] text-zinc-600 font-mono">{keywords.length}/{MAX_TAGS} tags</p>
             {keywords.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {keywords.map((kw) => (
@@ -647,7 +654,7 @@ function JournalEditor({
           </div>
 
           <div className="space-y-2 border border-zinc-800 rounded-xl p-3 bg-zinc-900/20">
-            <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Hashtags (Unlimited)</label>
+            <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Hashtags (Max 7)</label>
             <div className="flex gap-2">
               <input
                 value={hashtagInput}
@@ -658,11 +665,12 @@ function JournalEditor({
                     addHashtags();
                   }
                 }}
-                placeholder="Add hashtags (#study #buildlog)"
+                placeholder="Add hashtag (type word only)"
                 className={`${inputCls} text-xs flex-1`}
               />
-              <button type="button" onClick={addHashtags} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700`}>Add</button>
+              <button type="button" onClick={addHashtags} disabled={hashtags.length >= MAX_HASHTAGS} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40`}>Add</button>
             </div>
+            <p className="text-[10px] text-zinc-600 font-mono">{hashtags.length}/{MAX_HASHTAGS} hashtags · '#' is added automatically</p>
             {hashtags.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {hashtags.map((tag) => (

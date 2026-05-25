@@ -330,7 +330,7 @@ function normalizeImages(images) {
   return Array.from(unique);
 }
 
-function normalizeTagList(input, { hashtags = false } = {}) {
+function normalizeTagList(input, { hashtags = false, maxItems = null } = {}) {
   const rawList = Array.isArray(input)
     ? input
     : String(input || '')
@@ -345,7 +345,11 @@ function normalizeTagList(input, { hashtags = false } = {}) {
     if (!token) continue;
     unique.add(token);
   }
-  return Array.from(unique);
+  const list = Array.from(unique);
+  if (Number.isFinite(maxItems) && maxItems > 0) {
+    return list.slice(0, Number(maxItems));
+  }
+  return list;
 }
 
 function tokenizeSearchText(text) {
@@ -3199,8 +3203,8 @@ module.exports = async (req, res) => {
       const publish = Boolean(body.publish);
       const images = normalizeImages(body.images);
       const externalVideoThumbnail = String(body.externalVideoThumbnail || '').trim();
-      const keywords = normalizeTagList(body.keywords);
-      const hashtags = normalizeTagList(body.hashtags, { hashtags: true });
+      const keywords = normalizeTagList(body.keywords, { maxItems: 7 });
+      const hashtags = normalizeTagList(body.hashtags, { hashtags: true, maxItems: 7 });
 
       if (!title) return json(res, 400, { ok: false, message: 'Title is required' });
       if (!content) return json(res, 400, { ok: false, message: 'Content is required' });
@@ -3558,8 +3562,8 @@ module.exports = async (req, res) => {
         categoryName: body.categoryName !== undefined ? String(body.categoryName).trim() : existing.categoryName,
         images: body.images !== undefined ? normalizeImages(body.images) : normalizeImages(existing.images),
         externalVideoThumbnail: body.externalVideoThumbnail !== undefined ? String(body.externalVideoThumbnail || '').trim() : String(existing.externalVideoThumbnail || ''),
-        keywords: body.keywords !== undefined ? normalizeTagList(body.keywords) : normalizeTagList(existing.keywords),
-        hashtags: body.hashtags !== undefined ? normalizeTagList(body.hashtags, { hashtags: true }) : normalizeTagList(existing.hashtags, { hashtags: true }),
+        keywords: body.keywords !== undefined ? normalizeTagList(body.keywords, { maxItems: 7 }) : normalizeTagList(existing.keywords, { maxItems: 7 }),
+        hashtags: body.hashtags !== undefined ? normalizeTagList(body.hashtags, { hashtags: true, maxItems: 7 }) : normalizeTagList(existing.hashtags, { hashtags: true, maxItems: 7 }),
         published: publish,
         publishedAt: publish ? (existing.publishedAt || now) : (existing.publishedAt || null),
         publishedAtIST: publish ? (existing.publishedAtIST || nowIST()) : (existing.publishedAtIST || null),

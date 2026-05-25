@@ -181,8 +181,8 @@ export default function JournalView() {
     .filter(Boolean);
   const shareImage = images[0] || '/assets/images/myphoto.png';
   const seoKeywords = [
-    ...((Array.isArray(journal.keywords) ? journal.keywords : []).map((kw) => String(kw || '').trim()).filter(Boolean)),
-    ...((Array.isArray(journal.hashtags) ? journal.hashtags : []).map((tag) => `#${String(tag || '').trim().replace(/^#+/, '')}`).filter(Boolean)),
+    ...((Array.isArray(journal.keywords) ? journal.keywords.slice(0, 7) : []).map((kw) => String(kw || '').trim()).filter(Boolean)),
+    ...((Array.isArray(journal.hashtags) ? journal.hashtags.slice(0, 7) : []).map((tag) => `#${String(tag || '').trim().replace(/^#+/, '')}`).filter(Boolean)),
   ];
 
   return (
@@ -222,12 +222,12 @@ export default function JournalView() {
         {journal.summary && <p className="text-zinc-400 max-w-4xl">{journal.summary}</p>}
         {(Array.isArray(journal.keywords) && journal.keywords.length > 0) || (Array.isArray(journal.hashtags) && journal.hashtags.length > 0) ? (
           <div className="flex flex-wrap gap-2">
-            {(Array.isArray(journal.keywords) ? journal.keywords : []).map((kw) => (
+            {(Array.isArray(journal.keywords) ? journal.keywords.slice(0, 7) : []).map((kw) => (
               <span key={`kw-${kw}`} className="px-2.5 py-1 rounded-full border border-emerald-500/30 text-emerald-400 text-[10px] font-mono">
                 {kw}
               </span>
             ))}
-            {(Array.isArray(journal.hashtags) ? journal.hashtags : []).map((tag) => {
+            {(Array.isArray(journal.hashtags) ? journal.hashtags.slice(0, 7) : []).map((tag) => {
               const clean = String(tag || '').replace(/^#+/, '');
               if (!clean) return null;
               return (
