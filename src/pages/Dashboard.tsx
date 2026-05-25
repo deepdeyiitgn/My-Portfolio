@@ -2933,7 +2933,7 @@ export default function Dashboard() {
             </button>
             <p className="text-[11px] text-zinc-500">
               Verification state: <span className="uppercase text-zinc-300">{watermarkDomainVerification || 'unknown'}</span>{' '}
-              {watermarkDomainToken ? '• Secure domain token ready for snippet.' : '• run challenge + verify to issue domain token using file OR DNS method.'}
+              {watermarkDomainToken ? '• Secure domain token ready for snippet.' : '• Run challenge + verify to issue domain token using file OR DNS method.'}
             </p>
             {watermarkChallengePath && watermarkChallengeContent && (
               <div className="text-[11px] text-zinc-400 bg-zinc-950/60 border border-zinc-800 rounded-xl p-3 space-y-1">
@@ -2943,7 +2943,7 @@ export default function Dashboard() {
                 <p className="font-mono text-emerald-300 break-all">{watermarkChallengeContent}</p>
                 {watermarkTxtHost && watermarkTxtValue && (
                   <>
-                    <p className="text-zinc-300 mt-2">OR</p>
+                    <p aria-hidden="true" className="text-zinc-300 mt-2">OR</p>
                     <p className="text-zinc-300">Method 2 — Add DNS TXT record:</p>
                     <p className="font-mono text-amber-400 break-all">Host: {watermarkTxtHost}</p>
                     <p className="font-mono text-emerald-300 break-all">Value: {watermarkTxtValue}</p>
@@ -3116,7 +3116,7 @@ export default function Dashboard() {
                     <p className="font-mono text-emerald-300 break-all">{watermarkChallengeContent}</p>
                     {watermarkTxtHost && watermarkTxtValue && (
                       <>
-                        <p className="text-zinc-300 mt-2">OR</p>
+                        <p aria-hidden="true" className="text-zinc-300 mt-2">OR</p>
                         <p className="text-zinc-300">Method 2 — DNS TXT:</p>
                         <p className="font-mono text-amber-400 break-all">Host: {watermarkTxtHost}</p>
                         <p className="font-mono text-emerald-300 break-all">Value: {watermarkTxtValue}</p>
