@@ -53,6 +53,9 @@ export default function Terms() {
           <p>
             You retain ownership of your submitted content, but grant Deep Dey a non-exclusive license to host, display, and moderate that content on this platform. IP and country metadata may be recorded for moderation, abuse prevention, and account security. This metadata is owner-access only and is not sold to third parties.
           </p>
+          <p>
+            Community broadcasts, updates, and notification channels may include owner announcements and user-specific operational notices. Internal analytics and UTM attribution metadata are also processed as documented in the Cookies and Privacy pages.
+          </p>
         </section>
 
         <section className="space-y-4">

@@ -57,6 +57,11 @@ Optional for live page enrichment:
 - `YOUTUBE_API_KEY` (or `GOOGLE_API_KEY`)
 - Without key: live page still loads via web+RSS fallback.
 
+Optional for push notifications (recommended for community + updates/alerts ecosystem):
+- `VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_SUBJECT` (example: `mailto:admin@example.com`)
+
 ### Section 4.1 — 🔎 Where to Find Each API Key / ENV Value
 
 Use this table when you are setting up your own copy of the project.
@@ -195,6 +200,15 @@ Add these in provider secret manager:
 - `SPACE_PASSWORD`
 - `GOOGLE_CLIENT_ID` (optional)
 - `YOUTUBE_API_KEY` (optional; richer YouTube stats/comments)
+- `VAPID_PUBLIC_KEY` (optional; required for web-push delivery)
+- `VAPID_PRIVATE_KEY` (optional; required for web-push delivery)
+- `VAPID_SUBJECT` (optional; defaults to admin mail if omitted)
+
+#### D.1 Push Notification Runtime Notes
+1. Push subscriptions are stored in `push_subscriptions` and notifications are persisted in `user_notifications`.
+2. Dispatch runs in chunked batches (50 per chunk) with a short delay between chunks to keep Vercel serverless execution stable.
+3. Ensure `public/service-worker.js` is deployed and cached correctly; it uses immediate activation semantics (`skipWaiting` + `clients.claim`) so clients receive updates faster.
+4. Validate by subscribing from `/notification`, then sending a test notification from owner controls.
 
 #### E. Routing and Rewrites
 1. SPA fallback to `index.html` for client routes.

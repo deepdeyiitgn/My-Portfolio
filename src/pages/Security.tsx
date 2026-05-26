@@ -47,6 +47,9 @@ export default function Security() {
           <p>
             Platform controls include owner-only access checks, moderation records, abuse filtering, and watermark attribution systems. Security controls are reviewed and updated as infrastructure and integrations evolve.
           </p>
+          <p>
+            Additional controls include batched internal analytics ingestion, UTM attribution observability, external-link proxy enforcement, and owner-auditable community/notification event records for abuse response.
+          </p>
         </section>
 
         <section className="space-y-4">

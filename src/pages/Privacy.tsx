@@ -61,6 +61,9 @@ export default function Privacy() {
           <p>
             Community comments, feedback, and moderation metadata are stored in MongoDB Atlas. For abuse prevention and account security, we may store first/last activity timestamps, IP metadata, and country metadata linked to account activity. This metadata is used only for moderation, abuse prevention, and account security.
           </p>
+          <p>
+            Internal analytics may also store route-level usage context (including UTM parameters when present in URL query strings), visitor IP, referrer, and session timing in batched form for security review and performance diagnostics.
+          </p>
         </section>
 
         <section className="space-y-4">
