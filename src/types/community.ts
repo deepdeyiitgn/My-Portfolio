@@ -86,6 +86,9 @@ export interface UpdateItem {
 export interface NotificationItem {
   _id: string;
   userId: string;
+  userName?: string;
+  userPic?: string;
+  userProfileLink?: string;
   title: string;
   message: string;
   type: 'reply' | 'pinned' | 'admin' | 'system';

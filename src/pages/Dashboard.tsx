@@ -172,11 +172,14 @@ interface LinkAnalyticsItem {
 interface PageAnalyticsItem {
   _id: string;
   path: string;
+  pathWithQuery?: string | null;
+  query?: string | null;
   ts: string;
   timeSpentMs: number | null;
   referrer: string | null;
   userId: string | null;
   ip: string;
+  utm?: Record<string, string> | null;
 }
 
 interface BlockDoc {
@@ -1622,6 +1625,7 @@ export default function Dashboard() {
   const [pageAnalyticsPage, setPageAnalyticsPage] = useState(1);
   const [pageAnalyticsTotalPages, setPageAnalyticsTotalPages] = useState(1);
   const [pageAnalyticsPathFilter, setPageAnalyticsPathFilter] = useState('');
+  const [pageAnalyticsUtmFilter, setPageAnalyticsUtmFilter] = useState('');
   const [pageAnalyticsTimeRange, setPageAnalyticsTimeRange] = useState<'7d' | '30d' | '6m' | '1y' | 'all'>('30d');
   const [pageAnalyticsAggregates, setPageAnalyticsAggregates] = useState<{
     byPath: Array<{ path: string; total: number }>;
@@ -1820,6 +1824,50 @@ export default function Dashboard() {
     } catch { /* ignore */ }
     finally { setAnalyticsLoading(false); }
   }, [analyticsHostFilter, analyticsLoginFilter, analyticsSourceFilter]);
+
+  const fetchPageAnalytics = useCallback(async (
+    p = 1,
+    opts?: { path?: string; utm?: string; guestOnly?: boolean; range?: '7d' | '30d' | '6m' | '1y' | 'all' },
+  ) => {
+    setPageAnalyticsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        action: 'page-analytics-feed',
+        page: String(p),
+        limit: '20',
+      });
+      const path = String(opts?.path ?? pageAnalyticsPathFilter).trim();
+      const utm = String(opts?.utm ?? pageAnalyticsUtmFilter).trim();
+      const guestOnly = Boolean(opts?.guestOnly ?? pageAnalyticsGuestOnly);
+      const range = opts?.range ?? pageAnalyticsTimeRange;
+      if (path) params.set('path', path);
+      if (utm) params.set('utm', utm);
+      if (guestOnly) params.set('guestOnly', 'true');
+      if (range !== 'all') {
+        const now = new Date();
+        const from = new Date(now);
+        if (range === '7d') from.setDate(from.getDate() - 7);
+        else if (range === '30d') from.setDate(from.getDate() - 30);
+        else if (range === '6m') from.setMonth(from.getMonth() - 6);
+        else if (range === '1y') from.setFullYear(from.getFullYear() - 1);
+        params.set('from', from.toISOString());
+        params.set('to', now.toISOString());
+      }
+      const response = await fetch(`/api/journal?${params.toString()}`);
+      const payload = await response.json();
+      if (payload?.ok) {
+        setPageAnalyticsRows(Array.isArray(payload.items) ? payload.items : []);
+        setPageAnalyticsPage(Number(payload.page || p));
+        setPageAnalyticsTotalPages(Math.max(1, Number(payload.totalPages || 1)));
+        setPageAnalyticsAggregates({
+          byPath: Array.isArray(payload?.aggregates?.byPath) ? payload.aggregates.byPath : [],
+          byUser: Array.isArray(payload?.aggregates?.byUser) ? payload.aggregates.byUser : [],
+          timeline: Array.isArray(payload?.aggregates?.timeline) ? payload.aggregates.timeline : [],
+        });
+      }
+    } catch { /* ignore */ }
+    finally { setPageAnalyticsLoading(false); }
+  }, [pageAnalyticsGuestOnly, pageAnalyticsPathFilter, pageAnalyticsTimeRange, pageAnalyticsUtmFilter]);
 
   const fetchUserComments = useCallback(async (userId: string, p = 1) => {
     setUserCommentsLoading(true);
@@ -2081,8 +2129,10 @@ export default function Dashboard() {
   }, [tab, authenticated, fetchUsers]);
 
   useEffect(() => {
-    if (tab === 'analytics' && authenticated) fetchLinkAnalytics(1);
-  }, [tab, authenticated, fetchLinkAnalytics]);
+    if (tab !== 'analytics' || !authenticated) return;
+    if (analyticsSubTab === 'links') fetchLinkAnalytics(1);
+    if (analyticsSubTab === 'pages') fetchPageAnalytics(1);
+  }, [tab, authenticated, analyticsSubTab, fetchLinkAnalytics, fetchPageAnalytics]);
 
   useEffect(() => {
     if (tab === 'settings' && authenticated) {
@@ -4427,76 +4477,175 @@ export default function Dashboard() {
 
       {tab === 'analytics' && (
         <div className="space-y-5">
-          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 space-y-3">
-            <div className="grid md:grid-cols-4 gap-3">
-              <input value={analyticsHostFilter} onChange={(e) => setAnalyticsHostFilter(e.target.value)} className={inputCls} placeholder="Filter by host" />
-              <input value={analyticsSourceFilter} onChange={(e) => setAnalyticsSourceFilter(e.target.value)} className={inputCls} placeholder="Filter by source page" />
-              <select value={analyticsLoginFilter} onChange={(e) => setAnalyticsLoginFilter(e.target.value as 'all' | 'true' | 'false')} className={inputCls}>
-                <option value="all">All visitors</option>
-                <option value="true">Logged in only</option>
-                <option value="false">Guests only</option>
-              </select>
-              <button
-                onClick={() => fetchLinkAnalytics(1)}
-                className={`${btnCls} bg-amber-500 text-black hover:bg-amber-400 flex items-center justify-center gap-2`}
-              >
-                <RefreshCw size={14} /> Apply
-              </button>
-            </div>
-            <div className="grid md:grid-cols-3 gap-3">
-              <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
-                <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Top Hosts</p>
-                <div className="mt-2 space-y-1">
-                  {analyticsAggregates.byHost.slice(0, 5).map((item) => <p key={item.host} className="text-zinc-300 text-xs font-mono">{item.host} · {item.total}</p>)}
-                </div>
-              </div>
-              <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
-                <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Top Sources</p>
-                <div className="mt-2 space-y-1">
-                  {analyticsAggregates.bySource.slice(0, 5).map((item) => <p key={item.sourcePage} className="text-zinc-300 text-xs font-mono">{item.sourcePage} · {item.total}</p>)}
-                </div>
-              </div>
-              <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
-                <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Top Users</p>
-                <div className="mt-2 space-y-1">
-                  {analyticsAggregates.byUser.slice(0, 5).map((item) => <p key={`${item.userId}-${item.total}`} className="text-zinc-300 text-xs font-mono">{item.userId || 'guest'} · {item.total}</p>)}
-                </div>
-              </div>
-            </div>
+          <div className="inline-flex rounded-xl border border-zinc-800 bg-zinc-950/70 p-1">
+            <button
+              onClick={() => setAnalyticsSubTab('links')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono uppercase tracking-widest ${analyticsSubTab === 'links' ? 'bg-amber-500 text-black' : 'text-zinc-400 hover:text-zinc-200'}`}
+            >
+              Link Analytics
+            </button>
+            <button
+              onClick={() => setAnalyticsSubTab('pages')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono uppercase tracking-widest ${analyticsSubTab === 'pages' ? 'bg-amber-500 text-black' : 'text-zinc-400 hover:text-zinc-200'}`}
+            >
+              Page + UTM Analytics
+            </button>
           </div>
 
-          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl overflow-hidden">
-            <div className="grid grid-cols-[1.4fr_0.8fr_0.8fr_0.7fr_1fr] text-[10px] uppercase tracking-widest text-zinc-500 font-mono border-b border-zinc-800 px-4 py-2">
-              <span>Target URL</span>
-              <span>Host</span>
-              <span>Source</span>
-              <span>User</span>
-              <span>Time</span>
-            </div>
-            {analyticsLoading ? (
-              <div className="p-6 text-zinc-500 text-sm">Loading analytics…</div>
-            ) : analyticsRows.length === 0 ? (
-              <div className="p-6 text-zinc-600 text-sm">No analytics rows found.</div>
-            ) : (
-              <div className="divide-y divide-zinc-800">
-                {analyticsRows.map((row) => (
-                  <div key={row._id} className="grid grid-cols-[1.4fr_0.8fr_0.8fr_0.7fr_1fr] gap-2 px-4 py-3 text-xs">
-                    <span className="text-zinc-300 truncate" title={row.targetUrl}>{row.targetUrl}</span>
-                    <span className="text-zinc-400">{row.targetHost}</span>
-                    <span className="text-zinc-400">{row.sourcePage}</span>
-                    <span className="text-zinc-400">{row.userId || 'guest'}</span>
-                    <span className="text-zinc-500">{new Date(row.createdAt).toLocaleString('en-IN')}</span>
+          {analyticsSubTab === 'links' && (
+            <>
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 space-y-3">
+                <div className="grid md:grid-cols-4 gap-3">
+                  <input value={analyticsHostFilter} onChange={(e) => setAnalyticsHostFilter(e.target.value)} className={inputCls} placeholder="Filter by host" />
+                  <input value={analyticsSourceFilter} onChange={(e) => setAnalyticsSourceFilter(e.target.value)} className={inputCls} placeholder="Filter by source page" />
+                  <select value={analyticsLoginFilter} onChange={(e) => setAnalyticsLoginFilter(e.target.value as 'all' | 'true' | 'false')} className={inputCls}>
+                    <option value="all">All visitors</option>
+                    <option value="true">Logged in only</option>
+                    <option value="false">Guests only</option>
+                  </select>
+                  <button
+                    onClick={() => fetchLinkAnalytics(1)}
+                    className={`${btnCls} bg-amber-500 text-black hover:bg-amber-400 flex items-center justify-center gap-2`}
+                  >
+                    <RefreshCw size={14} /> Apply
+                  </button>
+                </div>
+                <div className="grid md:grid-cols-3 gap-3">
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
+                    <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Top Hosts</p>
+                    <div className="mt-2 space-y-1">
+                      {analyticsAggregates.byHost.slice(0, 5).map((item) => <p key={item.host} className="text-zinc-300 text-xs font-mono">{item.host} · {item.total}</p>)}
+                    </div>
                   </div>
-                ))}
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
+                    <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Top Sources</p>
+                    <div className="mt-2 space-y-1">
+                      {analyticsAggregates.bySource.slice(0, 5).map((item) => <p key={item.sourcePage} className="text-zinc-300 text-xs font-mono">{item.sourcePage} · {item.total}</p>)}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
+                    <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Top Users</p>
+                    <div className="mt-2 space-y-1">
+                      {analyticsAggregates.byUser.slice(0, 5).map((item) => <p key={`${item.userId}-${item.total}`} className="text-zinc-300 text-xs font-mono">{item.userId || 'guest'} · {item.total}</p>)}
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
 
-          <div className="flex items-center justify-center gap-3">
-            <button onClick={() => fetchLinkAnalytics(Math.max(1, analyticsPage - 1))} disabled={analyticsPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40`}>Prev</button>
-            <span className="text-zinc-500 text-sm">Page {analyticsPage} / {analyticsTotalPages}</span>
-            <button onClick={() => fetchLinkAnalytics(Math.min(analyticsTotalPages, analyticsPage + 1))} disabled={analyticsPage >= analyticsTotalPages} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40`}>Next</button>
-          </div>
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl overflow-hidden">
+                <div className="grid grid-cols-[1.4fr_0.8fr_0.8fr_0.7fr_1fr] text-[10px] uppercase tracking-widest text-zinc-500 font-mono border-b border-zinc-800 px-4 py-2">
+                  <span>Target URL</span>
+                  <span>Host</span>
+                  <span>Source</span>
+                  <span>User</span>
+                  <span>Time</span>
+                </div>
+                {analyticsLoading ? (
+                  <div className="p-6 text-zinc-500 text-sm">Loading analytics…</div>
+                ) : analyticsRows.length === 0 ? (
+                  <div className="p-6 text-zinc-600 text-sm">No analytics rows found.</div>
+                ) : (
+                  <div className="divide-y divide-zinc-800">
+                    {analyticsRows.map((row) => (
+                      <div key={row._id} className="grid grid-cols-[1.4fr_0.8fr_0.8fr_0.7fr_1fr] gap-2 px-4 py-3 text-xs">
+                        <span className="text-zinc-300 truncate" title={row.targetUrl}>{row.targetUrl}</span>
+                        <span className="text-zinc-400">{row.targetHost}</span>
+                        <span className="text-zinc-400">{row.sourcePage}</span>
+                        <span className="text-zinc-400">{row.userId || 'guest'}</span>
+                        <span className="text-zinc-500">{new Date(row.createdAt).toLocaleString('en-IN')}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-center gap-3">
+                <button onClick={() => fetchLinkAnalytics(Math.max(1, analyticsPage - 1))} disabled={analyticsPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40`}>Prev</button>
+                <span className="text-zinc-500 text-sm">Page {analyticsPage} / {analyticsTotalPages}</span>
+                <button onClick={() => fetchLinkAnalytics(Math.min(analyticsTotalPages, analyticsPage + 1))} disabled={analyticsPage >= analyticsTotalPages} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40`}>Next</button>
+              </div>
+            </>
+          )}
+
+          {analyticsSubTab === 'pages' && (
+            <>
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 space-y-3">
+                <div className="grid md:grid-cols-5 gap-3">
+                  <input value={pageAnalyticsPathFilter} onChange={(e) => setPageAnalyticsPathFilter(e.target.value)} className={inputCls} placeholder="Filter by path" />
+                  <input value={pageAnalyticsUtmFilter} onChange={(e) => setPageAnalyticsUtmFilter(e.target.value)} className={inputCls} placeholder="Filter by UTM text" />
+                  <select value={pageAnalyticsTimeRange} onChange={(e) => setPageAnalyticsTimeRange(e.target.value as '7d' | '30d' | '6m' | '1y' | 'all')} className={inputCls}>
+                    <option value="7d">Last 7 Days</option>
+                    <option value="30d">Last 30 Days</option>
+                    <option value="6m">Last 6 Months</option>
+                    <option value="1y">Last 1 Year</option>
+                    <option value="all">All Time</option>
+                  </select>
+                  <label className="inline-flex items-center gap-2 text-xs text-zinc-300 rounded-xl border border-zinc-800 px-3 py-2.5 bg-zinc-950/50">
+                    <input type="checkbox" checked={pageAnalyticsGuestOnly} onChange={(e) => setPageAnalyticsGuestOnly(e.target.checked)} />
+                    Guests only
+                  </label>
+                  <button
+                    onClick={() => fetchPageAnalytics(1)}
+                    className={`${btnCls} bg-amber-500 text-black hover:bg-amber-400 flex items-center justify-center gap-2`}
+                  >
+                    <RefreshCw size={14} /> Apply
+                  </button>
+                </div>
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
+                    <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Top Paths</p>
+                    <div className="mt-2 space-y-1">
+                      {pageAnalyticsAggregates.byPath.slice(0, 5).map((item) => <p key={`${item.path}-${item.total}`} className="text-zinc-300 text-xs font-mono">{item.path} · {item.total}</p>)}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
+                    <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-mono">Top Users</p>
+                    <div className="mt-2 space-y-1">
+                      {pageAnalyticsAggregates.byUser.slice(0, 5).map((item) => <p key={`${item.userId}-${item.total}`} className="text-zinc-300 text-xs font-mono">{item.userId || 'guest'} · {item.total}</p>)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl overflow-hidden">
+                <div className="grid grid-cols-[1fr_1fr_0.8fr_0.7fr_1fr] text-[10px] uppercase tracking-widest text-zinc-500 font-mono border-b border-zinc-800 px-4 py-2">
+                  <span>Page</span>
+                  <span>UTM Parameters</span>
+                  <span>IP</span>
+                  <span>User</span>
+                  <span>Time</span>
+                </div>
+                {pageAnalyticsLoading ? (
+                  <div className="p-6 text-zinc-500 text-sm">Loading page analytics…</div>
+                ) : pageAnalyticsRows.length === 0 ? (
+                  <div className="p-6 text-zinc-600 text-sm">No page analytics rows found.</div>
+                ) : (
+                  <div className="divide-y divide-zinc-800">
+                    {pageAnalyticsRows.map((row) => {
+                      const utmPairs = row.utm && typeof row.utm === 'object'
+                        ? Object.entries(row.utm).filter(([key, value]) => key && String(value || '').trim()).map(([key, value]) => `${key}: ${String(value)}`)
+                        : [];
+                      return (
+                        <div key={row._id} className="grid grid-cols-[1fr_1fr_0.8fr_0.7fr_1fr] gap-2 px-4 py-3 text-xs">
+                          <span className="text-zinc-300 truncate" title={row.pathWithQuery || row.path}>{row.pathWithQuery || row.path}</span>
+                          <span className="text-zinc-400 truncate" title={utmPairs.length ? utmPairs.join(' | ') : 'No UTM'}>{utmPairs.length ? utmPairs.join(' | ') : 'No UTM'}</span>
+                          <span className="text-zinc-400 truncate" title={row.ip}>{row.ip}</span>
+                          <span className="text-zinc-400">{row.userId || 'guest'}</span>
+                          <span className="text-zinc-500">{new Date(row.ts).toLocaleString('en-IN')}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-center gap-3">
+                <button onClick={() => fetchPageAnalytics(Math.max(1, pageAnalyticsPage - 1))} disabled={pageAnalyticsPage <= 1} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40`}>Prev</button>
+                <span className="text-zinc-500 text-sm">Page {pageAnalyticsPage} / {pageAnalyticsTotalPages}</span>
+                <button onClick={() => fetchPageAnalytics(Math.min(pageAnalyticsTotalPages, pageAnalyticsPage + 1))} disabled={pageAnalyticsPage >= pageAnalyticsTotalPages} className={`${btnCls} bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40`}>Next</button>
+              </div>
+            </>
+          )}
         </div>
       )}
 

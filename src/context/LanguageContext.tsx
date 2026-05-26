@@ -14,6 +14,7 @@ const dictionary: Dict = {
   'nav.links': { en: 'Links', bn: 'লিংকস', hi: 'लिंक्स' },
   'nav.proof': { en: 'Proof', bn: 'প্রুফ', hi: 'प्रूफ' },
   'nav.journal': { en: 'Journal', bn: 'জার্নাল', hi: 'जर्नल' },
+  'nav.community': { en: 'Community', bn: 'কমিউনিটি', hi: 'कम्युनिटी' },
   'nav.now': { en: 'Now', bn: 'নাও', hi: 'नाउ' },
   'nav.faq': { en: 'FAQ', bn: 'জিজ্ঞাসা', hi: 'प्रश्न' },
   'nav.contact': { en: 'Contact', bn: 'যোগাযোগ', hi: 'संपर्क' },

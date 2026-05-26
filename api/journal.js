@@ -411,6 +411,7 @@ function getParam(req, name) {
       db.collection('page_analytics').createIndex({ path: 1, ts: -1 }),
       db.collection('page_analytics').createIndex({ userId: 1, ts: -1 }),
       db.collection('page_analytics').createIndex({ ip: 1, ts: -1 }),
+      db.collection('page_analytics').createIndex({ utmPairs: 1, ts: -1 }),
     ]);
     communityIndexesReady = true;
   }
@@ -1846,6 +1847,44 @@ module.exports = async (req, res) => {
         return json(res, 405, { ok: false, message: 'Use POST for notification-feed.' });
       }
 
+      if (action === 'notification-admin-feed') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const page = Math.max(1, parseInt(String(getParam(req, 'page') || '1'), 10) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(String(getParam(req, 'limit') || '20'), 10) || 20));
+        const skip = (page - 1) * limit;
+        const userIdFilter = String(getParam(req, 'userId') || '').trim();
+        const filter = userIdFilter ? { userId: userIdFilter } : {};
+        const notifCol = db.collection('user_notifications');
+        const [rows, total] = await Promise.all([
+          notifCol.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray(),
+          notifCol.countDocuments(filter),
+        ]);
+        const uniqueUserIds = Array.from(new Set(rows.map((row) => String(row?.userId || '').trim()).filter(Boolean)));
+        const users = uniqueUserIds.length
+          ? await db.collection('users').find({ userId: { $in: uniqueUserIds } }, { projection: { userId: 1, userName: 1, userPic: 1 } }).toArray()
+          : [];
+        const userMap = new Map(users.map((user) => [String(user.userId), user]));
+        return json(res, 200, {
+          ok: true,
+          items: rows.map((row) => {
+            const userId = String(row?.userId || '');
+            const userDoc = userMap.get(userId);
+            return {
+              ...row,
+              _id: String(row._id),
+              userId,
+              userName: userDoc?.userName || (userId === 'owner' ? 'Deep Dey (Owner)' : userId || 'Unknown User'),
+              userPic: userDoc?.userPic || '',
+              userProfileLink: userId ? `/user/${encodeURIComponent(userId)}` : '',
+            };
+          }),
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+        });
+      }
+
       // --- START: PAGE ANALYTICS FEED HANDLER ---
       // Queries the page_analytics collection with time-range and path filters.
       // Owner-only. Returns paginated rows + aggregates for the Internal Analytics dashboard tab.
@@ -1855,12 +1894,14 @@ module.exports = async (req, res) => {
         const limit = Math.min(100, Math.max(1, parseInt(String(getParam(req, 'limit') || '20'), 10) || 20));
         const skip = (page - 1) * limit;
         const path = String(getParam(req, 'path') || '').trim();
+        const utm = String(getParam(req, 'utm') || '').trim();
         const userId = String(getParam(req, 'userId') || '').trim();
         const guestOnly = String(getParam(req, 'guestOnly') || '').trim().toLowerCase();
         const from = String(getParam(req, 'from') || '').trim();
         const to = String(getParam(req, 'to') || '').trim();
         const filter = {};
         if (path) filter.path = { $regex: path, $options: 'i' };
+        if (utm) filter.utmPairs = { $elemMatch: { $regex: escapeRegexLiteral(utm), $options: 'i' } };
         if (userId) filter.userId = userId;
         if (guestOnly === 'true') filter.userId = { $in: [null, ''] };
         const ts = {};
@@ -3360,8 +3401,17 @@ module.exports = async (req, res) => {
       if (action === 'notification-feed') {
         const body = await readBody(req);
         const credential = String(body.credential || '').trim();
-        const tokenUser = await verifyGoogleToken(credential);
-        if (!tokenUser) return json(res, 401, { ok: false, message: 'Authentication required' });
+        const ownerRequest = isAuthenticated(req);
+        const tokenUser = ownerRequest ? null : await verifyGoogleToken(credential);
+        if (!ownerRequest && !tokenUser) return json(res, 401, { ok: false, message: 'Authentication required' });
+        if (ownerRequest) {
+          const items = await db.collection('user_notifications')
+            .find({})
+            .sort({ createdAt: -1 })
+            .limit(300)
+            .toArray();
+          return json(res, 200, { ok: true, adminMode: true, items: items.map((item) => ({ ...item, _id: String(item._id) })) });
+        }
         const items = await db.collection('user_notifications')
           .find({ userId: tokenUser.userId })
           .sort({ createdAt: -1 })
@@ -3416,9 +3466,23 @@ module.exports = async (req, res) => {
         const userId = String(body.userId || '').trim().slice(0, 128) || null;
         const docs = events.slice(0, MAX_EVENTS).map((ev) => ({
           path: String(ev.path || '/').slice(0, 512),
+          pathWithQuery: String(ev.pathWithQuery || ev.path || '/').slice(0, 1024),
+          query: String(ev.query || '').slice(0, 2048) || null,
           ts: new Date(typeof ev.ts === 'number' ? ev.ts : Date.now()),
           timeSpentMs: typeof ev.timeSpentMs === 'number' ? Math.max(0, Math.round(ev.timeSpentMs)) : null,
           referrer: String(ev.referrer || '').slice(0, 512) || null,
+          utm: ev.utm && typeof ev.utm === 'object'
+            ? Object.fromEntries(
+              Object.entries(ev.utm)
+                .slice(0, 25)
+                .map(([key, value]) => [String(key).slice(0, 64), String(value || '').slice(0, 512)]),
+            )
+            : null,
+          utmPairs: ev.utm && typeof ev.utm === 'object'
+            ? Object.entries(ev.utm)
+              .slice(0, 25)
+              .map(([key, value]) => `${String(key).slice(0, 64)}=${String(value || '').slice(0, 512)}`)
+            : [],
           userId,
           ip,
           ua: String((req.headers['user-agent'] || '')).slice(0, 512) || null,

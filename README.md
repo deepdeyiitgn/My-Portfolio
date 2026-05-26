@@ -49,6 +49,8 @@ All while the author simultaneously prepares for **JEE Advanced 2027** targeting
 - Fully responsive React + TypeScript portfolio with API-backed dynamic modules.
 - `/live` now supports category-aware content listing (Stream/Video/Shorts), enriched metadata, and paginated browsing.
 - `/api/live` supports no-key fallback mode plus richer YouTube stats/comments when API key is configured.
+- Community + updates + notifications now support owner-session operations directly from page UIs (post, manage, and target users).
+- Internal page analytics now captures and stores full `utm_*` attribution parameters with page, IP, and pagination-ready dashboard visibility.
 - Root auth shortcut URLs are supported: `/?signup`, `/?login`, `/?logout`, and `/?password=<SPACE_PASSWORD>`.
 - Google shortcut callback on `/contact?googleAuth=1&intent=...` now persists session identity so login/signup both remain signed in consistently.
 - Home page section flow is ordered as: Hero → Journey Marquee → Tech Galaxy → Projects → Timeline → Top Reads → Feedback → Community → Countdown → Collaboration CTA → System Status & Owner Access.

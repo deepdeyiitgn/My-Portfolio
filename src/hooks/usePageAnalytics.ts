@@ -20,9 +20,12 @@ const INGEST_URL = '/api/journal?action=analytics-bundle';
 
 interface PageViewEvent {
   path: string;
+  pathWithQuery?: string;
   ts: number;
   timeSpentMs?: number;
   referrer?: string;
+  utm?: Record<string, string>;
+  query?: string;
 }
 
 function readBuffer(): PageViewEvent[] {
@@ -108,10 +111,25 @@ export function trackPageView(path: string) {
     }
   }
 
+  const search = typeof window !== 'undefined' ? window.location.search || '' : '';
+  const utm: Record<string, string> = {};
+  if (search) {
+    const params = new URLSearchParams(search);
+    for (const [key, value] of params.entries()) {
+      if (!key) continue;
+      if (key.toLowerCase().startsWith('utm_')) {
+        utm[key] = value;
+      }
+    }
+  }
+
   const event: PageViewEvent = {
     path,
+    pathWithQuery: `${path}${search}`,
     ts: Date.now(),
     referrer: document.referrer || undefined,
+    utm: Object.keys(utm).length ? utm : undefined,
+    query: search || undefined,
   };
 
   const buf = readBuffer();

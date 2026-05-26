@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import SEO from '../components/SEO';
 import Composer from '../components/community/Composer';
 import MessageCard from '../components/community/MessageCard';
@@ -9,6 +9,7 @@ import type { CommunityAttachment, CommunityPoll } from '../types/community';
 
 export default function Community() {
   const { identity } = useGoogleIdentity();
+  const [ownerAuthed, setOwnerAuthed] = useState(false);
   const { posts, loading, error, fetchFeed, react, votePoll } = useCommunityFeed(identity);
   const [uploading, setUploading] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
@@ -30,8 +31,15 @@ export default function Community() {
     </svg>
   ), []);
 
+  useEffect(() => {
+    fetch('/api/auth')
+      .then((response) => response.json())
+      .then((payload) => setOwnerAuthed(Boolean(payload?.authenticated)))
+      .catch(() => setOwnerAuthed(false));
+  }, []);
+
   const handleSend = async (payload: { text: string; attachments: CommunityAttachment[]; poll: CommunityPoll | null }) => {
-    if (!identity?.credential) return;
+    if (!identity?.credential && !ownerAuthed) return;
     setUploading(true);
     try {
       await fetch('/api/journal?action=community-post', {
@@ -65,7 +73,10 @@ export default function Community() {
       </div>
 
       <div className="relative z-10">
-        <Composer uploading={uploading} onSend={handleSend} />
+        <Composer disabled={!identity?.credential && !ownerAuthed} uploading={uploading} onSend={handleSend} />
+        {!identity?.credential && !ownerAuthed && (
+          <p className="mt-2 text-xs text-zinc-500">Sign in with Google or owner session to post. Feed reading remains public.</p>
+        )}
       </div>
 
       {loading && <p className="relative z-10 text-zinc-500">Loading feed...</p>}

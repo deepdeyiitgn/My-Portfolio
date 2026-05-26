@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, Radio, Search, Activity, Users, MessageSquare, LogOut } from 'lucide-react';
+import { Menu, X, Radio, Search, Activity, Users, MessageSquare, LogOut, Bell, Megaphone } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 const NAV_LINKS = [
@@ -14,6 +14,7 @@ const NAV_LINKS = [
   { key: 'nav.links', path: '/links' },
   { key: 'nav.proof', path: '/proof' },
   { key: 'nav.journal', path: '/journal' },
+  { key: 'nav.community', path: '/community' },
   { key: 'nav.now', path: '/now' },
   { key: 'nav.faq', path: '/faq' },
   { key: 'nav.contact', path: '/contact' },
@@ -143,6 +144,28 @@ export default function Header() {
                 Logout
               </button>
             )}
+            <Link
+              to="/updates"
+              aria-label="Updates"
+              className={`inline-flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-300 ${
+                location.pathname === '/updates'
+                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-500'
+                  : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-amber-500 hover:border-amber-500/40'
+              }`}
+            >
+              <Megaphone size={15} />
+            </Link>
+            <Link
+              to="/notification"
+              aria-label="Notifications"
+              className={`inline-flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-300 ${
+                location.pathname === '/notification'
+                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-500'
+                  : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-amber-500 hover:border-amber-500/40'
+              }`}
+            >
+              <Bell size={15} />
+            </Link>
             {/* 🔍 Search Icon Button (Desktop) — navigates to /search, Ctrl+K */}
             <button
               onClick={() => navigate('/search')}
@@ -236,6 +259,22 @@ export default function Header() {
                   <Search size={16} />
                   Search Anything...
                 </button>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <Link
+                    to="/updates"
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] bg-zinc-900/40 hover:bg-zinc-900/70 border border-zinc-700/60 hover:border-amber-500/40 text-zinc-200 hover:text-amber-500 rounded-xl transition-all duration-300 font-mono text-xs tracking-wider uppercase"
+                  >
+                    <Megaphone size={14} /> Updates
+                  </Link>
+                  <Link
+                    to="/notification"
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] bg-zinc-900/40 hover:bg-zinc-900/70 border border-zinc-700/60 hover:border-amber-500/40 text-zinc-200 hover:text-amber-500 rounded-xl transition-all duration-300 font-mono text-xs tracking-wider uppercase"
+                  >
+                    <Bell size={14} /> Alerts
+                  </Link>
+                </div>
                 <a
                   href="/static-pages.html"
                   onClick={() => setIsOpen(false)}

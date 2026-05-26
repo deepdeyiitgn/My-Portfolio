@@ -7,11 +7,24 @@ import type { UpdateItem } from '../types/community';
 export default function Updates() {
   const { identity } = useGoogleIdentity();
   const { openExternal, isExternalUrl } = useExternalLinkProxy();
+  const [ownerAuthed, setOwnerAuthed] = useState(false);
   const [items, setItems] = useState<UpdateItem[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const [ctaLabel, setCtaLabel] = useState('');
+  const [ctaUrl, setCtaUrl] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth')
+      .then((response) => response.json())
+      .then((payload) => setOwnerAuthed(Boolean(payload?.authenticated)))
+      .catch(() => setOwnerAuthed(false));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +49,53 @@ export default function Updates() {
     return () => { cancelled = true; };
   }, [identity?.credential, page]);
 
+  const createUpdate = async () => {
+    if (!ownerAuthed || !title.trim() || !message.trim()) return;
+    setSaving(true);
+    try {
+      const response = await fetch('/api/journal?action=updates-create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: title.trim(),
+          message: message.trim(),
+          ctaLabel: ctaLabel.trim(),
+          ctaUrl: ctaUrl.trim(),
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload?.ok) throw new Error(payload?.message || 'Failed to publish update');
+      if (payload?.item) {
+        setItems((prev) => [{ ...payload.item, _id: String(payload.item._id) }, ...prev]);
+      }
+      setTitle('');
+      setMessage('');
+      setCtaLabel('');
+      setCtaUrl('');
+      setPage(1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to publish update');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteUpdate = async (id: string) => {
+    if (!ownerAuthed) return;
+    try {
+      const response = await fetch('/api/journal?action=updates-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload?.ok) throw new Error(payload?.message || 'Failed to delete update');
+      setItems((prev) => prev.filter((item) => item._id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete update');
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-6 py-12 space-y-6">
       <SEO
@@ -45,6 +105,25 @@ export default function Updates() {
       />
       <h2 className="text-amber-500 font-mono tracking-[0.3em] uppercase text-xs">Updates</h2>
       <h1 className="text-4xl md:text-6xl font-black text-white tracking-tight">System + Admin Feed</h1>
+
+      {ownerAuthed && (
+        <section className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-4 space-y-3">
+          <p className="text-xs uppercase tracking-widest text-amber-400 font-mono">Owner Broadcast Console</p>
+          <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Update title" className="w-full rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 text-zinc-200 text-sm" />
+          <textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Update message" className="w-full min-h-24 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 text-zinc-200 text-sm" />
+          <div className="grid md:grid-cols-2 gap-2">
+            <input value={ctaLabel} onChange={(event) => setCtaLabel(event.target.value)} placeholder="CTA label (optional)" className="w-full rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 text-zinc-200 text-sm" />
+            <input value={ctaUrl} onChange={(event) => setCtaUrl(event.target.value)} placeholder="CTA URL (optional)" className="w-full rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 text-zinc-200 text-sm" />
+          </div>
+          <button
+            onClick={createUpdate}
+            disabled={saving || !title.trim() || !message.trim()}
+            className="px-4 py-2 rounded-xl bg-amber-500 text-black text-xs font-black disabled:opacity-50"
+          >
+            {saving ? 'Publishing…' : 'Publish Update'}
+          </button>
+        </section>
+      )}
 
       {loading && <p className="text-zinc-500">Loading updates...</p>}
       {error && <p className="text-red-400">{error}</p>}
@@ -71,6 +150,14 @@ export default function Updates() {
                 className="px-3 py-2 rounded-xl bg-amber-500 text-black text-xs font-black"
               >
                 {item.ctaLabel || 'Open'}
+              </button>
+            )}
+            {ownerAuthed && (
+              <button
+                onClick={() => deleteUpdate(item._id)}
+                className="px-3 py-2 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-semibold"
+              >
+                Delete
               </button>
             )}
           </article>
