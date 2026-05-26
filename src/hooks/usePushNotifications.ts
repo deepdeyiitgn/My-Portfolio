@@ -35,7 +35,7 @@ export function usePushNotifications(identity: GoogleIdentity | null) {
     const permissionValue = await ensurePermission();
     if (permissionValue !== 'granted') return { ok: false, message: 'Permission denied' };
 
-    const registration = await navigator.serviceWorker.register('/push-sw.js');
+    const registration = await navigator.serviceWorker.register('/service-worker.js');
     const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
     if (!vapidPublicKey) return { ok: false, message: 'Missing VAPID key' };
 
@@ -59,7 +59,7 @@ export function usePushNotifications(identity: GoogleIdentity | null) {
 
   const unsubscribe = useCallback(async () => {
     if (!supported || !identity?.credential) return { ok: false };
-    const registration = await navigator.serviceWorker.getRegistration('/push-sw.js');
+    const registration = await navigator.serviceWorker.getRegistration('/service-worker.js');
     const sub = await registration?.pushManager.getSubscription();
     if (sub) await sub.unsubscribe();
     const response = await fetch('/api/journal?action=push-unsubscribe', {

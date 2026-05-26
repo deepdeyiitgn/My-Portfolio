@@ -1703,7 +1703,10 @@ module.exports = async (req, res) => {
         }
       }
 
-      if (action === 'proxy-redirect') {
+      // --- START: PROXY REDIRECT HANDLER ---
+      // Logs outbound external-link click analytics and then redirects to the approved URL.
+      // Supports both `proxy-redirect` and `proxy_redirect` action names.
+      if (action === 'proxy-redirect' || action === 'proxy_redirect') {
         const target = String(getParam(req, 'target') || '').trim();
         const sourcePage = String(getParam(req, 'sourcePage') || 'unknown').trim().slice(0, 120) || 'unknown';
         try {
@@ -1730,6 +1733,7 @@ module.exports = async (req, res) => {
         } catch (error) {
           return json(res, 400, { ok: false, message: String(error?.message || 'Invalid redirect target.') });
         }
+        // --- END: PROXY REDIRECT HANDLER ---
       }
 
       if (action === 'community-feed') {
@@ -1901,6 +1905,8 @@ module.exports = async (req, res) => {
         });
       }
       // --- END: PAGE ANALYTICS FEED HANDLER ---
+
+      if (action === 'updates-system-log') {
         if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
         const since = String(getParam(req, 'since') || '').trim();
         const dateFilter = since ? new Date(since) : null;

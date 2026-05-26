@@ -73,13 +73,13 @@ async function flushViaFetch(events: PageViewEvent[]) {
   if (events.length === 0) return;
   const userId = getUserId();
   try {
-    await fetch(INGEST_URL, {
+    const response = await fetch(INGEST_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ events, userId }),
       keepalive: true,
     });
-    clearBuffer();
+    if (response.ok) clearBuffer();
   } catch { /* network error — keep buffer for next flush */ }
 }
 
@@ -87,7 +87,7 @@ async function flushViaFetch(events: PageViewEvent[]) {
 let visibilityHandler: (() => void) | null = null;
 let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
 let backgroundFlushInterval: ReturnType<typeof setInterval> | null = null;
-let currentPageEntry: { path: string; startTs: number } | null = null;
+let currentPageEntry: { path: string; startTs: number; eventTs: number } | null = null;
 
 function resetInactivityTimer() {
   if (inactivityTimer) clearTimeout(inactivityTimer);
@@ -101,7 +101,7 @@ export function trackPageView(path: string) {
   // Close out previous page entry with time-spent calculation.
   if (currentPageEntry) {
     const buf = readBuffer();
-    const idx = buf.findIndex((e) => e.path === currentPageEntry!.path && e.ts === currentPageEntry!.ts);
+    const idx = buf.findIndex((e) => e.path === currentPageEntry.path && e.ts === currentPageEntry.eventTs);
     if (idx >= 0) {
       buf[idx].timeSpentMs = Date.now() - currentPageEntry.startTs;
       writeBuffer(buf);
@@ -117,12 +117,12 @@ export function trackPageView(path: string) {
   const buf = readBuffer();
   buf.push(event);
   writeBuffer(buf);
-  currentPageEntry = { path, startTs: Date.now() };
+  currentPageEntry = { path, startTs: Date.now(), eventTs: event.ts };
 
   // Flush eagerly if buffer is large enough.
   if (buf.length >= MAX_BUFFER_EVENTS) {
     flushViaFetch(buf);
-    currentPageEntry = { path, startTs: Date.now() };
+    currentPageEntry = { path, startTs: Date.now(), eventTs: event.ts };
   }
 
   resetInactivityTimer();

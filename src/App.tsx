@@ -6,6 +6,7 @@ import StatusWidget from './components/StatusWidget';
 import LoadingScreen from './components/LoadingScreen';
 import CustomPointerSystem from './components/CustomPointerSystem';
 import GoogleAuthGate from './components/GoogleAuthGate';
+import CookieBanner from './components/CookieBanner';
 import { trackPageView, registerAnalyticsListeners, unregisterAnalyticsListeners } from './hooks/usePageAnalytics';
 
 // Lazy Loaded Pages
@@ -79,7 +80,6 @@ const Updates = lazy(() => import('./pages/Updates'));
 const Notification = lazy(() => import('./pages/Notification'));
 const Cookies = lazy(() => import('./pages/Cookies'));
 const NotFound = lazy(() => import('./pages/NotFound'));
-import CookieBanner from './components/CookieBanner';
 const MIN_LOADER_MS = 3000;
 const PROGRESS_UPDATE_INTERVAL_MS = 120;
 const COMMENT_USER_STORAGE_KEY = 'dd_comment_user';
@@ -112,6 +112,42 @@ function AnimatedRoutes() {
 
   useEffect(() => {
     trackPageView(location.pathname);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const onDocumentClick = (event: MouseEvent) => {
+      if (event.defaultPrevented) return;
+      const target = event.target as HTMLElement | null;
+      const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
+      if (!anchor) return;
+
+      const hrefAttr = (anchor.getAttribute('href') || '').trim();
+      if (!hrefAttr || hrefAttr.startsWith('#') || hrefAttr.startsWith('/')) return;
+      if (/^(mailto:|tel:|javascript:|data:)/i.test(hrefAttr)) return;
+
+      let parsed: URL;
+      try {
+        parsed = new URL(anchor.href, window.location.href);
+      } catch {
+        return;
+      }
+
+      if (!/^https?:$/i.test(parsed.protocol)) return;
+      if (parsed.hostname === window.location.hostname) return;
+
+      event.preventDefault();
+      const proxyUrl = `/api/journal?action=proxy_redirect&target=${encodeURIComponent(parsed.toString())}&sourcePage=${encodeURIComponent(location.pathname)}`;
+      if (anchor.target === '_blank') {
+        window.open(proxyUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      window.location.href = proxyUrl;
+    };
+
+    document.addEventListener('click', onDocumentClick);
+    return () => {
+      document.removeEventListener('click', onDocumentClick);
+    };
   }, [location.pathname]);
 
   useEffect(() => {
