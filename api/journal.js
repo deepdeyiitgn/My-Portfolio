@@ -40,6 +40,7 @@ const fs = require('fs');
 const path = require('path');
 const dns = require('dns').promises;
 const net = require('net');
+const webPush = require('web-push');
 
 let cachedClient = null;
 let cachedSpaTemplate = null;
@@ -64,6 +65,7 @@ const COMMUNITY_ALLOWED_PROXY_CONTENT_TYPES = {
 const MAX_PROXY_FETCH_BYTES = 8 * 1024 * 1024;
 const COMMUNITY_REACTION_MAX_DISTINCT = 7;
 let communityIndexesReady = false;
+let vapidConfigured = false;
 const RENDER_STATIC_PAGE_META = {
   '/': {
     title: 'Deep Dey | Software Architect & JEE 2027 Aspirant',
@@ -397,6 +399,7 @@ function getParam(req, name) {
     await Promise.allSettled([
       db.collection('community_posts').createIndex({ createdAt: -1 }),
       db.collection('community_posts').createIndex({ pinned: -1, createdAt: -1 }),
+      db.collection('community_polls').createIndex({ createdAt: -1 }),
       db.collection('updates_feed').createIndex({ createdAt: -1 }),
       db.collection('user_notifications').createIndex({ userId: 1, read: 1, createdAt: -1 }),
       db.collection('push_subscriptions').createIndex({ userId: 1, endpoint: 1 }, { unique: true }),
@@ -405,6 +408,17 @@ function getParam(req, name) {
       db.collection('link_analytics_events').createIndex({ userId: 1, createdAt: -1 }),
     ]);
     communityIndexesReady = true;
+  }
+
+  function ensureVapidConfigured() {
+    if (vapidConfigured) return true;
+    const publicKey = String(process.env.VAPID_PUBLIC_KEY || '').trim();
+    const privateKey = String(process.env.VAPID_PRIVATE_KEY || '').trim();
+    const subject = String(process.env.VAPID_SUBJECT || 'mailto:admin@deepdey.vercel.app').trim();
+    if (!publicKey || !privateKey) return false;
+    webPush.setVapidDetails(subject, publicKey, privateKey);
+    vapidConfigured = true;
+    return true;
   }
 }
 
@@ -3134,6 +3148,16 @@ module.exports = async (req, res) => {
           updatedAt: now,
         };
         const result = await db.collection('community_posts').insertOne(postDoc);
+        if (pollDoc) {
+          await db.collection('community_polls').insertOne({
+            postId: result.insertedId,
+            ...pollDoc,
+            pollVotes: {},
+            createdAt: now,
+            createdAtIST: nowIST(),
+            updatedAt: now,
+          });
+        }
 
         const systemUpdate = {
           kind: 'system',
@@ -3215,6 +3239,10 @@ module.exports = async (req, res) => {
         });
         pollVotes[tokenUser.userId] = optionId;
         await postsCol.updateOne({ _id: new ObjectId(postId) }, { $set: { poll, pollVotes, updatedAt: new Date() } });
+        await db.collection('community_polls').updateOne(
+          { postId: new ObjectId(postId) },
+          { $set: { ...poll, pollVotes, updatedAt: new Date() } },
+        );
         return json(res, 200, { ok: true, poll: { ...poll, votedOptionByUser: optionId } });
       }
 
@@ -3350,8 +3378,36 @@ module.exports = async (req, res) => {
         const now = new Date();
         const doc = { userId, title, message, type: 'admin', link, read: false, createdAt: now, createdAtIST: nowIST() };
         await db.collection('user_notifications').insertOne(doc);
-        const subs = await db.collection('push_subscriptions').countDocuments({ userId });
-        return json(res, 200, { ok: true, queuedNotifications: subs });
+        const subs = await db.collection('push_subscriptions').find({ userId }).toArray();
+        let delivered = 0;
+        let failed = 0;
+        if (ensureVapidConfigured()) {
+          const payload = JSON.stringify({
+            title,
+            body: message,
+            url: link,
+          });
+          for (const sub of subs) {
+            const subscription = {
+              endpoint: String(sub.endpoint || ''),
+              keys: {
+                p256dh: String(sub.keys?.p256dh || ''),
+                auth: String(sub.keys?.auth || ''),
+              },
+            };
+            if (!subscription.endpoint || !subscription.keys.p256dh || !subscription.keys.auth) {
+              failed += 1;
+              continue;
+            }
+            try {
+              await webPush.sendNotification(subscription, payload);
+              delivered += 1;
+            } catch {
+              failed += 1;
+            }
+          }
+        }
+        return json(res, 200, { ok: true, queuedNotifications: subs.length, delivered, failed, vapidConfigured });
       }
 
       if (action === 'status-monitor-config') {

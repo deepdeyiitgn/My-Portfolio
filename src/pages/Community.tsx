@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import SEO from '../components/SEO';
 import Composer from '../components/community/Composer';
 import MessageCard from '../components/community/MessageCard';
 import GalleryModal from '../components/community/GalleryModal';
 import { useGoogleIdentity } from '../hooks/useGoogleIdentity';
 import { useCommunityFeed } from '../hooks/useCommunityFeed';
+import type { CommunityAttachment, CommunityPoll } from '../types/community';
 
 export default function Community() {
   const { identity } = useGoogleIdentity();
@@ -29,7 +30,7 @@ export default function Community() {
     </svg>
   ), []);
 
-  const handleSend = async (payload: Parameters<typeof Composer>[0] extends never ? never : { text: string; attachments: any[]; poll: any }) => {
+  const handleSend = async (payload: { text: string; attachments: CommunityAttachment[]; poll: CommunityPoll | null }) => {
     if (!identity?.credential) return;
     setUploading(true);
     try {
@@ -72,17 +73,18 @@ export default function Community() {
 
       <div className="relative z-10 space-y-4">
         {posts.map((post) => (
-          <MessageCard
-            key={post._id}
-            post={post}
-            onReact={(emoji) => react(post._id, emoji)}
-            onPollVote={(pollId, optionId) => votePoll(post._id, pollId, optionId)}
-            onImageClick={(index) => {
-              const imgs = post.attachments.filter((item) => item.kind === 'image' && item.url).map((item) => String(item.url));
-              setGalleryImages(imgs);
-              setGalleryIndex(index);
-            }}
-          />
+          <Fragment key={post._id}>
+            <MessageCard
+              post={post}
+              onReact={(emoji) => react(post._id, emoji)}
+              onPollVote={(pollId, optionId) => votePoll(post._id, pollId, optionId)}
+              onImageClick={(index) => {
+                const imgs = post.attachments.filter((item) => item.kind === 'image' && item.url).map((item) => String(item.url));
+                setGalleryImages(imgs);
+                setGalleryIndex(index);
+              }}
+            />
+          </Fragment>
         ))}
       </div>
 

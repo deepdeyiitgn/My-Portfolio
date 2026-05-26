@@ -150,12 +150,10 @@ function CommentText({
   text,
   onLinkClick,
   trustedLinks,
-  trustedUrlBuilder,
 }: {
   text: string;
   onLinkClick: (url: string) => void;
   trustedLinks?: boolean;
-  trustedUrlBuilder?: (url: string) => string;
 }) {
   const parts: Array<{ type: 'text' | 'link'; value: string }> = [];
   let last = 0;
@@ -177,7 +175,7 @@ function CommentText({
           return trustedLinks ? (
             <a
               key={i}
-              href={trustedUrlBuilder ? trustedUrlBuilder(safeUrl) : safeUrl}
+              href={safeUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-amber-400 underline hover:text-amber-300 transition-colors break-all"
@@ -436,7 +434,6 @@ function CommentItem({
                 text={comment.text}
                 onLinkClick={onLinkClick}
                 trustedLinks={isVerifiedComment}
-                trustedUrlBuilder={(url) => buildProxyRedirectUrl(url, '/journal')}
               />
             </p>
           )}
@@ -586,7 +583,7 @@ function CommentItem({
 // ── Main CommentSection Component ─────────────────────────────────────────────
 
 export default function CommentSection({ journalId }: { journalId: string }) {
-  const { openExternal, buildProxyRedirectUrl } = useExternalLinkProxy();
+  const { openExternal } = useExternalLinkProxy();
   const [currentUser, setCurrentUser] = useState<GoogleUser | null>(null);
   const [isOwner, setIsOwner] = useState(false);
 

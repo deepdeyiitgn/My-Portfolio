@@ -66,7 +66,9 @@ export default function MediaCards({
       ))}
 
       {attachments.filter((item) => item.kind === 'location' && item.latitude && item.longitude).map((item) => (
-        <MapCard key={item.id} latitude={Number(item.latitude)} longitude={Number(item.longitude)} />
+        <div key={item.id}>
+          <MapCard latitude={Number(item.latitude)} longitude={Number(item.longitude)} />
+        </div>
       ))}
 
       {attachments.filter((item) => item.kind === 'link-preview').map((item) => (
