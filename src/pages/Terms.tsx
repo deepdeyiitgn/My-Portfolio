@@ -22,43 +22,43 @@ export default function Terms() {
 
       <div className="space-y-10 text-zinc-400 leading-relaxed font-light">
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">1. Acceptance of Architecture</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">1. Acceptance of Terms</h2>
           <p>
-            By accessing the Deep Dey Digital Infrastructure, including but not limited to the QLYNK ecosystem, QuickLink URL Suite, the Transparent Clock application, the Journal platform, and associated comment and user profile systems, you agree to be bound by these Terms of Service. This infrastructure is a high-fidelity digital environment designed and maintained by Deep Dey. If you do not agree with any part of these terms, you are prohibited from utilizing these assets.
+            By accessing the Deep Dey platform, including the QLYNK ecosystem, QuickLink tools, Transparent Clock application, Journal, community areas, and related profile systems, you agree to these Terms of Service. If you do not agree, please do not use these services.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">2. Asset Utilization & Licenses</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">2. Software Use and License Boundaries</h2>
           <p>
-            All software products, including "Transparent Clock" and "QuickLink", are provided under a strict View-Only/Restricted Use license. You are granted a limited, non-exclusive, non-transferable license to utilize these tools for personal productivity. Any attempt to reverse-engineer, redistribute, or monetize these individual assets without explicit written authorization is a violation of these terms.
+            Software published through this ecosystem is provided under a limited, non-exclusive, non-transferable license for personal and non-commercial use unless a separate written agreement states otherwise. You may not redistribute, sublicense, reverse-engineer, or commercialize these assets without prior written permission.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">3. Watermark Requirement for Paid & Free Work</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">3. Attribution and Watermark Requirements</h2>
           <p>
-            If any paid or free project work is delivered using this ecosystem, the official Powered by Deep watermark script must remain active on the deployed website. The script placement and attribution format may be provided by the owner through official channels, and removal or intentional concealment of attribution is treated as a terms violation.
+            For projects delivered using this ecosystem, attribution requirements (including the Powered by Deep watermark system where applicable) must be followed unless the owner provides a written exemption. Removing or intentionally hiding required attribution is a policy violation.
           </p>
           <p>
-            Approved showcase entries may be listed on this website as part of delivery history, portfolio proof, or architecture usage records.
+            Approved project deliveries may be shown in portfolio and showcase records for proof of delivery and architecture credit.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">4. Journal & Comment System</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">4. Journal, Community, and Comment Use</h2>
           <p>
-            The Deep Dey Journal platform allows authenticated users to post public comments on journal entries using Google Sign-In. By using the comment system, you agree to post only lawful, respectful, and non-abusive content. Comments containing profanity, spam, harassment, or illegal material will be automatically censored or removed. Repeat violators may be temporarily or permanently blocked from the platform. You retain ownership of your comments but grant Deep Dey a non-exclusive, royalty-free license to display and moderate your content on this platform.
+            Google-authenticated users may post comments and participate in eligible community features. You must post lawful, respectful, and non-abusive content. Spam, harassment, illegal content, hate speech, and malicious links may be filtered, moderated, or removed. Repeated violations may result in temporary or permanent access restrictions.
           </p>
           <p>
-            By participating in the comment system, you acknowledge that your <span className="text-amber-500/80">IP address</span> and <span className="text-amber-500/80">country of origin</span> are recorded at the time of your <span className="text-amber-500/80">first comment (account creation)</span> and most recent <span className="text-amber-500/80">activity</span>. This data is used exclusively for moderation, security, and abuse prevention purposes. It is accessible only to the site administrator and is never shared with or sold to third parties.
+            You retain ownership of your submitted content, but grant Deep Dey a non-exclusive license to host, display, and moderate that content on this platform. IP and country metadata may be recorded for moderation, abuse prevention, and account security. This metadata is owner-access only and is not sold to third parties.
           </p>
         </section>
 
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">5. User Profiles</h2>
           <p>
-            When you sign in with Google to leave a comment, a public user profile is created at <span className="text-amber-500/80">/user/[your-id]</span>. This profile displays your display name, Google profile picture, comment activity, contribution graph showing your commenting history by year, and any bio or social links you voluntarily add. You may edit your profile at any time using the same Google account. Profile information is publicly visible to all visitors of this site. The owner of this site also has a public profile accessible at <span className="text-amber-500/80">/user/owner</span>.
+            Signing in with Google creates a public profile at <span className="text-amber-500/80">/user/[your-id]</span>. Depending on your settings, this may display your name, avatar, activity history, and optional profile fields. You can edit your profile using the same Google account.
           </p>
         </section>
 
@@ -72,7 +72,7 @@ export default function Terms() {
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">7. Prohibited Conduct</h2>
           <p>
-            Users must not attempt to breach the security of the QLYNK node ecosystem or disrupt the performance of the hosted tools. Targeted scraping, automated account creation on QuickLink, or any form of DDoS attack will result in immediate termination of access and potential legal escalation. Posting abusive, defamatory, or spam content in the journal comment system is strictly prohibited.
+            You must not disrupt service availability, attempt unauthorized access, perform abusive automation, scrape protected data, create fake accounts, or launch denial-of-service activity. Attempts to bypass moderation, authentication, or security controls may result in immediate suspension and further action where legally required.
           </p>
         </section>
 
@@ -86,13 +86,13 @@ export default function Terms() {
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">9. Governing Law</h2>
           <p>
-            These terms are governed by the digital laws of the Republic of India, specifically within the jurisdiction of Tripura, where the core system coordinates are established.
+            These terms are governed by applicable laws of India. For legal and operational purposes, services are operated from Tripura, India.
           </p>
         </section>
       </div>
 
       <div className="pt-12 border-t border-zinc-900 text-center">
-        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">System Node: LEG-TOS-V4</p>
+        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">System Node: LEG-TOS-V5</p>
       </div>
     </div>
   );

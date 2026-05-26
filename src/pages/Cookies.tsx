@@ -25,12 +25,12 @@ export default function Cookies() {
       <div className="space-y-10 text-zinc-400 leading-relaxed font-light">
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">1. Tracking is Always On</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">1. Default-On Operational Tracking</h2>
           <p>
-            This site operates a lightweight, privacy-conscious analytics system that is <span className="text-amber-400 font-semibold">active by default</span>. There is no opt-out toggle. Visiting any page constitutes acknowledgment of this policy. Tracking is intentionally minimal and serves only operational and abuse-prevention purposes.
+            This site uses a lightweight first-party analytics and security model that is <span className="text-amber-400 font-semibold">enabled by default</span>. The purpose is operational reliability, abuse prevention, and service quality monitoring. By continuing to use the site, you acknowledge this policy.
           </p>
           <p>
-            We do <em>not</em> sell, share, or monetize any collected data. No third-party advertising networks are ever given access to your browsing behaviour on this site.
+            We do <em>not</em> sell, rent, or monetize browsing data. We also do not provide this data to advertising networks.
           </p>
         </section>
 
@@ -73,10 +73,10 @@ export default function Cookies() {
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">5. External Link Redirect Tracker</h2>
           <p>
-            Clicking external links (on the Projects, Links, Journal, Community, and Updates pages) routes you through an internal redirect endpoint (<code className="text-amber-400 font-mono text-sm">/api/journal?action=proxy-redirect</code>). This endpoint logs: the destination URL and its host, the referring page, your login state, and your user ID if signed in. After logging, it immediately issues an HTTP 302 redirect to the original destination URL, so no page content is proxied.
+            Clicking external links (including links in Projects, Links, Journal, Community, Updates, and other dynamic content) routes through an internal redirect endpoint (<code className="text-amber-400 font-mono text-sm">/api/journal?action=proxy_redirect</code>). This endpoint logs destination URL/host, source page, login state, and user ID (if signed in), then immediately returns an HTTP 302 redirect to the target URL.
           </p>
           <p>
-            This mechanism exists to detect link-abuse, understand content engagement, and identify broken or malicious external resources. Collected data is stored in the <code className="text-amber-400 font-mono text-sm">link_analytics_events</code> MongoDB collection, owner-access only.
+            This mechanism helps detect malicious links, monitor engagement trends, and identify broken destinations. Data is stored in the <code className="text-amber-400 font-mono text-sm">link_analytics_events</code> collection with owner-only dashboard access.
           </p>
         </section>
 
@@ -88,21 +88,28 @@ export default function Cookies() {
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">7. Data Retention &amp; Your Rights</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">7. Data Security</h2>
+          <p>
+            We apply reasonable safeguards for tracking data, including encrypted transit where applicable (TLS), restricted dashboard access, and owner-only visibility for operational analytics collections. Tracking records are used for platform operations and abuse prevention, not advertising resale.
+          </p>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">8. Data Retention &amp; Your Rights</h2>
           <p>
             Analytics data is retained for operational purposes and does not contain sensitive personal information beyond what is described above. You may request deletion of data associated with your Google user ID by contacting the site owner via the <a href="/contact" className="text-amber-400 underline hover:text-amber-300">Contact page</a>. Data linked to IP addresses (guest visitors) is not attributable to individuals and is retained for up to 12 months.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">8. No Third-Party Cookies</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">9. No Third-Party Cookies</h2>
           <p>
             This site does not use Google Analytics, Meta Pixel, or any other third-party tracking SDK. The only third-party network request during authentication is the Google OAuth token verification call, which is performed server-side and never exposes user credentials to the browser.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">9. Contact</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">10. Contact</h2>
           <p>
             For questions about this policy, contact the site owner at <a href="/contact" className="text-amber-400 underline hover:text-amber-300">deepdey.vercel.app/contact</a>.
           </p>

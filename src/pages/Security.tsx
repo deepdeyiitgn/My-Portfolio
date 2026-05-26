@@ -38,19 +38,26 @@ export default function Security() {
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">3. Prohibited Security Testing</h2>
           <p>
-            High-volume scanning, DDoS simulation, auth bypass attempts, data extraction, and account takeover testing on production without explicit authorization are prohibited. Unauthorized abuse activity may be blocked and logged for legal response.
+            High-volume scanning, denial-of-service simulation, auth bypass attempts, data extraction, and account-takeover testing on production systems without explicit written authorization are prohibited. Unauthorized disruptive testing may be blocked and logged for incident response.
           </p>
         </section>
 
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">4. Operational Controls</h2>
           <p>
-            Platform controls include access checks for owner actions, moderation records, abuse filtering, and watermark attribution governance. Security posture is continuously tuned as infrastructure and integrations evolve.
+            Platform controls include owner-only access checks, moderation records, abuse filtering, and watermark attribution systems. Security controls are reviewed and updated as infrastructure and integrations evolve.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">5. No Warranty</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">5. Good-Faith Security Research</h2>
+          <p>
+            Good-faith security research is appreciated when performed responsibly and without service disruption, privacy violations, or unauthorized data access. Please use the responsible disclosure process and allow reasonable time for remediation before public disclosure.
+          </p>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">6. No Warranty</h2>
           <p>
             Security measures are implemented with best effort but are provided without guarantees of uninterrupted or error-free operation. Users remain responsible for safe usage and local account/device security.
           </p>
@@ -58,7 +65,7 @@ export default function Security() {
       </div>
 
       <div className="pt-12 border-t border-zinc-900 text-center">
-        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">System Node: LEG-SEC-V1</p>
+        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">System Node: LEG-SEC-V2</p>
       </div>
     </div>
   );

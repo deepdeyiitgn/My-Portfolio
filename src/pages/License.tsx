@@ -24,14 +24,14 @@ export default function License() {
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">1. Grant of Limited Use</h2>
           <p>
-            You may review and use eligible components of this ecosystem only within the boundaries published by the owner. All rights not explicitly granted remain reserved by Deep Dey.
+            You may use eligible components of this ecosystem within the boundaries defined by the owner. Eligible components include public scripts, templates, frontend systems, watermark integrations, and related UI assets that are intentionally published for use. All rights not explicitly granted remain reserved.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">2. Mandatory Attribution Script</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">2. Attribution and Watermark Requirements</h2>
           <p>
-            For paid or free websites delivered using this work, the official Powered by Deep watermark script is required unless the owner provides written exemption. Attribution removal, tampering, or misleading replacement is not allowed.
+            Attribution is required for personal, free, and community usage where this work is reused. For commercial or custom agreements, attribution/watermark placement can be adjusted, removed, or replaced only through written approval. Unauthorized removal, tampering, or misleading attribution is not allowed.
           </p>
         </section>
 
@@ -45,13 +45,13 @@ export default function License() {
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">4. Restricted Actions</h2>
           <p>
-            You may not resell source code as your own product, remove owner credit requirements, claim visual/system authorship, or create deceptive derivatives that imply owner endorsement.
+            You may not resell source code as your own product, remove required attribution without approval, falsely claim authorship of visual/system architecture, or create deceptive derivatives implying owner endorsement.
           </p>
         </section>
       </div>
 
       <div className="pt-12 border-t border-zinc-900 text-center">
-        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">System Node: LEG-LIC-V1</p>
+        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">System Node: LEG-LIC-V2</p>
       </div>
     </div>
   );

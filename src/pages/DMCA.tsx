@@ -24,14 +24,14 @@ export default function DMCA() {
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">1. Policy Overview</h2>
           <p>
-            Deep Dey Infrastructure respects the intellectual property rights of others. We expect our users to do the same. In accordance with the Digital Millennium Copyright Act (DMCA), we will respond expeditiously to claims of copyright infringement committed using our tools or on our infrastructure if such claims are reported to our Designated Copyright Agent.
+            Deep Dey Infrastructure respects intellectual property rights and expects users to do the same. We respond to valid infringement notices in accordance with applicable copyright laws, including the DMCA where relevant.
           </p>
         </section>
 
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">2. Infringement Notification</h2>
           <p>
-            If you are a copyright owner or authorized to act on behalf of one, please report alleged copyright infringements by completing a DMCA Notice and delivering it to us. Upon receipt of a valid Notice, we will take whatever action, in our sole discretion, we deem appropriate, including removal of the challenged content.
+            If you are a copyright owner or authorized representative, you may submit an infringement notice. After receiving a valid notice, we will review the claim and may remove or restrict access to challenged material where appropriate.
           </p>
         </section>
 
@@ -47,15 +47,22 @@ export default function DMCA() {
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">4. Designated Node</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">4. Counter Notification</h2>
           <p>
-            All legal notices must be routed through: <span className="text-amber-500 font-mono">a@qlynk.me</span>. This is the primary intake node for intellectual property disputes.
+            If you believe content was removed or restricted in error, you may submit a counter notification with supporting details and a good-faith statement. Valid counter notices will be reviewed and handled under applicable law.
+          </p>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">5. Designated Contact</h2>
+          <p>
+            Legal copyright notices and counter notifications should be sent to: <span className="text-amber-500 font-mono">a@qlynk.me</span>.
           </p>
         </section>
       </div>
 
       <div className="pt-12 border-t border-zinc-900 text-center">
-        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">System Node: LEG-DMCA-V1</p>
+        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">System Node: LEG-DMCA-V2</p>
       </div>
     </div>
   );

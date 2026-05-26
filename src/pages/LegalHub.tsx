@@ -7,14 +7,14 @@ const LEGAL_NODES = [
   {
     id: 'terms',
     title: 'Terms of Service',
-    description: 'System utilization protocols and user conduct obligations.',
+    description: 'Service terms, acceptable use standards, and moderation rights.',
     icon: <FileText className="text-amber-500" />,
     path: '/terms'
   },
   {
     id: 'privacy',
     title: 'Privacy Policy',
-    description: 'Data sovereignty, encryption, and e-commerce migration logs.',
+    description: 'Data handling, local-first practices, and user privacy safeguards.',
     icon: <Lock className="text-amber-500" />,
     path: '/privacy'
   },
@@ -35,14 +35,14 @@ const LEGAL_NODES = [
   {
     id: 'dmca',
     title: 'DMCA Takedown',
-    description: 'Intellectual property protection and rights management.',
+    description: 'Copyright reporting and counter-notification process.',
     icon: <Shield className="text-amber-500" />,
     path: '/dmca'
   },
   {
     id: 'copyright',
     title: 'Copyright & License',
-    description: 'Ownership of the Dark-Amber architecture and View-Only source code.',
+    description: 'Ownership, branding rights, and repository usage limits.',
     icon: <Copyright className="text-amber-500" />,
     path: '/copyright'
   },
@@ -75,7 +75,7 @@ export default function LegalHub() {
           LEGAL <br /> <span className="text-amber-500 italic">ARCHITECTURE.</span>
         </h1>
         <p className="text-zinc-500 max-w-2xl mx-auto text-lg md:text-xl font-light">
-          Formalizing the governance of our digital ecosystems and architectural integrity.
+          Centralized legal and compliance documentation for the Deep Dey ecosystem.
         </p>
       </motion.div>
 
@@ -137,7 +137,7 @@ export default function LegalHub() {
               </div>
               <div className="p-6 bg-zinc-950/50 border-l-4 border-amber-500 rounded-r-3xl space-y-2">
                 <p className="text-white font-bold tracking-tight font-mono text-sm uppercase tracking-widest">Active Project Node: QLYNK</p>
-                <p className="text-sm text-zinc-400">All commercial transactions migrated to <span className="text-amber-500 underline">https://qlynk.vercel.me/</span> for increased enterprise stability.</p>
+                <p className="text-sm text-zinc-400">All commercial transactions migrated to <span className="text-amber-500 underline">https://qlynk.vercel.app/</span> for increased enterprise stability.</p>
               </div>
             </div>
           </div>

@@ -24,7 +24,7 @@ export default function Privacy() {
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">1. Local-First Philosophy</h2>
           <p>
-            The Deep Dey Digital Infrastructure operates on a "Local-First" data protocol. Applications such as "Transparent Clock" store configuration data exclusively on your local machine. We do not maintain a cloud-synchronized shadow of your personal productivity logs.
+            The Deep Dey platform follows a local-first approach where possible. Applications such as Transparent Clock store core configuration data on your own device. We do not maintain cloud copies of your personal productivity logs unless a feature explicitly requires server-side storage.
           </p>
         </section>
 
@@ -38,7 +38,7 @@ export default function Privacy() {
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">3. Email Collection and Re-Login Behavior</h2>
           <p>
-            For new users, email can be stored when account data is first persisted through Google-authenticated profile/comment/feedback flows. For existing users, email is refreshed when they authenticate again through Google and trigger those identity-sync flows. This allows support-side identity verification and keeps profile identity records updated over time.
+            For new users, email may be stored when account data is first created through Google-authenticated profile, comment, or feedback flows. For existing users, email may be refreshed when identity sync runs again after authentication. This supports account continuity, moderation, and support verification.
           </p>
         </section>
 
@@ -59,14 +59,14 @@ export default function Privacy() {
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">6. Journal, Feedback, and Moderation Metadata</h2>
           <p>
-            Community comments/feedback and related moderation metadata are stored in MongoDB Atlas. For abuse prevention and account safety, we may store first/last activity timestamps, IP, and country markers tied to account activity. This data is used only for platform integrity and owner moderation.
+            Community comments, feedback, and moderation metadata are stored in MongoDB Atlas. For abuse prevention and account security, we may store first/last activity timestamps, IP metadata, and country metadata linked to account activity. This metadata is used only for moderation, abuse prevention, and account security.
           </p>
         </section>
 
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">7. Authentication and Tokens</h2>
           <p>
-            Sign-in is powered by Google OAuth 2.0 identity tokens. We verify Google credentials server-side for protected actions. We do not store Google access tokens or refresh tokens in the database. Browser-side session state may be kept in localStorage and naturally expires per token lifetime.
+            Sign-in uses Google OAuth identity tokens. Credentials are verified server-side for protected actions. We do not store Google access tokens or refresh tokens in the database. Browser session state may be kept in localStorage and expires according to token/session validity.
           </p>
         </section>
 
@@ -80,7 +80,7 @@ export default function Privacy() {
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">9. Data Security and Retention</h2>
           <p>
-            API traffic uses TLS in transit and secured backend connections. We retain operational data as needed for site functionality, moderation, and support. You may request profile/content deletion by contacting the maintainer via the official support channels listed in <span className="text-amber-500/80">SUPPORT.md</span>.
+            We apply reasonable safeguards to protect stored and transmitted data, including encrypted transit where applicable (TLS), restricted operational access, and owner-only access to sensitive moderation records. Data is retained only as needed for platform operations, moderation, and support. You may request profile/content deletion through the official support channels listed in <span className="text-amber-500/80">SUPPORT.md</span>.
           </p>
         </section>
 
@@ -103,7 +103,7 @@ export default function Privacy() {
       </div>
 
       <div className="pt-12 border-t border-zinc-900 text-center">
-        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">System Node: LEG-PRIV-V3</p>
+        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">System Node: LEG-PRIV-V4</p>
       </div>
     </div>
   );

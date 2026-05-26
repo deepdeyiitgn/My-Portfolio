@@ -24,20 +24,20 @@ export default function Copyright() {
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">1. Intellectual Asset Ownership</h2>
           <p>
-            All content within this portfolio ecosystem, including but not limited to the "Dark-Amber" visual design language, the QLYNK node architecture, and the source code of "Transparent Clock" and "QuickLink", is the exclusive intellectual property of <span className="text-white font-bold">Deep Dey</span>. Reproduction or redistribution of these assets without express written consent is strictly prohibited.
+            All content in this portfolio ecosystem, including the Dark-Amber design language, QLYNK architecture assets, and source code for Transparent Clock and QuickLink, is the intellectual property of <span className="text-white font-bold">Deep Dey</span> unless stated otherwise. Reproduction or redistribution without written permission is prohibited.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">2. View-Only Source Code License</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">2. Source Code Usage Scope</h2>
           <p>
-            Publicly accessible source code repositories associated with this portfolio are provided under a <span className="text-amber-500 font-bold uppercase underline">Restricted View-Only License</span>. This license permits you to:
+            Public source repositories associated with this portfolio are shared for transparency, learning, and review under a restricted license. You may:
           </p>
           <ul className="list-disc pl-6 space-y-2">
             <li>Review the code for educational and peer-review purposes.</li>
             <li>Fork the repository for independent, non-commercial experimentation (Private only).</li>
           </ul>
-          <p>This license explicitly PROHIBITS:</p>
+          <p>This license does not allow:</p>
           <ul className="list-disc pl-6 space-y-2">
             <li>Production deployment of the code as a competing service.</li>
             <li>Claiming authorship of the "Dark-Amber" design system.</li>
@@ -55,13 +55,13 @@ export default function Copyright() {
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-white tracking-tight italic uppercase">4. Enforcement</h2>
           <p>
-            Violations of these architectural copyrights will be monitored and addressed. We leverage automated tracking on our CDN nodes to detect unauthorized mirroring of this portfolio or its core logic.
+            Violations of these rights may be investigated and addressed through moderation, takedown requests, and legal remedies where needed. We use operational monitoring systems to identify unauthorized mirroring of portfolio assets or core logic.
           </p>
         </section>
       </div>
 
       <div className="pt-12 border-t border-zinc-900 text-center">
-        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">System Node: LEG-COPY-V2</p>
+        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.5em]">System Node: LEG-COPY-V3</p>
       </div>
     </div>
   );
