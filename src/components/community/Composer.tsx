@@ -8,11 +8,14 @@ const MAX_LOCAL_FILE_SIZE = 100 * 1024 * 1024;
 function normalizeYoutubeEmbed(url: string) {
   try {
     const parsed = new URL(url);
-    if (parsed.hostname.includes('youtube.com')) {
+    const host = parsed.hostname.toLowerCase();
+    const isYoutubeHost = host === 'youtube.com' || host === 'www.youtube.com' || host === 'm.youtube.com';
+    const isYoutuBeHost = host === 'youtu.be' || host === 'www.youtu.be';
+    if (isYoutubeHost) {
       const v = parsed.searchParams.get('v');
       if (v) return `https://www.youtube.com/embed/${encodeURIComponent(v)}`;
     }
-    if (parsed.hostname.includes('youtu.be')) {
+    if (isYoutuBeHost) {
       const id = parsed.pathname.split('/').filter(Boolean)[0];
       if (id) return `https://www.youtube.com/embed/${encodeURIComponent(id)}`;
     }
