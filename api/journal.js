@@ -406,6 +406,11 @@ function getParam(req, name) {
       db.collection('link_analytics_events').createIndex({ targetHost: 1, createdAt: -1 }),
       db.collection('link_analytics_events').createIndex({ sourcePage: 1, createdAt: -1 }),
       db.collection('link_analytics_events').createIndex({ userId: 1, createdAt: -1 }),
+      // --- page_analytics indexes for batched internal page-view analytics ---
+      db.collection('page_analytics').createIndex({ ts: -1 }),
+      db.collection('page_analytics').createIndex({ path: 1, ts: -1 }),
+      db.collection('page_analytics').createIndex({ userId: 1, ts: -1 }),
+      db.collection('page_analytics').createIndex({ ip: 1, ts: -1 }),
     ]);
     communityIndexesReady = true;
   }
@@ -1837,7 +1842,65 @@ module.exports = async (req, res) => {
         return json(res, 405, { ok: false, message: 'Use POST for notification-feed.' });
       }
 
-      if (action === 'updates-system-log') {
+      // --- START: PAGE ANALYTICS FEED HANDLER ---
+      // Queries the page_analytics collection with time-range and path filters.
+      // Owner-only. Returns paginated rows + aggregates for the Internal Analytics dashboard tab.
+      if (action === 'page-analytics-feed') {
+        if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
+        const page = Math.max(1, parseInt(String(getParam(req, 'page') || '1'), 10) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(String(getParam(req, 'limit') || '20'), 10) || 20));
+        const skip = (page - 1) * limit;
+        const path = String(getParam(req, 'path') || '').trim();
+        const userId = String(getParam(req, 'userId') || '').trim();
+        const guestOnly = String(getParam(req, 'guestOnly') || '').trim().toLowerCase();
+        const from = String(getParam(req, 'from') || '').trim();
+        const to = String(getParam(req, 'to') || '').trim();
+        const filter = {};
+        if (path) filter.path = { $regex: path, $options: 'i' };
+        if (userId) filter.userId = userId;
+        if (guestOnly === 'true') filter.userId = { $in: [null, ''] };
+        const ts = {};
+        if (from) { const d = new Date(from); if (!Number.isNaN(d.getTime())) ts.$gte = d; }
+        if (to) { const d = new Date(to); if (!Number.isNaN(d.getTime())) ts.$lte = d; }
+        if (Object.keys(ts).length > 0) filter.ts = ts;
+        const col = db.collection('page_analytics');
+        const [rows, total, byPath, byUser, timeline] = await Promise.all([
+          col.find(filter).sort({ ts: -1 }).skip(skip).limit(limit).toArray(),
+          col.countDocuments(filter),
+          col.aggregate([
+            { $match: filter },
+            { $group: { _id: '$path', total: { $sum: 1 } } },
+            { $sort: { total: -1 } },
+            { $limit: 20 },
+          ]).toArray(),
+          col.aggregate([
+            { $match: filter },
+            { $group: { _id: { $cond: [{ $eq: ['$userId', null] }, 'guest', '$userId'] }, total: { $sum: 1 } } },
+            { $sort: { total: -1 } },
+            { $limit: 15 },
+          ]).toArray(),
+          col.aggregate([
+            { $match: filter },
+            { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$ts' } }, total: { $sum: 1 } } },
+            { $sort: { _id: 1 } },
+            { $limit: 90 },
+          ]).toArray(),
+        ]);
+        return json(res, 200, {
+          ok: true,
+          items: rows.map((r) => ({ ...r, _id: String(r._id) })),
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+          aggregates: {
+            byPath: byPath.map((e) => ({ path: String(e._id || '/'), total: Number(e.total) })),
+            byUser: byUser.map((e) => ({ userId: String(e._id || 'guest'), total: Number(e.total) })),
+            timeline: timeline.map((e) => ({ date: String(e._id), total: Number(e.total) })),
+          },
+        });
+      }
+      // --- END: PAGE ANALYTICS FEED HANDLER ---
         if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
         const since = String(getParam(req, 'since') || '').trim();
         const dateFilter = since ? new Date(since) : null;
@@ -1926,7 +1989,7 @@ module.exports = async (req, res) => {
           'journals', 'projects', 'timeline', 'categories', 'feedback_categories', 'feedbacks',
           'live_status', 'settings', 'config', 'search_analytics', 'comments', 'blocked_users', 'users',
           'community_posts', 'community_polls', 'updates_feed', 'user_notifications', 'push_subscriptions',
-          'link_analytics_events',
+          'link_analytics_events', 'page_analytics',
         ];
         const collections = {};
         for (const name of collectionNames) {
@@ -3329,6 +3392,37 @@ module.exports = async (req, res) => {
         return json(res, 200, { ok: true });
       }
 
+      // --- START: ANALYTICS BUNDLE INGEST HANDLER ---
+      // Receives a batch of page-view events buffered on the client (via localStorage + sendBeacon).
+      // Validates the payload, caps at 200 events per bundle, and bulk-inserts into page_analytics.
+      // Auth: public (no Google/owner required). IP is extracted server-side.
+      if (action === 'analytics-bundle') {
+        const body = await readBody(req);
+        const events = Array.isArray(body.events) ? body.events : [];
+        if (events.length === 0) return json(res, 200, { ok: true, inserted: 0 });
+        const MAX_EVENTS = 200;
+        const ip = String(
+          (req.headers['x-forwarded-for'] || '').split(',')[0] ||
+          req.headers['x-real-ip'] ||
+          req.socket?.remoteAddress ||
+          ''
+        ).trim().slice(0, 64);
+        const userId = String(body.userId || '').trim().slice(0, 128) || null;
+        const docs = events.slice(0, MAX_EVENTS).map((ev) => ({
+          path: String(ev.path || '/').slice(0, 512),
+          ts: new Date(typeof ev.ts === 'number' ? ev.ts : Date.now()),
+          timeSpentMs: typeof ev.timeSpentMs === 'number' ? Math.max(0, Math.round(ev.timeSpentMs)) : null,
+          referrer: String(ev.referrer || '').slice(0, 512) || null,
+          userId,
+          ip,
+          ua: String((req.headers['user-agent'] || '')).slice(0, 512) || null,
+          ingestedAt: new Date(),
+        }));
+        await db.collection('page_analytics').insertMany(docs, { ordered: false });
+        return json(res, 200, { ok: true, inserted: docs.length });
+      }
+      // --- END: ANALYTICS BUNDLE INGEST HANDLER ---
+
       if (action === 'push-subscribe') {
         const body = await readBody(req);
         const credential = String(body.credential || '').trim();
@@ -3367,6 +3461,10 @@ module.exports = async (req, res) => {
         return json(res, 200, { ok: true });
       }
 
+      // --- START: PUSH DISPATCH HANDLER ---
+      // Dispatch a targeted push notification to all subscriptions belonging to a userId.
+      // Sends in chunks of 50 with a 200 ms delay between chunks to avoid
+      // exhausting Vercel function CPU / concurrent-connection limits.
       if (action === 'push-dispatch') {
         if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });
         const body = await readBody(req);
@@ -3382,33 +3480,37 @@ module.exports = async (req, res) => {
         let delivered = 0;
         let failed = 0;
         if (ensureVapidConfigured()) {
-          const payload = JSON.stringify({
-            title,
-            body: message,
-            url: link,
-          });
-          for (const sub of subs) {
-            const subscription = {
-              endpoint: String(sub.endpoint || ''),
-              keys: {
-                p256dh: String(sub.keys?.p256dh || ''),
-                auth: String(sub.keys?.auth || ''),
-              },
-            };
-            if (!subscription.endpoint || !subscription.keys.p256dh || !subscription.keys.auth) {
-              failed += 1;
-              continue;
-            }
-            try {
-              await webPush.sendNotification(subscription, payload);
-              delivered += 1;
-            } catch {
-              failed += 1;
-            }
+          const payload = JSON.stringify({ title, body: message, url: link });
+          const CHUNK_SIZE = 50;
+          const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+          for (let i = 0; i < subs.length; i += CHUNK_SIZE) {
+            const chunk = subs.slice(i, i + CHUNK_SIZE);
+            await Promise.allSettled(chunk.map(async (sub) => {
+              const subscription = {
+                endpoint: String(sub.endpoint || ''),
+                keys: {
+                  p256dh: String(sub.keys?.p256dh || ''),
+                  auth: String(sub.keys?.auth || ''),
+                },
+              };
+              if (!subscription.endpoint || !subscription.keys.p256dh || !subscription.keys.auth) {
+                failed += 1;
+                return;
+              }
+              try {
+                await webPush.sendNotification(subscription, payload);
+                delivered += 1;
+              } catch {
+                failed += 1;
+              }
+            }));
+            // Pause between chunks to prevent Vercel connection exhaustion.
+            if (i + CHUNK_SIZE < subs.length) await delay(200);
           }
         }
         return json(res, 200, { ok: true, queuedNotifications: subs.length, delivered, failed, vapidConfigured });
       }
+      // --- END: PUSH DISPATCH HANDLER ---
 
       if (action === 'status-monitor-config') {
         if (!isAuthenticated(req)) return json(res, 401, { ok: false, message: 'Unauthorized' });

@@ -169,6 +169,16 @@ interface LinkAnalyticsItem {
   createdAt: string;
 }
 
+interface PageAnalyticsItem {
+  _id: string;
+  path: string;
+  ts: string;
+  timeSpentMs: number | null;
+  referrer: string | null;
+  userId: string | null;
+  ip: string;
+}
+
 interface BlockDoc {
   _id: string;
   userId: string;
@@ -1604,6 +1614,21 @@ export default function Dashboard() {
     bySource: Array<{ sourcePage: string; total: number }>;
     byUser: Array<{ userId: string; total: number }>;
   }>({ byHost: [], bySource: [], byUser: [] });
+
+  // ── Page Analytics state ───────────────────────────────────────────────────
+  const [analyticsSubTab, setAnalyticsSubTab] = useState<'links' | 'pages'>('links');
+  const [pageAnalyticsRows, setPageAnalyticsRows] = useState<PageAnalyticsItem[]>([]);
+  const [pageAnalyticsLoading, setPageAnalyticsLoading] = useState(false);
+  const [pageAnalyticsPage, setPageAnalyticsPage] = useState(1);
+  const [pageAnalyticsTotalPages, setPageAnalyticsTotalPages] = useState(1);
+  const [pageAnalyticsPathFilter, setPageAnalyticsPathFilter] = useState('');
+  const [pageAnalyticsTimeRange, setPageAnalyticsTimeRange] = useState<'7d' | '30d' | '6m' | '1y' | 'all'>('30d');
+  const [pageAnalyticsAggregates, setPageAnalyticsAggregates] = useState<{
+    byPath: Array<{ path: string; total: number }>;
+    byUser: Array<{ userId: string; total: number }>;
+    timeline: Array<{ date: string; total: number }>;
+  }>({ byPath: [], byUser: [], timeline: [] });
+  const [pageAnalyticsGuestOnly, setPageAnalyticsGuestOnly] = useState(false);
 
   // ── Comments storage sub-tab state ────────────────────────────────────────
   const [commentPosts, setCommentPosts] = useState<JournalCommentStat[]>([]);

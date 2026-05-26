@@ -6,6 +6,7 @@ import StatusWidget from './components/StatusWidget';
 import LoadingScreen from './components/LoadingScreen';
 import CustomPointerSystem from './components/CustomPointerSystem';
 import GoogleAuthGate from './components/GoogleAuthGate';
+import { trackPageView, registerAnalyticsListeners, unregisterAnalyticsListeners } from './hooks/usePageAnalytics';
 
 // Lazy Loaded Pages
 const Home = lazy(() => import('./pages/Home'));
@@ -76,7 +77,9 @@ const UserProfile = lazy(() => import('./pages/UserProfile'));
 const Community = lazy(() => import('./pages/Community'));
 const Updates = lazy(() => import('./pages/Updates'));
 const Notification = lazy(() => import('./pages/Notification'));
+const Cookies = lazy(() => import('./pages/Cookies'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+import CookieBanner from './components/CookieBanner';
 const MIN_LOADER_MS = 3000;
 const PROGRESS_UPDATE_INTERVAL_MS = 120;
 const COMMENT_USER_STORAGE_KEY = 'dd_comment_user';
@@ -100,6 +103,16 @@ function AnimatedRoutes() {
   const pendingRequestsRef = useRef(0);
   const previousPathnameRef = useRef(location.pathname);
   const processedShortcutSearchRef = useRef<string | null>(null);
+
+  // Track page views and register flush listeners once per session.
+  useEffect(() => {
+    registerAnalyticsListeners();
+    return () => unregisterAnalyticsListeners();
+  }, []);
+
+  useEffect(() => {
+    trackPageView(location.pathname);
+  }, [location.pathname]);
 
   useEffect(() => {
     pendingRequestsRef.current = pendingRequests;
@@ -421,6 +434,7 @@ function AnimatedRoutes() {
             <Route path="/license" element={<License />} />
             <Route path="/dmca" element={<DMCA />} />
             <Route path="/copyright" element={<Copyright />} />
+            <Route path="/cookies" element={<Cookies />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/live" element={<Live />} />
             <Route path="/search" element={<SearchResults />} /> {/* <-- NAYA ROUTE */}
@@ -452,6 +466,7 @@ export default function App() {
       <Layout>
         <AnimatedRoutes />
       </Layout>
+      <CookieBanner />
     </BrowserRouter>
   );
 }

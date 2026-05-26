@@ -1,3 +1,14 @@
+// --- START: SW LIFECYCLE: SKIP WAITING + CLAIM CLIENTS ---
+// Ensures a new SW version takes control immediately without the user needing to close all tabs.
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+// --- END: SW LIFECYCLE: SKIP WAITING + CLAIM CLIENTS ---
+
 self.addEventListener('push', (event) => {
   let payload = {};
   try {

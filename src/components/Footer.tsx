@@ -32,6 +32,7 @@ const COMPLIANCE_LINKS = [
   { name: 'Legal Hub', path: '/legal' },
   { name: 'Terms of Service', path: '/terms' },
   { name: 'Privacy Policy', path: '/privacy' },
+  { name: 'Cookie & Tracking Policy', path: '/cookies' },
   { name: 'Security Policy', path: '/security' },
   { name: 'License Terms', path: '/license' },
   { name: 'DMCA Policy', path: '/dmca' },

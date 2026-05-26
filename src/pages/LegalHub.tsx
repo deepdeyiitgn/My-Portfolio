@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Shield, FileText, Lock, Copyright, AlertTriangle, ExternalLink, ArrowRight } from 'lucide-react';
+import { Shield, FileText, Lock, Copyright, AlertTriangle, ArrowRight, Cookie } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 
@@ -45,6 +45,13 @@ const LEGAL_NODES = [
     description: 'Ownership of the Dark-Amber architecture and View-Only source code.',
     icon: <Copyright className="text-amber-500" />,
     path: '/copyright'
+  },
+  {
+    id: 'cookies',
+    title: 'Cookie & Tracking Policy',
+    description: 'Full disclosure of cookies, session tokens, batched analytics, and external-link trackers.',
+    icon: <Cookie className="text-amber-500" />,
+    path: '/cookies'
   }
 ];
 
