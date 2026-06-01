@@ -49,7 +49,7 @@ const LEGAL_NODES = [
   {
     id: 'cookies',
     title: 'Cookie & Tracking Policy',
-    description: 'Full disclosure of cookies, session tokens, batched analytics, and external-link trackers.',
+    description: 'Full disclosure of cookies, session tokens, UTM/IP page analytics, and external-link trackers.',
     icon: <Cookie className="text-amber-500" />,
     path: '/cookies'
   }

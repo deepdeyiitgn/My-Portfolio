@@ -242,6 +242,27 @@ function maskServiceKey(serviceKey?: string) {
   return '*'.repeat(serviceKey.length);
 }
 
+function normalizeUtmKeyForDisplay(rawKey: string) {
+  return String(rawKey || '').trim().toLowerCase().replace(/-/g, '_');
+}
+
+function formatUtmPairsForDisplay(utm?: Record<string, string> | null) {
+  if (!utm || typeof utm !== 'object') return [];
+  const priority = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+  const entries = Object.entries(utm)
+    .map(([key, value]) => [normalizeUtmKeyForDisplay(key), String(value || '').trim()] as const)
+    .filter(([key, value]) => /^utm(?:_|$)/.test(key) && value);
+  entries.sort((a, b) => {
+    const pa = priority.indexOf(a[0]);
+    const pb = priority.indexOf(b[0]);
+    if (pa === -1 && pb === -1) return a[0].localeCompare(b[0]);
+    if (pa === -1) return 1;
+    if (pb === -1) return -1;
+    return pa - pb;
+  });
+  return entries.map(([key, value]) => `${key}=${value}`);
+}
+
 const MONGODB_FREE_TIER_LIMIT_BYTES = 512 * 1024 * 1024; // 512 MB
 
 function Toast({ message, type }: { message: string; type: 'success' | 'error' }) {
@@ -4622,13 +4643,13 @@ export default function Dashboard() {
                 ) : (
                   <div className="divide-y divide-zinc-800">
                     {pageAnalyticsRows.map((row) => {
-                      const utmPairs = row.utm && typeof row.utm === 'object'
-                        ? Object.entries(row.utm).filter(([key, value]) => key && String(value || '').trim()).map(([key, value]) => `${key}: ${String(value)}`)
-                        : [];
+                      const utmPairs = formatUtmPairsForDisplay(row.utm || null);
                       return (
                         <div key={row._id} className="grid grid-cols-[1fr_1fr_0.8fr_0.7fr_1fr] gap-2 px-4 py-3 text-xs">
                           <span className="text-zinc-300 truncate" title={row.pathWithQuery || row.path}>{row.pathWithQuery || row.path}</span>
-                          <span className="text-zinc-400 truncate" title={utmPairs.length ? utmPairs.join(' | ') : 'No UTM'}>{utmPairs.length ? utmPairs.join(' | ') : 'No UTM'}</span>
+                          <span className="text-zinc-400 truncate" title={utmPairs.length ? utmPairs.join(' | ') : 'No UTM'}>
+                            {utmPairs.length ? utmPairs.join(' • ') : 'No UTM'}
+                          </span>
                           <span className="text-zinc-400 truncate" title={row.ip}>{row.ip}</span>
                           <span className="text-zinc-400">{row.userId || 'guest'}</span>
                           <span className="text-zinc-500">{new Date(row.ts).toLocaleString('en-IN')}</span>
@@ -4975,6 +4996,27 @@ export default function Dashboard() {
               <LogOut size={14} />
               Sign Out of Dashboard
             </button>
+          </div>
+
+          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-4">
+            <h3 className="text-white font-bold text-base flex items-center gap-2"><Users size={16} /> Community/Updates/Notifications Setup</h3>
+            <p className="text-zinc-500 text-xs">Owner dashboard confirms private route and owner-mode configuration for these pages.</p>
+            <div className="space-y-3 text-sm text-zinc-400">
+              {[
+                { name: 'Community', route: '/community', owner: 'Owner can post directly (same as dashboard flow)', api: 'community-feed, community-post' },
+                { name: 'Updates', route: '/updates', owner: 'Owner can publish/delete updates in-page', api: 'updates-feed, updates-create, updates-delete' },
+                { name: 'Notifications', route: '/notification', owner: 'Owner sees all users with user page links + can dispatch targeted notifications', api: 'notification-admin-feed, push-dispatch' },
+              ].map((item) => (
+                <div key={item.name} className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-white font-semibold text-sm">{item.name}</span>
+                    <a href={item.route} target="_blank" rel="noreferrer" className="text-amber-400 text-[11px] font-mono underline">Open {item.route}</a>
+                  </div>
+                  <p className="text-zinc-400 text-xs">{item.owner}</p>
+                  <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">API: {item.api}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Comment Blacklist Management */}

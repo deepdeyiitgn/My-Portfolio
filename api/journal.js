@@ -295,6 +295,26 @@ function escapeRegexLiteral(s) {
   return String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function normalizeUtmKey(rawKey) {
+  const key = String(rawKey || '').trim().toLowerCase().replace(/-/g, '_');
+  if (!key) return '';
+  return /^utm(?:_|$)/.test(key) ? key : '';
+}
+
+function sanitizeUtmEntries(rawUtm) {
+  if (!rawUtm || typeof rawUtm !== 'object' || Array.isArray(rawUtm)) {
+    return { utm: null, utmPairs: [] };
+  }
+  const entries = Object.entries(rawUtm)
+    .map(([key, value]) => [normalizeUtmKey(key), String(value || '').trim().slice(0, 512)])
+    .filter(([key, value]) => key && value)
+    .slice(0, 25);
+  if (!entries.length) return { utm: null, utmPairs: [] };
+  const utm = Object.fromEntries(entries.map(([key, value]) => [String(key).slice(0, 64), value]));
+  const utmPairs = entries.map(([key, value]) => `${String(key).slice(0, 64)}=${value}`);
+  return { utm, utmPairs };
+}
+
 function estimateReadMinutes(body) {
   const words = (body || '').trim().split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.ceil(words / 110));
@@ -3464,30 +3484,23 @@ module.exports = async (req, res) => {
           ''
         ).trim().slice(0, 64);
         const userId = String(body.userId || '').trim().slice(0, 128) || null;
-        const docs = events.slice(0, MAX_EVENTS).map((ev) => ({
-          path: String(ev.path || '/').slice(0, 512),
-          pathWithQuery: String(ev.pathWithQuery || ev.path || '/').slice(0, 1024),
-          query: String(ev.query || '').slice(0, 2048) || null,
-          ts: new Date(typeof ev.ts === 'number' ? ev.ts : Date.now()),
-          timeSpentMs: typeof ev.timeSpentMs === 'number' ? Math.max(0, Math.round(ev.timeSpentMs)) : null,
-          referrer: String(ev.referrer || '').slice(0, 512) || null,
-          utm: ev.utm && typeof ev.utm === 'object'
-            ? Object.fromEntries(
-              Object.entries(ev.utm)
-                .slice(0, 25)
-                .map(([key, value]) => [String(key).slice(0, 64), String(value || '').slice(0, 512)]),
-            )
-            : null,
-          utmPairs: ev.utm && typeof ev.utm === 'object'
-            ? Object.entries(ev.utm)
-              .slice(0, 25)
-              .map(([key, value]) => `${String(key).slice(0, 64)}=${String(value || '').slice(0, 512)}`)
-            : [],
-          userId,
-          ip,
-          ua: String((req.headers['user-agent'] || '')).slice(0, 512) || null,
-          ingestedAt: new Date(),
-        }));
+        const docs = events.slice(0, MAX_EVENTS).map((ev) => {
+          const { utm, utmPairs } = sanitizeUtmEntries(ev.utm);
+          return {
+            path: String(ev.path || '/').slice(0, 512),
+            pathWithQuery: String(ev.pathWithQuery || ev.path || '/').slice(0, 1024),
+            query: String(ev.query || '').slice(0, 2048) || null,
+            ts: new Date(typeof ev.ts === 'number' ? ev.ts : Date.now()),
+            timeSpentMs: typeof ev.timeSpentMs === 'number' ? Math.max(0, Math.round(ev.timeSpentMs)) : null,
+            referrer: String(ev.referrer || '').slice(0, 512) || null,
+            utm,
+            utmPairs,
+            userId,
+            ip,
+            ua: String((req.headers['user-agent'] || '')).slice(0, 512) || null,
+            ingestedAt: new Date(),
+          };
+        });
         await db.collection('page_analytics').insertMany(docs, { ordered: false });
         return json(res, 200, { ok: true, inserted: docs.length });
       }

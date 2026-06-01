@@ -28,6 +28,13 @@ interface PageViewEvent {
   query?: string;
 }
 
+function normalizeUtmKey(rawKey: string): string | null {
+  const key = String(rawKey || '').trim().toLowerCase().replace(/-/g, '_');
+  if (!key) return null;
+  if (/^utm(?:_|$)/.test(key)) return key;
+  return null;
+}
+
 function readBuffer(): PageViewEvent[] {
   try {
     return JSON.parse(localStorage.getItem(BUFFER_KEY) || '[]');
@@ -116,10 +123,9 @@ export function trackPageView(path: string) {
   if (search) {
     const params = new URLSearchParams(search);
     for (const [key, value] of params.entries()) {
-      if (!key) continue;
-      if (key.toLowerCase().startsWith('utm_')) {
-        utm[key] = value;
-      }
+      const normalizedKey = normalizeUtmKey(key);
+      if (!normalizedKey) continue;
+      utm[normalizedKey] = String(value || '').slice(0, 512);
     }
   }
 

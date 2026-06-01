@@ -66,10 +66,10 @@ export default function Cookies() {
             Transmission uses <code className="text-amber-400 font-mono text-sm">navigator.sendBeacon</code> (tab-close scenario) or a standard <code className="text-amber-400 font-mono text-sm">fetch</code> call. The data sent includes: page paths, timestamps, rough time-on-page estimates, the HTTP referrer, and — if you are signed in with Google — your user ID. Your IP address is captured server-side on ingestion.
           </p>
           <p>
-            If a visit URL contains UTM parameters (for example <code className="text-amber-400 font-mono text-sm">utm_source</code>, <code className="text-amber-400 font-mono text-sm">utm_medium</code>, <code className="text-amber-400 font-mono text-sm">utm_campaign</code>, or other <code className="text-amber-400 font-mono text-sm">utm_*</code> tags), those UTM values are also stored with the page analytics event for attribution reporting and abuse investigation.
+            If a visit URL contains UTM parameters (including all standard and extended tags such as <code className="text-amber-400 font-mono text-sm">utm_source</code>, <code className="text-amber-400 font-mono text-sm">utm_medium</code>, <code className="text-amber-400 font-mono text-sm">utm_campaign</code>, <code className="text-amber-400 font-mono text-sm">utm_term</code>, <code className="text-amber-400 font-mono text-sm">utm_content</code>, and other <code className="text-amber-400 font-mono text-sm">utm*</code> keys), those values are normalized and stored with each page analytics event for attribution reporting and abuse investigation.
           </p>
           <p>
-            This data is stored in a private MongoDB collection (<code className="text-amber-400 font-mono text-sm">page_analytics</code>) and is only accessible to the site owner via the Dashboard. It is never exposed publicly.
+            This data is stored in a private MongoDB collection (<code className="text-amber-400 font-mono text-sm">page_analytics</code>) and is only accessible to the site owner via the Dashboard. The dashboard presents paginated rows with page path, UTM set, and visitor IP in a clean owner-only format. It is never exposed publicly.
           </p>
         </section>
 

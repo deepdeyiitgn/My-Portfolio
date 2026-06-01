@@ -118,6 +118,15 @@ export default function Header() {
 
           <div className="hidden lg:flex items-center gap-3 shrink-0">
             <Link
+              to="/community"
+              className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider transition-colors ${
+                location.pathname === '/community' ? 'text-amber-500' : 'text-zinc-500 hover:text-amber-500'
+              }`}
+            >
+              <Users size={10} />
+              Community
+            </Link>
+            <Link
               to="/user"
               className={`hidden xl:inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider transition-colors ${
                 location.pathname === '/user' ? 'text-amber-500' : 'text-zinc-500 hover:text-amber-500'
@@ -199,23 +208,47 @@ export default function Header() {
           </div>
 
           {/* Mobile Menu Toggle */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="lg:hidden text-zinc-400 hover:text-amber-500 transition-colors p-2 z-[110] relative shrink-0"
-            aria-label="Toggle menu"
-          >
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={isOpen ? 'close' : 'open'}
-                initial={{ rotate: -90, opacity: 0 }}
-                animate={{ rotate: 0, opacity: 1 }}
-                exit={{ rotate: 90, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                {isOpen ? <X size={22} /> : <Menu size={22} />}
-              </motion.div>
-            </AnimatePresence>
-          </button>
+          <div className="lg:hidden flex items-center gap-1.5 shrink-0">
+            <Link
+              to="/updates"
+              aria-label="Updates"
+              className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border transition-all duration-300 ${
+                location.pathname === '/updates'
+                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-500'
+                  : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-amber-500 hover:border-amber-500/40'
+              }`}
+            >
+              <Megaphone size={14} />
+            </Link>
+            <Link
+              to="/notification"
+              aria-label="Notifications"
+              className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border transition-all duration-300 ${
+                location.pathname === '/notification'
+                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-500'
+                  : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-amber-500 hover:border-amber-500/40'
+              }`}
+            >
+              <Bell size={14} />
+            </Link>
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="text-zinc-400 hover:text-amber-500 transition-colors p-2 z-[110] relative"
+              aria-label="Toggle menu"
+            >
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={isOpen ? 'close' : 'open'}
+                  initial={{ rotate: -90, opacity: 0 }}
+                  animate={{ rotate: 0, opacity: 1 }}
+                  exit={{ rotate: 90, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {isOpen ? <X size={22} /> : <Menu size={22} />}
+                </motion.div>
+              </AnimatePresence>
+            </button>
+          </div>
         </div>
 
         {/* Mobile Full-Screen Overlay Menu */}
@@ -259,18 +292,25 @@ export default function Header() {
                   <Search size={16} />
                   Search Anything...
                 </button>
-                <div className="grid grid-cols-2 gap-2 mb-4">
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <Link
+                    to="/community"
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center justify-center gap-2 px-3 py-3 min-h-[48px] bg-zinc-900/40 hover:bg-zinc-900/70 border border-zinc-700/60 hover:border-amber-500/40 text-zinc-200 hover:text-amber-500 rounded-xl transition-all duration-300 font-mono text-[11px] tracking-wider uppercase"
+                  >
+                    <Users size={14} /> Community
+                  </Link>
                   <Link
                     to="/updates"
                     onClick={() => setIsOpen(false)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] bg-zinc-900/40 hover:bg-zinc-900/70 border border-zinc-700/60 hover:border-amber-500/40 text-zinc-200 hover:text-amber-500 rounded-xl transition-all duration-300 font-mono text-xs tracking-wider uppercase"
+                    className="flex items-center justify-center gap-2 px-3 py-3 min-h-[48px] bg-zinc-900/40 hover:bg-zinc-900/70 border border-zinc-700/60 hover:border-amber-500/40 text-zinc-200 hover:text-amber-500 rounded-xl transition-all duration-300 font-mono text-[11px] tracking-wider uppercase"
                   >
                     <Megaphone size={14} /> Updates
                   </Link>
                   <Link
                     to="/notification"
                     onClick={() => setIsOpen(false)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] bg-zinc-900/40 hover:bg-zinc-900/70 border border-zinc-700/60 hover:border-amber-500/40 text-zinc-200 hover:text-amber-500 rounded-xl transition-all duration-300 font-mono text-xs tracking-wider uppercase"
+                    className="flex items-center justify-center gap-2 px-3 py-3 min-h-[48px] bg-zinc-900/40 hover:bg-zinc-900/70 border border-zinc-700/60 hover:border-amber-500/40 text-zinc-200 hover:text-amber-500 rounded-xl transition-all duration-300 font-mono text-[11px] tracking-wider uppercase"
                   >
                     <Bell size={14} /> Alerts
                   </Link>
