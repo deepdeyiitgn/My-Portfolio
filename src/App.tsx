@@ -6,6 +6,7 @@ import StatusWidget from './components/StatusWidget';
 import LoadingScreen from './components/LoadingScreen';
 import CustomPointerSystem from './components/CustomPointerSystem';
 import CookieBanner from './components/CookieBanner';
+import GoogleAuthGate from './components/GoogleAuthGate';
 import { trackPageView, registerAnalyticsListeners, unregisterAnalyticsListeners } from './hooks/usePageAnalytics';
 
 // Lazy Loaded Pages
@@ -481,9 +482,9 @@ function AnimatedRoutes() {
             <Route path="/user" element={<AllUsers />} />
             <Route path="/feedback" element={<Feedback />} />
             <Route path="/user/:userId" element={<UserProfile />} />
-            <Route path="/community" element={<Community />} />
-            <Route path="/updates" element={<Updates />} />
-            <Route path="/notification" element={<Notification />} />
+            <Route path="/community" element={<GoogleAuthGate><Community /></GoogleAuthGate>} />
+            <Route path="/updates" element={<GoogleAuthGate><Updates /></GoogleAuthGate>} />
+            <Route path="/notification" element={<GoogleAuthGate><Notification /></GoogleAuthGate>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
