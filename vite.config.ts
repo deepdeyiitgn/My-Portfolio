@@ -13,7 +13,6 @@ export default defineConfig(({mode}) => {
       VitePWA({
         registerType: 'autoUpdate',
         workbox: {
-          // Default precaching badha di taaki maximum assets install ho jayein
           globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp}'],
           runtimeCaching: [
             {
@@ -24,7 +23,7 @@ export default defineConfig(({mode}) => {
                 cacheName: 'portfolio-api-cache',
                 expiration: {
                   maxEntries: 50,
-                  maxAgeSeconds: 60 * 60 * 24 * 30 // 30 Days
+                  maxAgeSeconds: 60 * 60 * 24 * 30
                 },
                 cacheableResponse: {
                   statuses: [0, 200]
@@ -32,17 +31,35 @@ export default defineConfig(({mode}) => {
               }
             },
             {
-              // 2. Images Rule (Local khudki photos & External images)
-              urlPattern: ({ request }) => request.destination === 'image',
-              handler: 'CacheFirst', // Images bar-bar change nahi hoti, isliye CacheFirst
+              // 2. Local Images (Exclude explicitly external CDNs here)
+              urlPattern: ({ request, url }) => 
+                request.destination === 'image' && 
+                !url.href.includes('static.qlynk.me') && 
+                !url.href.includes('deydeep-static-files.hf.space'),
+              handler: 'CacheFirst',
               options: {
-                cacheName: 'portfolio-image-cache',
+                cacheName: 'portfolio-local-image-cache',
                 expiration: {
-                  maxEntries: 100, // Top 100 images offline rahengi
-                  maxAgeSeconds: 60 * 60 * 24 * 30 // 30 Days
+                  maxEntries: 100,
+                  maxAgeSeconds: 60 * 60 * 24 * 30
                 },
                 cacheableResponse: {
-                  statuses: [0, 200] // '0' ka matlab external sites ki images bhi save hongi
+                  statuses: [0, 200]
+                }
+              }
+            },
+            {
+              // 3. SPECIAL RULE: Custom CDNs (qlynk & hf.space)
+              urlPattern: /^https:\/\/(static\.qlynk\.me|deydeep-static-files\.hf\.space)\/.*/i,
+              handler: 'CacheFirst', 
+              options: {
+                cacheName: 'external-cdn-cache',
+                expiration: {
+                  maxEntries: 200, 
+                  maxAgeSeconds: 60 * 60 * 24 * 30 
+                },
+                cacheableResponse: {
+                  statuses: [0, 200] 
                 }
               }
             }
@@ -78,7 +95,7 @@ export default defineConfig(({mode}) => {
       },
     },
     server: {
-
+      
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
