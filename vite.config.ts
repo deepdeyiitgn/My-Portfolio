@@ -13,18 +13,36 @@ export default defineConfig(({mode}) => {
       VitePWA({
         registerType: 'autoUpdate',
         workbox: {
+          // Default precaching badha di taaki maximum assets install ho jayein
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp}'],
           runtimeCaching: [
             {
+              // 1. API Data Rule (Vercel Backend)
               urlPattern: /\/api\/.*/i,
               handler: 'StaleWhileRevalidate',
               options: {
                 cacheName: 'portfolio-api-cache',
                 expiration: {
                   maxEntries: 50,
-                  maxAgeSeconds: 60 * 60 * 24 * 30 // 30 Days Cache
+                  maxAgeSeconds: 60 * 60 * 24 * 30 // 30 Days
                 },
                 cacheableResponse: {
                   statuses: [0, 200]
+                }
+              }
+            },
+            {
+              // 2. Images Rule (Local khudki photos & External images)
+              urlPattern: ({ request }) => request.destination === 'image',
+              handler: 'CacheFirst', // Images bar-bar change nahi hoti, isliye CacheFirst
+              options: {
+                cacheName: 'portfolio-image-cache',
+                expiration: {
+                  maxEntries: 100, // Top 100 images offline rahengi
+                  maxAgeSeconds: 60 * 60 * 24 * 30 // 30 Days
+                },
+                cacheableResponse: {
+                  statuses: [0, 200] // '0' ka matlab external sites ki images bhi save hongi
                 }
               }
             }
