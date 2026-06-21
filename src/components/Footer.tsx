@@ -278,6 +278,10 @@ export default function Footer() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* ── Powered-by watermarks ── */}
 
         {/* ── Powered-by watermarks ── */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 py-2">
