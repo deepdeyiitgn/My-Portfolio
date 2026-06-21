@@ -472,6 +472,1386 @@ Feedback and moderation features are implemented by extending existing handlers 
 | `/dmca` | DMCA takedown policy |
 | `/copyright` | Copyright information |
 
+
+NEW:
+
+====================================================================================================
+GITHUB REPOSITORY STRUCTURE REPORT
+====================================================================================================
+Repository  : deepdeyiitgn/My-Portfolio
+Branch      : main
+Root Folder : My-Portfolio/
+Total Items : 306
+====================================================================================================
+
+📂 ROOT : My-Portfolio/
+
+📁 Folder : .github/
+   Path   : .github/
+   Files  : 6
+   ├── 📄 CODEOWNERS
+   │     Type : No Extension
+   │     Size : 824 bytes
+   │     Path : .github/CODEOWNERS
+   ├── 📄 FUNDING.yml
+   │     Type : yml
+   │     Size : 172 bytes
+   │     Path : .github/FUNDING.yml
+   ├── 📄 ISSUE_TEMPLATE
+   │     Type : No Extension
+   │     Size : - bytes
+   │     Path : .github/ISSUE_TEMPLATE
+   ├── 📄 dependabot.yml
+   │     Type : yml
+   │     Size : 1131 bytes
+   │     Path : .github/dependabot.yml
+   ├── 📄 pull_request_template.md
+   │     Type : md
+   │     Size : 1905 bytes
+   │     Path : .github/pull_request_template.md
+   ├── 📄 workflows
+   │     Type : No Extension
+   │     Size : - bytes
+   │     Path : .github/workflows
+
+│   📁 Folder : ISSUE_TEMPLATE/
+│      Path   : .github/ISSUE_TEMPLATE/
+│      Files  : 8
+│      ├── 📄 api_backend.yml
+│      │     Type : yml
+│      │     Size : 2964 bytes
+│      │     Path : .github/ISSUE_TEMPLATE/api_backend.yml
+│      ├── 📄 bug_report.yml
+│      │     Type : yml
+│      │     Size : 3223 bytes
+│      │     Path : .github/ISSUE_TEMPLATE/bug_report.yml
+│      ├── 📄 config.yml
+│      │     Type : yml
+│      │     Size : 819 bytes
+│      │     Path : .github/ISSUE_TEMPLATE/config.yml
+│      ├── 📄 documentation.yml
+│      │     Type : yml
+│      │     Size : 1585 bytes
+│      │     Path : .github/ISSUE_TEMPLATE/documentation.yml
+│      ├── 📄 feature_request.yml
+│      │     Type : yml
+│      │     Size : 3057 bytes
+│      │     Path : .github/ISSUE_TEMPLATE/feature_request.yml
+│      ├── 📄 performance.yml
+│      │     Type : yml
+│      │     Size : 2844 bytes
+│      │     Path : .github/ISSUE_TEMPLATE/performance.yml
+│      ├── 📄 question.yml
+│      │     Type : yml
+│      │     Size : 1649 bytes
+│      │     Path : .github/ISSUE_TEMPLATE/question.yml
+│      ├── 📄 user_profile.yml
+│      │     Type : yml
+│      │     Size : 3084 bytes
+│      │     Path : .github/ISSUE_TEMPLATE/user_profile.yml
+
+│   📁 Folder : workflows/
+│      Path   : .github/workflows/
+│      Files  : 2
+│      ├── 📄 ci.yml
+│      │     Type : yml
+│      │     Size : 671 bytes
+│      │     Path : .github/workflows/ci.yml
+│      ├── 📄 keep-alive.yml
+│      │     Type : yml
+│      │     Size : 1464 bytes
+│      │     Path : .github/workflows/keep-alive.yml
+📁 Folder : api/
+   Path   : api/
+   Files  : 13
+   ├── 📄 auth.js
+   │     Type : js
+   │     Size : 7379 bytes
+   │     Path : api/auth.js
+   ├── 📄 categories.js
+   │     Type : js
+   │     Size : 14567 bytes
+   │     Path : api/categories.js
+   ├── 📄 contact.js
+   │     Type : js
+   │     Size : 2965 bytes
+   │     Path : api/contact.js
+   ├── 📄 faqs.js
+   │     Type : js
+   │     Size : 62394 bytes
+   │     Path : api/faqs.js
+   ├── 📄 journal.js
+   │     Type : js
+   │     Size : 175620 bytes
+   │     Path : api/journal.js
+   ├── 📄 links.js
+   │     Type : js
+   │     Size : 26263 bytes
+   │     Path : api/links.js
+   ├── 📄 live.js
+   │     Type : js
+   │     Size : 20086 bytes
+   │     Path : api/live.js
+   ├── 📄 logger.js
+   │     Type : js
+   │     Size : 136 bytes
+   │     Path : api/logger.js
+   ├── 📄 package.json
+   │     Type : json
+   │     Size : 25 bytes
+   │     Path : api/package.json
+   ├── 📄 projects.js
+   │     Type : js
+   │     Size : 34771 bytes
+   │     Path : api/projects.js
+   ├── 📄 sitemap.js
+   │     Type : js
+   │     Size : 18482 bytes
+   │     Path : api/sitemap.js
+   ├── 📄 timeline.js
+   │     Type : js
+   │     Size : 7834 bytes
+   │     Path : api/timeline.js
+   ├── 📄 upload-image.js
+   │     Type : js
+   │     Size : 9141 bytes
+   │     Path : api/upload-image.js
+📁 Folder : dist/
+   Path   : dist/
+   Files  : 8
+   ├── 📄 69eb00ccd24c4d75c62cc04c.png
+   │     Type : png
+   │     Size : 488356 bytes
+   │     Path : dist/69eb00ccd24c4d75c62cc04c.png
+   ├── 📄 69eb01798f30a15224010404.png
+   │     Type : png
+   │     Size : 1460162 bytes
+   │     Path : dist/69eb01798f30a15224010404.png
+   ├── 📄 69eb01deef048160b7374d68.png
+   │     Type : png
+   │     Size : 71558 bytes
+   │     Path : dist/69eb01deef048160b7374d68.png
+   ├── 📄 69eb02bff3d3b01f6326a557.jpg
+   │     Type : jpg
+   │     Size : 71370 bytes
+   │     Path : dist/69eb02bff3d3b01f6326a557.jpg
+   ├── 📄 assets
+   │     Type : No Extension
+   │     Size : - bytes
+   │     Path : dist/assets
+   ├── 📄 index.html
+   │     Type : html
+   │     Size : 6906 bytes
+   │     Path : dist/index.html
+   ├── 📄 robots.txt
+   │     Type : txt
+   │     Size : 691 bytes
+   │     Path : dist/robots.txt
+   ├── 📄 sitemap.xml.txt
+   │     Type : txt
+   │     Size : 4403 bytes
+   │     Path : dist/sitemap.xml.txt
+
+│   📁 Folder : assets/
+│      Path   : dist/assets/
+│      Files  : 4
+│      ├── 📄 Portfolio-QCQEGvBO.css
+│      │     Type : css
+│      │     Size : 9222 bytes
+│      │     Path : dist/assets/Portfolio-QCQEGvBO.css
+│      ├── 📄 docs
+│      │     Type : No Extension
+│      │     Size : - bytes
+│      │     Path : dist/assets/docs
+│      ├── 📄 images
+│      │     Type : No Extension
+│      │     Size : - bytes
+│      │     Path : dist/assets/images
+│      ├── 📄 pdf.worker.min-qwK7q_zL.mjs
+│      │     Type : mjs
+│      │     Size : 1046214 bytes
+│      │     Path : dist/assets/pdf.worker.min-qwK7q_zL.mjs
+
+│   │   📁 Folder : docs/
+│   │      Path   : dist/assets/docs/
+│   │      Files  : 1
+│   │      ├── 📄 Deep_Dey_Portfolio.pdf
+│   │      │     Type : pdf
+│   │      │     Size : 1943075 bytes
+│   │      │     Path : dist/assets/docs/Deep_Dey_Portfolio.pdf
+
+│   │   📁 Folder : images/
+│   │      Path   : dist/assets/images/
+│   │      Files  : 1
+│   │      ├── 📄 myphoto.png
+│   │      │     Type : png
+│   │      │     Size : 121296 bytes
+│   │      │     Path : dist/assets/images/myphoto.png
+📁 Folder : public/
+   Path   : public/
+   Files  : 56
+   ├── 📄 .well-known
+   │     Type : well-known
+   │     Size : - bytes
+   │     Path : public/.well-known
+   ├── 📄 69eb00ccd24c4d75c62cc04c.png
+   │     Type : png
+   │     Size : 488356 bytes
+   │     Path : public/69eb00ccd24c4d75c62cc04c.png
+   ├── 📄 69eb01798f30a15224010404.png
+   │     Type : png
+   │     Size : 1460162 bytes
+   │     Path : public/69eb01798f30a15224010404.png
+   ├── 📄 69eb01deef048160b7374d68.png
+   │     Type : png
+   │     Size : 71558 bytes
+   │     Path : public/69eb01deef048160b7374d68.png
+   ├── 📄 69eb02bff3d3b01626326a557.jpg
+   │     Type : jpg
+   │     Size : 41744 bytes
+   │     Path : public/69eb02bff3d3b01626326a557.jpg
+   ├── 📄 69eb02bff3d3b01f6326a557.jpg
+   │     Type : jpg
+   │     Size : 71370 bytes
+   │     Path : public/69eb02bff3d3b01f6326a557.jpg
+   ├── 📄 accessibility-improvement-log.html
+   │     Type : html
+   │     Size : 789 bytes
+   │     Path : public/accessibility-improvement-log.html
+   ├── 📄 ads.txt
+   │     Type : txt
+   │     Size : 58 bytes
+   │     Path : public/ads.txt
+   ├── 📄 android-chrome-192x192.png
+   │     Type : png
+   │     Size : 66530 bytes
+   │     Path : public/android-chrome-192x192.png
+   ├── 📄 android-chrome-512x512.png
+   │     Type : png
+   │     Size : 359949 bytes
+   │     Path : public/android-chrome-512x512.png
+   ├── 📄 api-reliability-playbook.html
+   │     Type : html
+   │     Size : 781 bytes
+   │     Path : public/api-reliability-playbook.html
+   ├── 📄 apple-touch-icon.png
+   │     Type : png
+   │     Size : 59724 bytes
+   │     Path : public/apple-touch-icon.png
+   ├── 📄 assets
+   │     Type : No Extension
+   │     Size : - bytes
+   │     Path : public/assets
+   ├── 📄 collaboration-and-contact-workflow.html
+   │     Type : html
+   │     Size : 806 bytes
+   │     Path : public/collaboration-and-contact-workflow.html
+   ├── 📄 community-and-support-framework.html
+   │     Type : html
+   │     Size : 797 bytes
+   │     Path : public/community-and-support-framework.html
+   ├── 📄 content-strategy-manifest.html
+   │     Type : html
+   │     Size : 784 bytes
+   │     Path : public/content-strategy-manifest.html
+   ├── 📄 countdown.html
+   │     Type : html
+   │     Size : 22075 bytes
+   │     Path : public/countdown.html
+   ├── 📄 crown.svg
+   │     Type : svg
+   │     Size : 27153 bytes
+   │     Path : public/crown.svg
+   ├── 📄 cursors
+   │     Type : No Extension
+   │     Size : - bytes
+   │     Path : public/cursors
+   ├── 📄 data-model-governance.html
+   │     Type : html
+   │     Size : 775 bytes
+   │     Path : public/data-model-governance.html
+   ├── 📄 deployment-and-release-story.html
+   │     Type : html
+   │     Size : 796 bytes
+   │     Path : public/deployment-and-release-story.html
+   ├── 📄 discord-activity-bot.png
+   │     Type : png
+   │     Size : 67050 bytes
+   │     Path : public/discord-activity-bot.png
+   ├── 📄 favicon-16x16.png
+   │     Type : png
+   │     Size : 778 bytes
+   │     Path : public/favicon-16x16.png
+   ├── 📄 favicon-32x32.png
+   │     Type : png
+   │     Size : 2570 bytes
+   │     Path : public/favicon-32x32.png
+   ├── 📄 favicon.ico
+   │     Type : ico
+   │     Size : 15406 bytes
+   │     Path : public/favicon.ico
+   ├── 📄 feature-delivery-timeline.html
+   │     Type : html
+   │     Size : 779 bytes
+   │     Path : public/feature-delivery-timeline.html
+   ├── 📄 future-innovation-lab.html
+   │     Type : html
+   │     Size : 767 bytes
+   │     Path : public/future-innovation-lab.html
+   ├── 📄 journal-platform-deep-dive.html
+   │     Type : html
+   │     Size : 782 bytes
+   │     Path : public/journal-platform-deep-dive.html
+   ├── 📄 learning-roadmap-and-goals.html
+   │     Type : html
+   │     Size : 782 bytes
+   │     Path : public/learning-roadmap-and-goals.html
+   ├── 📄 legal-and-compliance-summary.html
+   │     Type : html
+   │     Size : 788 bytes
+   │     Path : public/legal-and-compliance-summary.html
+   ├── 📄 m-qlynk-me-1024x768desktop-192b9e.png
+   │     Type : png
+   │     Size : 134193 bytes
+   │     Path : public/m-qlynk-me-1024x768desktop-192b9e.png
+   ├── 📄 magicbite-odoo-com-1024x768desktop-f5cc51.png
+   │     Type : png
+   │     Size : 725474 bytes
+   │     Path : public/magicbite-odoo-com-1024x768desktop-f5cc51.png
+   ├── 📄 mobile-experience-handbook.html
+   │     Type : html
+   │     Size : 787 bytes
+   │     Path : public/mobile-experience-handbook.html
+   ├── 📄 monitoring-and-status-notes.html
+   │     Type : html
+   │     Size : 793 bytes
+   │     Path : public/monitoring-and-status-notes.html
+   ├── 📄 performance-engineering-report.html
+   │     Type : html
+   │     Size : 801 bytes
+   │     Path : public/performance-engineering-report.html
+   ├── 📄 portfolio-case-study-node-server.html
+   │     Type : html
+   │     Size : 790 bytes
+   │     Path : public/portfolio-case-study-node-server.html
+   ├── 📄 portfolio-case-study-quicklink.html
+   │     Type : html
+   │     Size : 784 bytes
+   │     Path : public/portfolio-case-study-quicklink.html
+   ├── 📄 portfolio-case-study-studybot.html
+   │     Type : html
+   │     Size : 781 bytes
+   │     Path : public/portfolio-case-study-studybot.html
+   ├── 📄 portfolio-case-study-transparent-clock.html
+   │     Type : html
+   │     Size : 808 bytes
+   │     Path : public/portfolio-case-study-transparent-clock.html
+   ├── 📄 project-architecture-blueprint.html
+   │     Type : html
+   │     Size : 798 bytes
+   │     Path : public/project-architecture-blueprint.html
+   ├── 📄 project-retrospective-2026.html
+   │     Type : html
+   │     Size : 782 bytes
+   │     Path : public/project-retrospective-2026.html
+   ├── 📄 project-svg
+   │     Type : No Extension
+   │     Size : - bytes
+   │     Path : public/project-svg
+   ├── 📄 pwa-192x192.png
+   │     Type : png
+   │     Size : 66530 bytes
+   │     Path : public/pwa-192x192.png
+   ├── 📄 quicklink-logo.svg
+   │     Type : svg
+   │     Size : 694 bytes
+   │     Path : public/quicklink-logo.svg
+   ├── 📄 robots.txt
+   │     Type : txt
+   │     Size : 691 bytes
+   │     Path : public/robots.txt
+   ├── 📄 security-hardening-notes.html
+   │     Type : html
+   │     Size : 784 bytes
+   │     Path : public/security-hardening-notes.html
+   ├── 📄 seo-and-indexing-guide.html
+   │     Type : html
+   │     Size : 778 bytes
+   │     Path : public/seo-and-indexing-guide.html
+   ├── 📄 site.webmanifest
+   │     Type : webmanifest
+   │     Size : 263 bytes
+   │     Path : public/site.webmanifest
+   ├── 📄 sitemap.xml.txt
+   │     Type : txt
+   │     Size : 4403 bytes
+   │     Path : public/sitemap.xml.txt
+   ├── 📄 static-pages-app.js
+   │     Type : js
+   │     Size : 4214 bytes
+   │     Path : public/static-pages-app.js
+   ├── 📄 static-pages-data.js
+   │     Type : js
+   │     Size : 8150 bytes
+   │     Path : public/static-pages-data.js
+   ├── 📄 static-pages.css
+   │     Type : css
+   │     Size : 3224 bytes
+   │     Path : public/static-pages.css
+   ├── 📄 static-pages.html
+   │     Type : html
+   │     Size : 876 bytes
+   │     Path : public/static-pages.html
+   ├── 📄 ui-design-system-overview.html
+   │     Type : html
+   │     Size : 781 bytes
+   │     Path : public/ui-design-system-overview.html
+   ├── 📄 user-feedback-operations.html
+   │     Type : html
+   │     Size : 776 bytes
+   │     Path : public/user-feedback-operations.html
+   ├── 📄 verified.svg
+   │     Type : svg
+   │     Size : 701 bytes
+   │     Path : public/verified.svg
+
+│   📁 Folder : .well-known/
+│      Path   : public/.well-known/
+│      Files  : 1
+│      ├── 📄 discord
+│      │     Type : No Extension
+│      │     Size : 88 bytes
+│      │     Path : public/.well-known/discord
+
+│   📁 Folder : assets/
+│      Path   : public/assets/
+│      Files  : 3
+│      ├── 📄 docs
+│      │     Type : No Extension
+│      │     Size : - bytes
+│      │     Path : public/assets/docs
+│      ├── 📄 images
+│      │     Type : No Extension
+│      │     Size : - bytes
+│      │     Path : public/assets/images
+│      ├── 📄 js
+│      │     Type : No Extension
+│      │     Size : - bytes
+│      │     Path : public/assets/js
+
+│   │   📁 Folder : docs/
+│   │      Path   : public/assets/docs/
+│   │      Files  : 1
+│   │      ├── 📄 Deep_Dey_Portfolio.pdf
+│   │      │     Type : pdf
+│   │      │     Size : 1943075 bytes
+│   │      │     Path : public/assets/docs/Deep_Dey_Portfolio.pdf
+
+│   │   📁 Folder : images/
+│   │      Path   : public/assets/images/
+│   │      Files  : 1
+│   │      ├── 📄 myphoto.png
+│   │      │     Type : png
+│   │      │     Size : 121296 bytes
+│   │      │     Path : public/assets/images/myphoto.png
+
+│   │   📁 Folder : js/
+│   │      Path   : public/assets/js/
+│   │      Files  : 1
+│   │      ├── 📄 footer-extras.js
+│   │      │     Type : js
+│   │      │     Size : 29821 bytes
+│   │      │     Path : public/assets/js/footer-extras.js
+
+│   📁 Folder : cursors/
+│      Path   : public/cursors/
+│      Files  : 3
+│      ├── 📄 manifest.json
+│      │     Type : json
+│      │     Size : 703 bytes
+│      │     Path : public/cursors/manifest.json
+│      ├── 📄 system
+│      │     Type : No Extension
+│      │     Size : - bytes
+│      │     Path : public/cursors/system
+│      ├── 📄 visual
+│      │     Type : No Extension
+│      │     Size : - bytes
+│      │     Path : public/cursors/visual
+
+│   │   📁 Folder : system/
+│   │      Path   : public/cursors/system/
+│   │      Files  : 7
+│   │      ├── 📄 action.svg
+│   │      │     Type : svg
+│   │      │     Size : 296 bytes
+│   │      │     Path : public/cursors/system/action.svg
+│   │      ├── 📄 click.svg
+│   │      │     Type : svg
+│   │      │     Size : 298 bytes
+│   │      │     Path : public/cursors/system/click.svg
+│   │      ├── 📄 default.svg
+│   │      │     Type : svg
+│   │      │     Size : 478 bytes
+│   │      │     Path : public/cursors/system/default.svg
+│   │      ├── 📄 drag.svg
+│   │      │     Type : svg
+│   │      │     Size : 296 bytes
+│   │      │     Path : public/cursors/system/drag.svg
+│   │      ├── 📄 input.svg
+│   │      │     Type : svg
+│   │      │     Size : 331 bytes
+│   │      │     Path : public/cursors/system/input.svg
+│   │      ├── 📄 select.svg
+│   │      │     Type : svg
+│   │      │     Size : 266 bytes
+│   │      │     Path : public/cursors/system/select.svg
+│   │      ├── 📄 text.svg
+│   │      │     Type : svg
+│   │      │     Size : 272 bytes
+│   │      │     Path : public/cursors/system/text.svg
+
+│   │   📁 Folder : visual/
+│   │      Path   : public/cursors/visual/
+│   │      Files  : 20
+│   │      ├── 📄 anchor-grid.svg
+│   │      │     Type : svg
+│   │      │     Size : 351 bytes
+│   │      │     Path : public/cursors/visual/anchor-grid.svg
+│   │      ├── 📄 aurora-dart.svg
+│   │      │     Type : svg
+│   │      │     Size : 442 bytes
+│   │      │     Path : public/cursors/visual/aurora-dart.svg
+│   │      ├── 📄 click-burst.svg
+│   │      │     Type : svg
+│   │      │     Size : 276 bytes
+│   │      │     Path : public/cursors/visual/click-burst.svg
+│   │      ├── 📄 comet.svg
+│   │      │     Type : svg
+│   │      │     Size : 383 bytes
+│   │      │     Path : public/cursors/visual/comet.svg
+│   │      ├── 📄 drag-node.svg
+│   │      │     Type : svg
+│   │      │     Size : 312 bytes
+│   │      │     Path : public/cursors/visual/drag-node.svg
+│   │      ├── 📄 flare-triangle.svg
+│   │      │     Type : svg
+│   │      │     Size : 260 bytes
+│   │      │     Path : public/cursors/visual/flare-triangle.svg
+│   │      ├── 📄 glass-arrow.svg
+│   │      │     Type : svg
+│   │      │     Size : 276 bytes
+│   │      │     Path : public/cursors/visual/glass-arrow.svg
+│   │      ├── 📄 ink-beam.svg
+│   │      │     Type : svg
+│   │      │     Size : 327 bytes
+│   │      │     Path : public/cursors/visual/ink-beam.svg
+│   │      ├── 📄 input-beam.svg
+│   │      │     Type : svg
+│   │      │     Size : 278 bytes
+│   │      │     Path : public/cursors/visual/input-beam.svg
+│   │      ├── 📄 magnet-drag.svg
+│   │      │     Type : svg
+│   │      │     Size : 280 bytes
+│   │      │     Path : public/cursors/visual/magnet-drag.svg
+│   │      ├── 📄 neon-needle.svg
+│   │      │     Type : svg
+│   │      │     Size : 221 bytes
+│   │      │     Path : public/cursors/visual/neon-needle.svg
+│   │      ├── 📄 nova-click.svg
+│   │      │     Type : svg
+│   │      │     Size : 280 bytes
+│   │      │     Path : public/cursors/visual/nova-click.svg
+│   │      ├── 📄 orbit.svg
+│   │      │     Type : svg
+│   │      │     Size : 290 bytes
+│   │      │     Path : public/cursors/visual/orbit.svg
+│   │      ├── 📄 prism-arrow.svg
+│   │      │     Type : svg
+│   │      │     Size : 462 bytes
+│   │      │     Path : public/cursors/visual/prism-arrow.svg
+│   │      ├── 📄 pulse-core.svg
+│   │      │     Type : svg
+│   │      │     Size : 280 bytes
+│   │      │     Path : public/cursors/visual/pulse-core.svg
+│   │      ├── 📄 quantum-tip.svg
+│   │      │     Type : svg
+│   │      │     Size : 266 bytes
+│   │      │     Path : public/cursors/visual/quantum-tip.svg
+│   │      ├── 📄 scribe.svg
+│   │      │     Type : svg
+│   │      │     Size : 261 bytes
+│   │      │     Path : public/cursors/visual/scribe.svg
+│   │      ├── 📄 selection-ring.svg
+│   │      │     Type : svg
+│   │      │     Size : 321 bytes
+│   │      │     Path : public/cursors/visual/selection-ring.svg
+│   │      ├── 📄 spark-lance.svg
+│   │      │     Type : svg
+│   │      │     Size : 296 bytes
+│   │      │     Path : public/cursors/visual/spark-lance.svg
+│   │      ├── 📄 vector-wing.svg
+│   │      │     Type : svg
+│   │      │     Size : 253 bytes
+│   │      │     Path : public/cursors/visual/vector-wing.svg
+
+│   📁 Folder : project-svg/
+│      Path   : public/project-svg/
+│      Files  : 3
+│      ├── 📄 brand
+│      │     Type : No Extension
+│      │     Size : - bytes
+│      │     Path : public/project-svg/brand
+│      ├── 📄 cursors
+│      │     Type : No Extension
+│      │     Size : - bytes
+│      │     Path : public/project-svg/cursors
+│      ├── 📄 manifest.json
+│      │     Type : json
+│      │     Size : 703 bytes
+│      │     Path : public/project-svg/manifest.json
+
+│   │   📁 Folder : brand/
+│   │      Path   : public/project-svg/brand/
+│   │      Files  : 3
+│   │      ├── 📄 crown.svg
+│   │      │     Type : svg
+│   │      │     Size : 27153 bytes
+│   │      │     Path : public/project-svg/brand/crown.svg
+│   │      ├── 📄 quicklink-logo.svg
+│   │      │     Type : svg
+│   │      │     Size : 694 bytes
+│   │      │     Path : public/project-svg/brand/quicklink-logo.svg
+│   │      ├── 📄 verified.svg
+│   │      │     Type : svg
+│   │      │     Size : 701 bytes
+│   │      │     Path : public/project-svg/brand/verified.svg
+
+│   │   📁 Folder : cursors/
+│   │      Path   : public/project-svg/cursors/
+│   │      Files  : 2
+│   │      ├── 📄 system
+│   │      │     Type : No Extension
+│   │      │     Size : - bytes
+│   │      │     Path : public/project-svg/cursors/system
+│   │      ├── 📄 visual
+│   │      │     Type : No Extension
+│   │      │     Size : - bytes
+│   │      │     Path : public/project-svg/cursors/visual
+
+│   │   │   📁 Folder : system/
+│   │   │      Path   : public/project-svg/cursors/system/
+│   │   │      Files  : 7
+│   │   │      ├── 📄 action.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 296 bytes
+│   │   │      │     Path : public/project-svg/cursors/system/action.svg
+│   │   │      ├── 📄 click.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 298 bytes
+│   │   │      │     Path : public/project-svg/cursors/system/click.svg
+│   │   │      ├── 📄 default.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 478 bytes
+│   │   │      │     Path : public/project-svg/cursors/system/default.svg
+│   │   │      ├── 📄 drag.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 296 bytes
+│   │   │      │     Path : public/project-svg/cursors/system/drag.svg
+│   │   │      ├── 📄 input.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 331 bytes
+│   │   │      │     Path : public/project-svg/cursors/system/input.svg
+│   │   │      ├── 📄 select.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 266 bytes
+│   │   │      │     Path : public/project-svg/cursors/system/select.svg
+│   │   │      ├── 📄 text.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 272 bytes
+│   │   │      │     Path : public/project-svg/cursors/system/text.svg
+
+│   │   │   📁 Folder : visual/
+│   │   │      Path   : public/project-svg/cursors/visual/
+│   │   │      Files  : 20
+│   │   │      ├── 📄 anchor-grid.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 351 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/anchor-grid.svg
+│   │   │      ├── 📄 aurora-dart.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 442 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/aurora-dart.svg
+│   │   │      ├── 📄 click-burst.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 276 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/click-burst.svg
+│   │   │      ├── 📄 comet.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 383 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/comet.svg
+│   │   │      ├── 📄 drag-node.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 312 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/drag-node.svg
+│   │   │      ├── 📄 flare-triangle.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 260 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/flare-triangle.svg
+│   │   │      ├── 📄 glass-arrow.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 276 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/glass-arrow.svg
+│   │   │      ├── 📄 ink-beam.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 327 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/ink-beam.svg
+│   │   │      ├── 📄 input-beam.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 278 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/input-beam.svg
+│   │   │      ├── 📄 magnet-drag.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 280 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/magnet-drag.svg
+│   │   │      ├── 📄 neon-needle.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 221 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/neon-needle.svg
+│   │   │      ├── 📄 nova-click.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 280 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/nova-click.svg
+│   │   │      ├── 📄 orbit.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 290 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/orbit.svg
+│   │   │      ├── 📄 prism-arrow.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 462 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/prism-arrow.svg
+│   │   │      ├── 📄 pulse-core.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 280 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/pulse-core.svg
+│   │   │      ├── 📄 quantum-tip.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 266 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/quantum-tip.svg
+│   │   │      ├── 📄 scribe.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 261 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/scribe.svg
+│   │   │      ├── 📄 selection-ring.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 321 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/selection-ring.svg
+│   │   │      ├── 📄 spark-lance.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 296 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/spark-lance.svg
+│   │   │      ├── 📄 vector-wing.svg
+│   │   │      │     Type : svg
+│   │   │      │     Size : 253 bytes
+│   │   │      │     Path : public/project-svg/cursors/visual/vector-wing.svg
+📁 Folder : src/
+   Path   : src/
+   Files  : 10
+   ├── 📄 App.tsx
+   │     Type : tsx
+   │     Size : 20830 bytes
+   │     Path : src/App.tsx
+   ├── 📄 components
+   │     Type : No Extension
+   │     Size : - bytes
+   │     Path : src/components
+   ├── 📄 context
+   │     Type : No Extension
+   │     Size : - bytes
+   │     Path : src/context
+   ├── 📄 data
+   │     Type : No Extension
+   │     Size : - bytes
+   │     Path : src/data
+   ├── 📄 features
+   │     Type : No Extension
+   │     Size : - bytes
+   │     Path : src/features
+   ├── 📄 index.css
+   │     Type : css
+   │     Size : 2612 bytes
+   │     Path : src/index.css
+   ├── 📄 main.tsx
+   │     Type : tsx
+   │     Size : 625 bytes
+   │     Path : src/main.tsx
+   ├── 📄 pages
+   │     Type : No Extension
+   │     Size : - bytes
+   │     Path : src/pages
+   ├── 📄 utils
+   │     Type : No Extension
+   │     Size : - bytes
+   │     Path : src/utils
+   ├── 📄 vite-env.d.ts
+   │     Type : ts
+   │     Size : 38 bytes
+   │     Path : src/vite-env.d.ts
+
+│   📁 Folder : components/
+│      Path   : src/components/
+│      Files  : 18
+│      ├── 📄 CommentSection.tsx
+│      │     Type : tsx
+│      │     Size : 40739 bytes
+│      │     Path : src/components/CommentSection.tsx
+│      ├── 📄 ContactForm.tsx
+│      │     Type : tsx
+│      │     Size : 7470 bytes
+│      │     Path : src/components/ContactForm.tsx
+│      ├── 📄 CustomPointerSystem.tsx
+│      │     Type : tsx
+│      │     Size : 15906 bytes
+│      │     Path : src/components/CustomPointerSystem.tsx
+│      ├── 📄 FAQ.tsx
+│      │     Type : tsx
+│      │     Size : 3098 bytes
+│      │     Path : src/components/FAQ.tsx
+│      ├── 📄 FeedbackAdminPanel.tsx
+│      │     Type : tsx
+│      │     Size : 15071 bytes
+│      │     Path : src/components/FeedbackAdminPanel.tsx
+│      ├── 📄 Footer.tsx
+│      │     Type : tsx
+│      │     Size : 25762 bytes
+│      │     Path : src/components/Footer.tsx
+│      ├── 📄 Header.tsx
+│      │     Type : tsx
+│      │     Size : 17136 bytes
+│      │     Path : src/components/Header.tsx
+│      ├── 📄 IdentityBadges.tsx
+│      │     Type : tsx
+│      │     Size : 2597 bytes
+│      │     Path : src/components/IdentityBadges.tsx
+│      ├── 📄 JournalHtmlBlobRenderer.tsx
+│      │     Type : tsx
+│      │     Size : 3464 bytes
+│      │     Path : src/components/JournalHtmlBlobRenderer.tsx
+│      ├── 📄 JourneyMarquee.tsx
+│      │     Type : tsx
+│      │     Size : 3325 bytes
+│      │     Path : src/components/JourneyMarquee.tsx
+│      ├── 📄 Layout.tsx
+│      │     Type : tsx
+│      │     Size : 1028 bytes
+│      │     Path : src/components/Layout.tsx
+│      ├── 📄 LoadingScreen.tsx
+│      │     Type : tsx
+│      │     Size : 9297 bytes
+│      │     Path : src/components/LoadingScreen.tsx
+│      ├── 📄 ProjectPlaceholder.tsx
+│      │     Type : tsx
+│      │     Size : 2903 bytes
+│      │     Path : src/components/ProjectPlaceholder.tsx
+│      ├── 📄 SEO.tsx
+│      │     Type : tsx
+│      │     Size : 1911 bytes
+│      │     Path : src/components/SEO.tsx
+│      ├── 📄 ScrollToTop.tsx
+│      │     Type : tsx
+│      │     Size : 1992 bytes
+│      │     Path : src/components/ScrollToTop.tsx
+│      ├── 📄 SocialProof.tsx
+│      │     Type : tsx
+│      │     Size : 12442 bytes
+│      │     Path : src/components/SocialProof.tsx
+│      ├── 📄 StatusWidget.tsx
+│      │     Type : tsx
+│      │     Size : 13348 bytes
+│      │     Path : src/components/StatusWidget.tsx
+│      ├── 📄 TechGalaxy.tsx
+│      │     Type : tsx
+│      │     Size : 15250 bytes
+│      │     Path : src/components/TechGalaxy.tsx
+
+│   📁 Folder : context/
+│      Path   : src/context/
+│      Files  : 1
+│      ├── 📄 LanguageContext.tsx
+│      │     Type : tsx
+│      │     Size : 5175 bytes
+│      │     Path : src/context/LanguageContext.tsx
+
+│   📁 Folder : data/
+│      Path   : src/data/
+│      Files  : 8
+│      ├── 📄 contentData.ts
+│      │     Type : ts
+│      │     Size : 5328 bytes
+│      │     Path : src/data/contentData.ts
+│      ├── 📄 faqData.ts
+│      │     Type : ts
+│      │     Size : 126236 bytes
+│      │     Path : src/data/faqData.ts
+│      ├── 📄 linksData.ts
+│      │     Type : ts
+│      │     Size : 26480 bytes
+│      │     Path : src/data/linksData.ts
+│      ├── 📄 nowData.ts
+│      │     Type : ts
+│      │     Size : 3137 bytes
+│      │     Path : src/data/nowData.ts
+│      ├── 📄 pointerAssets.tsx
+│      │     Type : tsx
+│      │     Size : 12402 bytes
+│      │     Path : src/data/pointerAssets.tsx
+│      ├── 📄 projectsData.ts
+│      │     Type : ts
+│      │     Size : 11155 bytes
+│      │     Path : src/data/projectsData.ts
+│      ├── 📄 proofData.ts
+│      │     Type : ts
+│      │     Size : 4096 bytes
+│      │     Path : src/data/proofData.ts
+│      ├── 📄 timelineData.ts
+│      │     Type : ts
+│      │     Size : 2645 bytes
+│      │     Path : src/data/timelineData.ts
+
+│   📁 Folder : features/
+│      Path   : src/features/
+│      Files  : 4
+│      ├── 📄 FeaturePageTemplate.tsx
+│      │     Type : tsx
+│      │     Size : 6069 bytes
+│      │     Path : src/features/FeaturePageTemplate.tsx
+│      ├── 📄 feature-links.json
+│      │     Type : json
+│      │     Size : 8567 bytes
+│      │     Path : src/features/feature-links.json
+│      ├── 📄 pages
+│      │     Type : No Extension
+│      │     Size : - bytes
+│      │     Path : src/features/pages
+│      ├── 📄 types.ts
+│      │     Type : ts
+│      │     Size : 654 bytes
+│      │     Path : src/features/types.ts
+
+│   │   📁 Folder : pages/
+│   │      Path   : src/features/pages/
+│   │      Files  : 32
+│   │      ├── 📄 FeatureArchitectureLayers.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3330 bytes
+│   │      │     Path : src/features/pages/FeatureArchitectureLayers.tsx
+│   │      ├── 📄 FeatureAtlasNavigation.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3301 bytes
+│   │      │     Path : src/features/pages/FeatureAtlasNavigation.tsx
+│   │      ├── 📄 FeatureAuthoringStandards.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3331 bytes
+│   │      │     Path : src/features/pages/FeatureAuthoringStandards.tsx
+│   │      ├── 📄 FeatureBackNavigation.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3284 bytes
+│   │      │     Path : src/features/pages/FeatureBackNavigation.tsx
+│   │      ├── 📄 FeatureChangeImpact.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3272 bytes
+│   │      │     Path : src/features/pages/FeatureChangeImpact.tsx
+│   │      ├── 📄 FeatureCompatibilityGuard.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3329 bytes
+│   │      │     Path : src/features/pages/FeatureCompatibilityGuard.tsx
+│   │      ├── 📄 FeatureContentDensity.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3298 bytes
+│   │      │     Path : src/features/pages/FeatureContentDensity.tsx
+│   │      ├── 📄 FeatureDataOwnership.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3283 bytes
+│   │      │     Path : src/features/pages/FeatureDataOwnership.tsx
+│   │      ├── 📄 FeatureDiagramEngine.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3286 bytes
+│   │      │     Path : src/features/pages/FeatureDiagramEngine.tsx
+│   │      ├── 📄 FeatureDiagramReadability.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3331 bytes
+│   │      │     Path : src/features/pages/FeatureDiagramReadability.tsx
+│   │      ├── 📄 FeatureDynamicDiscovery.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3311 bytes
+│   │      │     Path : src/features/pages/FeatureDynamicDiscovery.tsx
+│   │      ├── 📄 FeatureFaqKnowledge.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3277 bytes
+│   │      │     Path : src/features/pages/FeatureFaqKnowledge.tsx
+│   │      ├── 📄 FeatureFutureExpansion.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3302 bytes
+│   │      │     Path : src/features/pages/FeatureFutureExpansion.tsx
+│   │      ├── 📄 FeatureHeaderEntrypoint.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3310 bytes
+│   │      │     Path : src/features/pages/FeatureHeaderEntrypoint.tsx
+│   │      ├── 📄 FeatureImplementationNotes.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3338 bytes
+│   │      │     Path : src/features/pages/FeatureImplementationNotes.tsx
+│   │      ├── 📄 FeatureMaintenanceMode.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3301 bytes
+│   │      │     Path : src/features/pages/FeatureMaintenanceMode.tsx
+│   │      ├── 📄 FeatureObservabilityHooks.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3328 bytes
+│   │      │     Path : src/features/pages/FeatureObservabilityHooks.tsx
+│   │      ├── 📄 FeaturePerformanceBudget.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3320 bytes
+│   │      │     Path : src/features/pages/FeaturePerformanceBudget.tsx
+│   │      ├── 📄 FeatureQualityGates.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3271 bytes
+│   │      │     Path : src/features/pages/FeatureQualityGates.tsx
+│   │      ├── 📄 FeatureReleaseReadiness.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3308 bytes
+│   │      │     Path : src/features/pages/FeatureReleaseReadiness.tsx
+│   │      ├── 📄 FeatureRenderPipeline.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3298 bytes
+│   │      │     Path : src/features/pages/FeatureRenderPipeline.tsx
+│   │      ├── 📄 FeatureRiskRegister.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3275 bytes
+│   │      │     Path : src/features/pages/FeatureRiskRegister.tsx
+│   │      ├── 📄 FeatureRoadmapTracks.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3281 bytes
+│   │      │     Path : src/features/pages/FeatureRoadmapTracks.tsx
+│   │      ├── 📄 FeatureRoutingContract.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3298 bytes
+│   │      │     Path : src/features/pages/FeatureRoutingContract.tsx
+│   │      ├── 📄 FeatureSchemaGovernance.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3321 bytes
+│   │      │     Path : src/features/pages/FeatureSchemaGovernance.tsx
+│   │      ├── 📄 FeatureSecurityPosture.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3299 bytes
+│   │      │     Path : src/features/pages/FeatureSecurityPosture.tsx
+│   │      ├── 📄 FeatureSeoContracts.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3267 bytes
+│   │      │     Path : src/features/pages/FeatureSeoContracts.tsx
+│   │      ├── 📄 FeatureSitemapIntegration.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3326 bytes
+│   │      │     Path : src/features/pages/FeatureSitemapIntegration.tsx
+│   │      ├── 📄 FeatureSummaryTruncation.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3311 bytes
+│   │      │     Path : src/features/pages/FeatureSummaryTruncation.tsx
+│   │      ├── 📄 FeatureSystemCore.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3263 bytes
+│   │      │     Path : src/features/pages/FeatureSystemCore.tsx
+│   │      ├── 📄 FeatureVisualizationPanels.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3340 bytes
+│   │      │     Path : src/features/pages/FeatureVisualizationPanels.tsx
+│   │      ├── 📄 FeatureWorkflowSequencer.tsx
+│   │      │     Type : tsx
+│   │      │     Size : 3317 bytes
+│   │      │     Path : src/features/pages/FeatureWorkflowSequencer.tsx
+
+│   📁 Folder : pages/
+│      Path   : src/pages/
+│      Files  : 34
+│      ├── 📄 About.tsx
+│      │     Type : tsx
+│      │     Size : 17673 bytes
+│      │     Path : src/pages/About.tsx
+│      ├── 📄 AllUsers.tsx
+│      │     Type : tsx
+│      │     Size : 11024 bytes
+│      │     Path : src/pages/AllUsers.tsx
+│      ├── 📄 CommentGuide.tsx
+│      │     Type : tsx
+│      │     Size : 12324 bytes
+│      │     Path : src/pages/CommentGuide.tsx
+│      ├── 📄 CommentPermalink.tsx
+│      │     Type : tsx
+│      │     Size : 10574 bytes
+│      │     Path : src/pages/CommentPermalink.tsx
+│      ├── 📄 Contact.tsx
+│      │     Type : tsx
+│      │     Size : 41900 bytes
+│      │     Path : src/pages/Contact.tsx
+│      ├── 📄 Copyright.tsx
+│      │     Type : tsx
+│      │     Size : 3798 bytes
+│      │     Path : src/pages/Copyright.tsx
+│      ├── 📄 DMCA.tsx
+│      │     Type : tsx
+│      │     Size : 3425 bytes
+│      │     Path : src/pages/DMCA.tsx
+│      ├── 📄 Dashboard.tsx
+│      │     Type : tsx
+│      │     Size : 246027 bytes
+│      │     Path : src/pages/Dashboard.tsx
+│      ├── 📄 FAQ.tsx
+│      │     Type : tsx
+│      │     Size : 14411 bytes
+│      │     Path : src/pages/FAQ.tsx
+│      ├── 📄 Features.tsx
+│      │     Type : tsx
+│      │     Size : 4063 bytes
+│      │     Path : src/pages/Features.tsx
+│      ├── 📄 Feedback.tsx
+│      │     Type : tsx
+│      │     Size : 30223 bytes
+│      │     Path : src/pages/Feedback.tsx
+│      ├── 📄 Home.tsx
+│      │     Type : tsx
+│      │     Size : 47426 bytes
+│      │     Path : src/pages/Home.tsx
+│      ├── 📄 Journal.tsx
+│      │     Type : tsx
+│      │     Size : 17865 bytes
+│      │     Path : src/pages/Journal.tsx
+│      ├── 📄 JournalAllComments.tsx
+│      │     Type : tsx
+│      │     Size : 15524 bytes
+│      │     Path : src/pages/JournalAllComments.tsx
+│      ├── 📄 JournalEmbed.tsx
+│      │     Type : tsx
+│      │     Size : 9760 bytes
+│      │     Path : src/pages/JournalEmbed.tsx
+│      ├── 📄 JournalTagResults.tsx
+│      │     Type : tsx
+│      │     Size : 9683 bytes
+│      │     Path : src/pages/JournalTagResults.tsx
+│      ├── 📄 JournalView.tsx
+│      │     Type : tsx
+│      │     Size : 19950 bytes
+│      │     Path : src/pages/JournalView.tsx
+│      ├── 📄 LegalHub.tsx
+│      │     Type : tsx
+│      │     Size : 8211 bytes
+│      │     Path : src/pages/LegalHub.tsx
+│      ├── 📄 License.tsx
+│      │     Type : tsx
+│      │     Size : 2876 bytes
+│      │     Path : src/pages/License.tsx
+│      ├── 📄 Links.tsx
+│      │     Type : tsx
+│      │     Size : 12013 bytes
+│      │     Path : src/pages/Links.tsx
+│      ├── 📄 Live.tsx
+│      │     Type : tsx
+│      │     Size : 20982 bytes
+│      │     Path : src/pages/Live.tsx
+│      ├── 📄 Me.tsx
+│      │     Type : tsx
+│      │     Size : 10263 bytes
+│      │     Path : src/pages/Me.tsx
+│      ├── 📄 NotFound.tsx
+│      │     Type : tsx
+│      │     Size : 34965 bytes
+│      │     Path : src/pages/NotFound.tsx
+│      ├── 📄 Now.tsx
+│      │     Type : tsx
+│      │     Size : 3636 bytes
+│      │     Path : src/pages/Now.tsx
+│      ├── 📄 Portfolio.tsx
+│      │     Type : tsx
+│      │     Size : 9154 bytes
+│      │     Path : src/pages/Portfolio.tsx
+│      ├── 📄 Privacy.tsx
+│      │     Type : tsx
+│      │     Size : 6975 bytes
+│      │     Path : src/pages/Privacy.tsx
+│      ├── 📄 ProjectDetail.tsx
+│      │     Type : tsx
+│      │     Size : 9030 bytes
+│      │     Path : src/pages/ProjectDetail.tsx
+│      ├── 📄 Projects.tsx
+│      │     Type : tsx
+│      │     Size : 12946 bytes
+│      │     Path : src/pages/Projects.tsx
+│      ├── 📄 Proof.tsx
+│      │     Type : tsx
+│      │     Size : 5212 bytes
+│      │     Path : src/pages/Proof.tsx
+│      ├── 📄 SearchResults.tsx
+│      │     Type : tsx
+│      │     Size : 34403 bytes
+│      │     Path : src/pages/SearchResults.tsx
+│      ├── 📄 Security.tsx
+│      │     Type : tsx
+│      │     Size : 3423 bytes
+│      │     Path : src/pages/Security.tsx
+│      ├── 📄 Status.tsx
+│      │     Type : tsx
+│      │     Size : 59087 bytes
+│      │     Path : src/pages/Status.tsx
+│      ├── 📄 Terms.tsx
+│      │     Type : tsx
+│      │     Size : 7570 bytes
+│      │     Path : src/pages/Terms.tsx
+│      ├── 📄 UserProfile.tsx
+│      │     Type : tsx
+│      │     Size : 41931 bytes
+│      │     Path : src/pages/UserProfile.tsx
+
+│   📁 Folder : utils/
+│      Path   : src/utils/
+│      Files  : 4
+│      ├── 📄 feedback.ts
+│      │     Type : ts
+│      │     Size : 1407 bytes
+│      │     Path : src/utils/feedback.ts
+│      ├── 📄 iconMap.ts
+│      │     Type : ts
+│      │     Size : 1067 bytes
+│      │     Path : src/utils/iconMap.ts
+│      ├── 📄 journalHtmlApiUrl.ts
+│      │     Type : ts
+│      │     Size : 374 bytes
+│      │     Path : src/utils/journalHtmlApiUrl.ts
+│      ├── 📄 watermark.ts
+│      │     Type : ts
+│      │     Size : 978 bytes
+│      │     Path : src/utils/watermark.ts
+
+Files directly inside ROOT:
+
+📄 .env.example
+   Type : example
+   Size : 2729 bytes
+   Path : .env.example
+
+📄 .github
+   Type : github
+   Size : - bytes
+   Path : .github
+
+📄 .gitignore
+   Type : gitignore
+   Size : 73 bytes
+   Path : .gitignore
+
+📄 CHANGELOG.md
+   Type : md
+   Size : 24303 bytes
+   Path : CHANGELOG.md
+
+📄 CODE_OF_CONDUCT.md
+   Type : md
+   Size : 4094 bytes
+   Path : CODE_OF_CONDUCT.md
+
+📄 CONTRIBUTING.md
+   Type : md
+   Size : 6522 bytes
+   Path : CONTRIBUTING.md
+
+📄 CONTRIBUTOR.md
+   Type : md
+   Size : 1675 bytes
+   Path : CONTRIBUTOR.md
+
+📄 LICENSE
+   Type : No Extension
+   Size : 2068 bytes
+   Path : LICENSE
+
+📄 PORTFOLIO_SETUP_DEPLOYMENT_MANUAL.md
+   Type : md
+   Size : 261737 bytes
+   Path : PORTFOLIO_SETUP_DEPLOYMENT_MANUAL.md
+
+📄 README.md
+   Type : md
+   Size : 57326 bytes
+   Path : README.md
+
+📄 SECURITY.md
+   Type : md
+   Size : 5469 bytes
+   Path : SECURITY.md
+
+📄 SUPPORT.md
+   Type : md
+   Size : 3523 bytes
+   Path : SUPPORT.md
+
+📄 api
+   Type : No Extension
+   Size : - bytes
+   Path : api
+
+📄 dist
+   Type : No Extension
+   Size : - bytes
+   Path : dist
+
+📄 index.html
+   Type : html
+   Size : 7093 bytes
+   Path : index.html
+
+📄 metadata.json
+   Type : json
+   Size : 171 bytes
+   Path : metadata.json
+
+📄 package-lock.json
+   Type : json
+   Size : 208211 bytes
+   Path : package-lock.json
+
+📄 package.json
+   Type : json
+   Size : 1115 bytes
+   Path : package.json
+
+📄 public
+   Type : No Extension
+   Size : - bytes
+   Path : public
+
+📄 src
+   Type : No Extension
+   Size : - bytes
+   Path : src
+
+📄 tailwind.config.js
+   Type : js
+   Size : 659 bytes
+   Path : tailwind.config.js
+
+📄 tsconfig.json
+   Type : json
+   Size : 569 bytes
+   Path : tsconfig.json
+
+📄 vercel.json
+   Type : json
+   Size : 3096 bytes
+   Path : vercel.json
+
+📄 vite.config.ts
+   Type : ts
+   Size : 705 bytes
+   Path : vite.config.ts
+
 ---
 
 ## 📋 Changelog
@@ -663,3 +2043,8 @@ Bug fixes, security patches, and documentation improvements remain active.
 This repository is published under a **Custom Restricted (View-Only) License**. See [`LICENSE`](./LICENSE) for full terms.
 
 For collaboration or architectural consultation, use the [Contact Hub](https://deepdey.vercel.app/contact).
+
+---
+
+## ⚡ Offline Capabilities (PWA)
+This portfolio features full offline capabilities via Service Workers. Vercel Serverless API responses are intelligently cached locally using a `StaleWhileRevalidate` strategy. Once loaded, the site and its dynamic data remain fully accessible without an internet connection on both mobile and desktop environments.
