@@ -222,6 +222,7 @@ export default function Footer() {
               ))}
             </div>
             {/* Uptodown Button */}
+            {/* Uptodown Button */}
             <a
               href="https://en.uptodown.com/developer/deep-dey"
               target="_blank"
@@ -265,7 +266,6 @@ export default function Footer() {
                     e.preventDefault();
                     navigator.clipboard.writeText('pujadey200314@okhdfcbank');
                     const btn = e.currentTarget;
-                    const originalText = btn.innerText;
                     btn.innerText = 'COPIED!';
                     btn.classList.add('text-green-400', 'border-green-500/50');
                     setTimeout(() => {
@@ -279,6 +279,10 @@ export default function Footer() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* ── Powered-by watermarks ── */}
 
         {/* ── Powered-by watermarks ── */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 py-2">
