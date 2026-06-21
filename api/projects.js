@@ -328,7 +328,7 @@ function isWatermarkTrackRateLimited(domain, ip, nowMs = Date.now()) {
 
 function buildGoogleFaviconUrl(value) {
   const raw = String(value || '').trim();
-  if (!raw) return 'https://www.google.com/s2/favicons?sz=64';
+  if (!raw) return 'https://www.google.com/s2/favicons';
   let domainUrl = raw;
   try {
     domainUrl = new URL(raw).origin;
@@ -339,7 +339,7 @@ function buildGoogleFaviconUrl(value) {
       domainUrl = raw;
     }
   }
-  return `https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(domainUrl)}`;
+  return `https://www.google.com/s2/favicons&domain_url=${encodeURIComponent(domainUrl)}`;
 }
 
 async function takeScreenshot(url) {
