@@ -270,6 +270,41 @@ export default function About() {
         </div>
       </motion.section>
 
+{/* Direct UPI / GPay Option */}
+          <div className="flex items-center justify-between bg-zinc-950/80 border border-zinc-800 rounded-2xl p-4 w-full max-w-[600px] hover:border-zinc-700 transition-all shadow-xl mt-2">
+            <a 
+              href="upi://pay?pa=pujadey200314@okhdfcbank&pn=Puja%20Dey&cu=INR"
+              className="flex items-center gap-4 cursor-pointer group flex-1"
+            >
+              {/* Custom GPay SVG Logo */}
+              <div className="bg-zinc-900 p-2.5 rounded-xl border border-zinc-800 group-hover:border-amber-500/50 transition-all">
+                <svg viewBox="0 0 100 40" className="h-5 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M37.3 18.5v5.3h8.5c-.3 2.3-1.4 4.3-3.1 5.7l5 3.9c2.9-2.7 4.6-6.6 4.6-11.1 0-1.1-.1-2.1-.3-3.1h-14.7v-.7z" fill="#4285F4"/>
+                  <path d="M28.4 34.1c4.1 0 7.6-1.4 10.1-3.7l-5-3.9c-1.4.9-3.1 1.5-5.1 1.5-3.9 0-7.2-2.6-8.4-6.2h-5.2v4c2.5 5 7.6 8.3 13.6 8.3z" fill="#34A853"/>
+                  <path d="M20 21.8c-.3-.9-.5-1.9-.5-2.8s.2-1.9.5-2.8v-4h-5.2c-1.1 2.2-1.7 4.6-1.7 7.1s.6 5 1.7 7.1l5.2-4.6z" fill="#FBBC04"/>
+                  <path d="M28.4 10.9c2.2 0 4.2.8 5.8 2.3l4.3-4.3C35.9 6.5 32.4 5 28.4 5 22.4 5 17.3 8.3 14.8 13.3l5.2 4c1.2-3.5 4.5-6.4 8.4-6.4z" fill="#EA4335"/>
+                  <text x="47" y="29" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="24" fill="#ffffff">Pay</text>
+                </svg>
+              </div>
+              <div className="text-left">
+                <p className="text-white font-bold text-sm md:text-base tracking-wide group-hover:text-amber-500 transition-colors">Direct UPI</p>
+                <p className="text-zinc-400 text-xs md:text-sm font-mono mt-0.5">pujadey200314@okhdfcbank</p>
+              </div>
+            </a>
+            
+            <button 
+              onClick={(e) => {
+                e.preventDefault();
+                navigator.clipboard.writeText('pujadey200314@okhdfcbank');
+                e.currentTarget.innerText = 'COPIED!';
+                setTimeout(() => e.currentTarget.innerText = 'COPY', 2000);
+              }}
+              className="ml-4 px-4 py-2.5 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-amber-500 text-xs font-black rounded-xl uppercase tracking-widest transition-all active:scale-95 w-[85px] text-center"
+            >
+              COPY
+            </button>
+          </div>
+      
       {/* FAQ Knowledge Base */}
       <FAQ />
     </div>
