@@ -34,8 +34,10 @@ export default defineConfig(({mode}) => {
               // 2. Local Images (Exclude explicitly external CDNs here)
               urlPattern: ({ request, url }) => 
                 request.destination === 'image' && 
-                !url.href.includes('static.qlynk.me') && 
+                !url.href.includes('qlynk.me') && 
                 !url.href.includes('deydeep-static-files.hf.space'),
+                !url.href.includes('gstatic.com') &&
+                !url.href.includes('googleusercontent.com'),
               handler: 'CacheFirst',
               options: {
                 cacheName: 'portfolio-local-image-cache',
@@ -50,7 +52,7 @@ export default defineConfig(({mode}) => {
             },
             {
               // 3. SPECIAL RULE: Custom CDNs (qlynk & hf.space)
-              urlPattern: /^https:\/\/(static\.qlynk\.me|deydeep-static-files\.hf\.space)\/.*/i,
+              urlPattern: /^https:\/\/(.*\.qlynk\.me|.*\.gstatic\.com|.*\.googleusercontent\.com|deydeep-static-files\.hf\.space)\/.*/i,
               handler: 'CacheFirst', 
               options: {
                 cacheName: 'external-cdn-cache',
