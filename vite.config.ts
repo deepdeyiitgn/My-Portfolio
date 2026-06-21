@@ -35,7 +35,7 @@ export default defineConfig(({mode}) => {
               urlPattern: ({ request, url }) => 
                 request.destination === 'image' && 
                 !url.href.includes('qlynk.me') && 
-                !url.href.includes('deydeep-static-files.hf.space'),
+                !url.href.includes('deydeep-static-files.hf.space') &&
                 !url.href.includes('gstatic.com') &&
                 !url.href.includes('googleusercontent.com'),
               handler: 'CacheFirst',
