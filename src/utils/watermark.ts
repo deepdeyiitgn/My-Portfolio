@@ -8,9 +8,9 @@ export function getWatermarkStatusBadgeClass(status?: WatermarkStatus) {
   return 'bg-amber-500/10 text-amber-300 border border-amber-500/30';
 }
 
-export function getGoogleFaviconUrl(value?: string, size = 64) {
+export function getGoogleFaviconUrl(value?: string, size = 32) {
   const raw = String(value || '').trim();
-  if (!raw) return `https://www.google.com/s2/favicons?sz=${size}`;
+  if (!raw) return `https://www.google.com/s2/favicons`;
   let domainUrl = raw;
   try {
     domainUrl = new URL(raw).origin;
@@ -21,5 +21,5 @@ export function getGoogleFaviconUrl(value?: string, size = 64) {
       domainUrl = raw;
     }
   }
-  return `https://www.google.com/s2/favicons?sz=${size}&domain_url=${encodeURIComponent(domainUrl)}`;
+  return `https://www.google.com/s2/favicons?domain_url=${encodeURIComponent(domainUrl)}`;
 }
