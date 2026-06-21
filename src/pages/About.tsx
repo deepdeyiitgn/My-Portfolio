@@ -234,6 +234,42 @@ export default function About() {
         </div>
       </section>
 
+{/* Support / Sponsor Section */}
+      <motion.section 
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        className="flex flex-col items-center text-center space-y-8 py-16 border-t border-zinc-900/50 relative"
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-amber-500/5 to-transparent opacity-50 blur-3xl -z-10 pointer-events-none"></div>
+        <div className="space-y-4">
+          <h2 className="text-amber-500 font-mono tracking-[0.3em] uppercase text-xs">Support My Journey</h2>
+          <h3 className="text-3xl md:text-5xl font-black text-white tracking-tighter">
+            BACK THE <span className="text-amber-500">VISION.</span>
+          </h3>
+          <p className="text-zinc-400 text-sm md:text-base max-w-xl mx-auto font-light leading-relaxed">
+            Building complex digital systems and maintaining top-tier JEE preparation requires immense focus and resources. If my open-source work or journey inspires you, consider backing my mission.
+          </p>
+        </div>
+        
+        <div className="flex flex-col items-center gap-6 w-full max-w-2xl mx-auto mt-6">
+          {/* GitHub Sponsor Card */}
+          <div className="rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950/50 backdrop-blur-sm p-2 w-full max-w-[600px] flex justify-center shadow-xl">
+            <iframe src="https://github.com/sponsors/deepdeyiitgn/card" title="Sponsor deepdeyiitgn" height="225" width="100%" style={{ border: 0, maxWidth: '600px' }}></iframe>
+          </div>
+
+          {/* Razorpay Button via Link (Safe for React) */}
+          <a 
+            href="https://razorpay.com/payment-button/pl_RKb4InVhkRbYOd/view/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="mt-4 px-8 py-4 bg-amber-500 text-black font-black uppercase tracking-widest text-sm rounded-xl hover:bg-amber-400 transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.2)] flex items-center gap-2"
+          >
+            Donate via Razorpay (INR)
+          </a>
+        </div>
+      </motion.section>
+
       {/* FAQ Knowledge Base */}
       <FAQ />
     </div>
