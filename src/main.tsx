@@ -5,6 +5,9 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import App from './App.tsx';
 import { LanguageProvider } from './context/LanguageContext.tsx';
 import './index.css';
+import { registerSW } from 'virtual:pwa-register';
+
+registerSW({ immediate: true });
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
