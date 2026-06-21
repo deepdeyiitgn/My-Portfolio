@@ -220,6 +220,7 @@ export default function Footer() {
                 </a>
               ))}
             </div>
+            {/* Uptodown Button */}
             <a
               href="https://en.uptodown.com/developer/deep-dey"
               target="_blank"
@@ -229,23 +230,55 @@ export default function Footer() {
               Uptodown Profile
             </a>
             
-            {/* Minimal Sponsor Links */}
-            <div className="pt-2 flex flex-col gap-3">
-              <a
-                href="https://razorpay.com/payment-button/pl_RKb4InVhkRbYOd/view/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full py-3 px-4 bg-zinc-900 border border-zinc-800 hover:border-amber-500/40 text-zinc-400 hover:text-amber-500 font-bold text-center rounded-xl transition-all text-[10px] uppercase tracking-widest shadow-inner"
-              >
-                Donate via Razorpay
-              </a>
-              <div className="flex justify-center mt-1">
-                <iframe src="https://github.com/sponsors/deepdeyiitgn/button" title="Sponsor deepdeyiitgn" height="32" width="114" style={{ border: 0, borderRadius: '6px' }}></iframe>
+            {/* ── Unified Support Box ── */}
+            <div className="mt-4 bg-zinc-950/50 border border-zinc-900 rounded-2xl p-4 flex flex-col gap-3 shadow-inner">
+              <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-[0.3em] text-center mb-1">
+                Support The Build
+              </span>
+              
+              {/* 1. GitHub Sponsor Button (Small) */}
+              <div className="flex justify-center">
+                <iframe 
+                  src="https://github.com/sponsors/deepdeyiitgn/button" 
+                  title="Sponsor deepdeyiitgn" 
+                  height="32" 
+                  width="114" 
+                  style={{ border: 0, borderRadius: '6px' }}
+                ></iframe>
+              </div>
+
+              <div className="flex gap-2 w-full">
+                {/* 2. Razorpay Link */}
+                <a
+                  href="https://razorpay.com/payment-button/pl_RKb4InVhkRbYOd/view/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-amber-500/40 text-zinc-300 hover:text-amber-500 font-bold text-center rounded-xl transition-all text-[10px] uppercase tracking-widest flex items-center justify-center"
+                >
+                  Razorpay
+                </a>
+
+                {/* 3. Personal UPI (Click to Copy) */}
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigator.clipboard.writeText('pujadey200314@okhdfcbank');
+                    const btn = e.currentTarget;
+                    const originalText = btn.innerText;
+                    btn.innerText = 'COPIED!';
+                    btn.classList.add('text-green-400', 'border-green-500/50');
+                    setTimeout(() => {
+                      btn.innerText = 'COPY UPI';
+                      btn.classList.remove('text-green-400', 'border-green-500/50');
+                    }, 2000);
+                  }}
+                  className="flex-1 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white font-bold text-center rounded-xl transition-all text-[10px] uppercase tracking-widest active:scale-95 flex items-center justify-center"
+                >
+                  Copy UPI
+                </button>
               </div>
             </div>
-          </div>
-        </div>
-
+            
         {/* ── Powered-by watermarks ── */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 py-2">
           {/* QuickLink trigger */}
