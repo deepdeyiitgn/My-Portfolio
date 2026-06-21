@@ -229,6 +229,21 @@ export default function Footer() {
             >
               Uptodown Profile
             </a>
+            
+            {/* Minimal Sponsor Links */}
+            <div className="pt-2 flex flex-col gap-3">
+              <a
+                href="https://razorpay.com/payment-button/pl_RKb4InVhkRbYOd/view/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full py-3 px-4 bg-zinc-900 border border-zinc-800 hover:border-amber-500/40 text-zinc-400 hover:text-amber-500 font-bold text-center rounded-xl transition-all text-[10px] uppercase tracking-widest shadow-inner"
+              >
+                Donate via Razorpay
+              </a>
+              <div className="flex justify-center mt-1">
+                <iframe src="https://github.com/sponsors/deepdeyiitgn/button" title="Sponsor deepdeyiitgn" height="32" width="114" style={{ border: 0, borderRadius: '6px' }}></iframe>
+              </div>
+            </div>
           </div>
         </div>
 
