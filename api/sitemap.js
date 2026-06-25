@@ -28,7 +28,8 @@ function resolveStableFallbackDate() {
 
 // Fallback if source file date can't be resolved
 // const STATIC_PAGE_LASTMOD_FALLBACK = resolveStableFallbackDate();
-const STATIC_PAGE_LASTMOD_FALLBACK = '2026-02-21';
+// const STATIC_PAGE_LASTMOD_FALLBACK = '2026-06-21';
+const STATIC_PAGE_LASTMOD_FALLBACK = '2026-06-25';
 
 // All static routes (no /dashboard, no /journal/embed)
 const STATIC_PAGES = [
