@@ -511,3 +511,63 @@ Main recommend karunga ki har JSON me ye 4 optional metadata fields bhi support 
 
 Isse future me schema migration, debugging aur compatibility maintain karna bahut easy ho jayega.
 
+
+---
+
+### 📄 Naya JSON File
+
+**Filename**
+
+```
+app-update.json
+```
+
+---
+
+### Example Structure
+
+```json
+{
+  "latestVersion": "1.2.0",
+  "versionCode": 12,
+  "title": "Deep Ecosystem v1.2",
+  "message": "A new update is available.",
+  "releaseNotes": [
+    "Improved Browser Engine",
+    "Added Offline Search",
+    "Bug Fixes"
+  ],
+  "image": "https://deepdey.vercel.app/images/update-banner.png",
+  "apkUrl": "https://deepdey.vercel.app/downloads/DeepEcosystem-v1.2.apk",
+  "apkSize": "48 MB",
+  "sha256": "OPTIONAL_SHA256_HASH",
+  "publishDate": "2026-07-10T10:00:00Z",
+  "mandatory": false,
+  "minSupportedVersion": 8,
+  "downloadPage": "https://deepdey.vercel.app/download",
+  "githubFallback": true
+}
+```
+
+---
+
+## Fields Meaning
+
+| Field                 | Meaning                                                                                             |
+| --------------------- | --------------------------------------------------------------------------------------------------- |
+| `latestVersion`       | Latest version name (e.g. 1.2.0)                                                                    |
+| `versionCode`         | Internal build number used for comparison                                                           |
+| `title`               | Update title shown in the app                                                                       |
+| `message`             | Short update description                                                                            |
+| `releaseNotes`        | List of new features, fixes, and improvements                                                       |
+| `image`               | Banner image displayed in the update screen                                                         |
+| `apkUrl`              | Direct APK download URL                                                                             |
+| `apkSize`             | Human-readable APK size                                                                             |
+| `sha256`              | Optional checksum to verify APK integrity after download                                            |
+| `publishDate`         | Date/time when the update was published (ISO-8601 recommended)                                      |
+| `mandatory`           | `true` if the update is required before continuing to use the app                                   |
+| `minSupportedVersion` | Lowest app build that can still use current remote configuration                                    |
+| `downloadPage`        | Optional web page with more update information                                                      |
+| `githubFallback`      | If `true`, the app may check the GitHub Releases API when this JSON cannot be fetched or is invalid |
+
+---
