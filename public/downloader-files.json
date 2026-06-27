@@ -1,0 +1,19 @@
+{
+  "files": [
+    {
+      "id": "phy001",
+      "title": "Physics Notes - Kinematics",
+      "description": "Complete handwritten notes.",
+      "category": "Physics",
+      "type": "pdf",
+      "thumbnail": "https://...",
+      "url": "https://...",
+      "size": "12 MB",
+      "stream": false,
+      "download": true,
+      "offline": true,
+      "version": "1.0",
+      "published": "2026-07-15T10:00:00Z"
+    }
+  ]
+}
