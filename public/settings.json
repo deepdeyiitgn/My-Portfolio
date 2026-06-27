@@ -1,0 +1,6 @@
+{
+  "offlineMode": true,
+  "allowDownloads": true,
+  "checkIntervalMinutes": 30,
+  "showGreeting": true
+}

@@ -1,0 +1,11 @@
+{
+  "notifications": [
+    {
+      "id": "2026001",
+      "title": "Welcome",
+      "message": "First notification",
+      "image": "",
+      "time": "2026-07-01T10:00:00Z"
+    }
+  ]
+}
