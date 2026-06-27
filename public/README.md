@@ -571,3 +571,45 @@ app-update.json
 | `githubFallback`      | If `true`, the app may check the GitHub Releases API when this JSON cannot be fetched or is invalid |
 
 ---
+
+## 💡 Mere hisaab se `downloader-files.json` ka structure future me kuch aisa ho sakta hai:
+
+```json
+{
+  "files": [
+    {
+      "id": "phy001",
+      "title": "Physics Notes - Kinematics",
+      "description": "Complete handwritten notes.",
+      "category": "Physics",
+      "type": "pdf",
+      "thumbnail": "https://...",
+      "url": "https://...",
+      "size": "12 MB",
+      "stream": false,
+      "download": true,
+      "offline": true,
+      "version": "1.0",
+      "published": "2026-07-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+### Iske important fields:
+
+| Field         | Meaning                                              |
+| ------------- | ---------------------------------------------------- |
+| `id`          | Unique file ID                                       |
+| `title`       | File ka naam                                         |
+| `description` | Short description                                    |
+| `category`    | Physics, Maths, Chemistry, Notes, etc.               |
+| `type`        | `pdf`, `video`, `audio`, `image`, `zip`, `apk`, etc. |
+| `thumbnail`   | Preview image                                        |
+| `url`         | File download/stream URL                             |
+| `size`        | Human-readable file size                             |
+| `stream`      | `true` = online play/view supported                  |
+| `download`    | `true` = download button show kare                   |
+| `offline`     | Download ke baad offline access allowed              |
+| `version`     | File version                                         |
+| `published`   | Publish date (ISO-8601)                              |
