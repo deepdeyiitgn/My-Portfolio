@@ -1,6 +1,79 @@
-{
-  "theme": "system",
-  "accent": "#4CAF50",
-  "dynamicColor": true,
-  "fontScale": 1.0
-}
+[
+  {
+    "name": "Deep Space",
+    "theme": "dark",
+    "dynamicColor": false,
+    "accent": "#1A73E8",
+    "cornerRadius": 16
+  },
+  {
+    "name": "Ocean Breeze",
+    "theme": "light",
+    "dynamicColor": false,
+    "accent": "#00838F",
+    "cornerRadius": 20
+  },
+  {
+    "name": "Forest Green",
+    "theme": "system",
+    "dynamicColor": true,
+    "accent": "#2E7D32",
+    "cornerRadius": 12
+  },
+  {
+    "name": "Sunset Ruby",
+    "theme": "dark",
+    "dynamicColor": false,
+    "accent": "#C62828",
+    "cornerRadius": 8
+  },
+  {
+    "name": "Midnight Purple",
+    "theme": "dark",
+    "dynamicColor": false,
+    "accent": "#6A1B9A",
+    "cornerRadius": 24
+  },
+  {
+    "name": "Amber Light",
+    "theme": "light",
+    "dynamicColor": true,
+    "accent": "#FF8F00",
+    "cornerRadius": 16
+  },
+  {
+    "name": "Cyberpunk Neon",
+    "theme": "dark",
+    "dynamicColor": false,
+    "accent": "#00E5FF",
+    "cornerRadius": 4
+  },
+  {
+    "name": "Rose Gold",
+    "theme": "light",
+    "dynamicColor": false,
+    "accent": "#E91E63",
+    "cornerRadius": 32
+  },
+  {
+    "name": "Monochrome Minimal",
+    "theme": "system",
+    "dynamicColor": false,
+    "accent": "#424242",
+    "cornerRadius": 0
+  },
+  {
+    "name": "Mint Fresh",
+    "theme": "light",
+    "dynamicColor": true,
+    "accent": "#00BFA5",
+    "cornerRadius": 16
+  },
+  {
+    "name": "Royal Gold",
+    "theme": "dark",
+    "dynamicColor": false,
+    "accent": "#FFD54F",
+    "cornerRadius": 12
+  }
+]
