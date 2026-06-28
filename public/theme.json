@@ -1,4 +1,5 @@
-[
+{
+  "themes": [
   {
     "name": "Deep Space",
     "theme": "dark",
@@ -77,3 +78,4 @@
     "cornerRadius": 12
   }
 ]
+}
