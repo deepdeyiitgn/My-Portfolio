@@ -1,0 +1,12 @@
+{
+  "banners": [
+    {
+      "image": "https://i.ytimg.com/vi/j1igHhxxCL0/maxresdefault.jpg",
+      "hyperlink": "https://www.youtube.com/watch?v=j1igHhxxCL0",
+      "title": "Join Our Comeback Arc Livestream",
+      "description": "Comeback Arc Live on Youtube.",
+      "show": true,
+      "priority": 1
+    }
+  ]
+}
