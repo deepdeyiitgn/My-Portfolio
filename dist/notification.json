@@ -1,0 +1,11 @@
+{
+  "notifications": [
+    {
+      "id": "2026001",
+      "title": "Welcome",
+      "message": "First notification",
+      "image": "https://deepdey.vercel.app/assets/images/myphoto.png",
+      "time": "2026-06-28T12:48:00Z"
+    }
+  ]
+}

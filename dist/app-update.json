@@ -1,0 +1,20 @@
+{
+  "latestVersion": "1.2.0",
+  "versionCode": 12,
+  "title": "Deep Ecosystem v1.2",
+  "message": "A new update is available.",
+  "releaseNotes": [
+    "Improved Browser Engine",
+    "Added Offline Search",
+    "Bug Fixes"
+  ],
+  "image": "https://deepdey.vercel.app/images/update-banner.png",
+  "apkUrl": "https://deepdey.vercel.app/downloads/DeepEcosystem-v1.2.apk",
+  "apkSize": "48 MB",
+  "sha256": "OPTIONAL_SHA256_HASH",
+  "publishDate": "2026-07-10T10:00:00Z",
+  "mandatory": false,
+  "minSupportedVersion": 8,
+  "downloadPage": "https://deepdey.vercel.app/download",
+  "githubFallback": true
+}

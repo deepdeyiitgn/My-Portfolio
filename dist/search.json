@@ -1,0 +1,6 @@
+{
+  "offlineIndex": true,
+  "fuzzySearch": true,
+  "maxResults": 20,
+  "crawlVisitedPages": true
+}

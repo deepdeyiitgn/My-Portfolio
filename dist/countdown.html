@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JEE 2027 Countdown</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #09090b;
+            color: #f4f4f5;
+            padding: 20px;
+            transition: background-color 0.5s ease;
+            border: 2px solid #f59e0b;
+            border-radius: 18px;
+            max-width: 960px;
+            margin: 20px auto;
+        }
+        #quote {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        #heading {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #f59e0b;
+        }
+        #countdown {
+            font-size: 30px;
+            font-weight: bold;
+            color: #f59e0b;
+            margin-top: 20px;
+        }
+        @media (max-width: 600px) {
+            #quote, #heading, #countdown {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="quote"></div>
+    <h1 id="heading">JEE 2027 Ke Liye Time Hei...</h1>
+    <div id="countdown"></div>
+
+    <script>
+        const quotes = [
+            "Love is the eternal dance of Radha and Krishna, a melody beyond time,",
+            "जीवन एक पहेली है, इसे प्रेम से सुलझाओ,",
+            "Dreams are not what you see in sleep, they are the ones that don’t let you sleep. – APJ Abdul Kalam,",
+            "राधा का प्रेम कृष्ण के बिना अधूरा, जैसे जीवन बिना संघर्ष के,",
+            "The only way to do great work is to love what you do,",
+            "समाज को बदलना है तो पहले खुद को सुधारो,",
+            "Excellence is a continuous process, not an accident. – APJ Abdul Kalam,",
+            "प्रेम वो नहीं जो मांगता है, प्रेम वो है जो देता है,",
+            "Success in JEE is not luck, it’s the result of relentless effort,",
+            "राधा-कृष्ण की भक्ति जीवन को शांति देती है,",
+            "Love is not about possession, it’s about appreciation,",
+            "जो समाज बलात्कार को चुपचाप देखता है, उसे जागना होगा,",
+            "Don’t stop when you’re tired, stop when you’re done,",
+            "कृष्ण कहते हैं, कर्म करो, फल की चिंता मत करो,",
+            "The best way to predict your future is to create it,",
+            "प्रेम में शक्ति है, जो दुनिया बदल सकती है,",
+            "IIT is not a destination, it’s a journey of self-discovery,",
+            "जीवन का हर पल एक सबक है, इसे सीखो,",
+            "You have to dream before your dreams can come true. – APJ Abdul Kalam,",
+            "राधा का प्रेम कृष्ण के लिए अनंत था, ऐसा प्रेम करो,",
+            "Love is the bridge between two souls,",
+            "समाज का सुधार शिक्षा और जागरूकता से शुरू होता है,",
+            "Failure is the first step towards success,",
+            "कृष्ण की बांसुरी जीवन को संगीत देती है,",
+            "JEE is tough, but so are you,",
+            "प्रेम में विश्वास ही सबसे बड़ी ताकत है,",
+            "The mind is everything; what you think, you become,",
+            "राधा-कृष्ण का प्रेम हमें सिखाता है कि त्याग ही सच्चा प्यार है,",
+            "Success is not final, failure is not fatal,",
+            "जीवन एक संघर्ष है, इसे हिम्मत से जीतो,",
+            "Learning gives creativity, creativity leads to thinking. – APJ Abdul Kalam,",
+            "समाज को सुधारने के लिए पहले नारी का सम्मान करो,",
+            "Love is when the other person’s happiness is more important than your own,",
+            "कृष्ण का हर लीला जीवन का एक पाठ है,",
+            "Hard work beats talent when talent doesn’t work hard,",
+            "राधा का प्रेम हमें सिखाता है कि प्रतीक्षा में भी सुंदरता है,",
+            "The only limit is the one you set for yourself,",
+            "बलात्कार जैसी बुराई को खत्म करने के लिए समाज को बोलना होगा,",
+            "Don’t read success stories, write your own,",
+            "प्रेम वो आग है जो जलाती नहीं, प्रकाश देती है,",
+            "IIT dreams are built on late nights and strong coffee,",
+            "कृष्ण कहते हैं, सत्य के लिए लड़ो,",
+            "Love is the poetry of the senses,",
+            "जीवन का हर दर्द एक नई शुरुआत है,",
+            "Great dreams of great dreamers are always transcended. – APJ Abdul Kalam,",
+            "राधा-कृष्ण का प्रेम हमें सिखाता है कि दूरी भी पास लाती है,",
+            "Success is the sum of small efforts repeated daily,",
+            "समाज का हर इंसान बदलाव का हिस्सा बन सकता है,",
+            "JEE isn’t the end, it’s the beginning of something bigger,",
+            "प्रेम में कोई शर्त नहीं होती,",
+            "The best revenge is massive success,",
+            "कृष्ण की हर बात में जीवन का रहस्य छुपा है,",
+            "Love is not a feeling, it’s an action,",
+            "राधा का प्रेम अनंत था, ऐसा प्रेम दुर्लभ है,",
+            "To succeed in life, you need ignorance and confidence,",
+            "समाज को सुधारने के लिए पहले खुद से शुरू करो,",
+            "Don’t let your fears decide your future,",
+            "जीवन एक किताब है, हर पन्ना नया सबक देता है,",
+            "Education is the most powerful weapon to change the world. – APJ Abdul Kalam,",
+            "प्रेम वो है जो आत्मा को छू ले,",
+            "IIT is a dream worth fighting for,",
+            "कृष्ण कहते हैं, जो होता है, अच्छे के लिए होता है,",
+            "Love is the only force capable of transforming an enemy into a friend,",
+            "राधा का त्याग प्रेम की सबसे बड़ी मिसाल है,",
+            "Your only competition is the person you were yesterday,",
+            "समाज का हर गलत काम सुधारने की जिम्मेदारी हमारी है,",
+            "The future belongs to those who believe in their dreams,",
+            "प्रेम में डूब जाओ, दुनिया अपने आप सुंदर लगेगी,",
+            "JEE is a marathon, not a sprint,",
+            "कृष्ण की लीला हमें सिखाती है कि जीवन एक नाटक है,",
+            "Success is not about speed, it’s about direction,",
+            "राधा-कृष्ण का प्रेम हमें सिखाता है कि विश्वास ही सब कुछ है,",
+            "Don’t wait for opportunities, create them,",
+            "जीवन का हर क्षण एक नई उम्मीद है,",
+            "Creativity is intelligence having fun,",
+            "प्रेम वो है जो बिना कहे समझ में आए,",
+            "IIT is not just a college, it’s a mindset,",
+            "समाज को बदलने के लिए नारी की शक्ति को पहचानो,",
+            "Love is the answer, no matter the question,",
+            "कृष्ण कहते हैं, अपने कर्म पर ध्यान दो,",
+            "The harder you work, the luckier you get,",
+            "राधा का प्रेम हमें सिखाता है कि प्रेम में कोई स्वार्थ नहीं होता,",
+            "You don’t fail until you stop trying,",
+            "जीवन एक यात्रा है, इसे प्रेम से जियो,",
+            "Dream big, work hard, stay focused,",
+            "समाज का हर अंधेरा शिक्षा से दूर हो सकता है,",
+            "Love is the greatest gift you can give,",
+            "कृष्ण की बांसुरी हमें जीवन का संगीत सुनाती है,",
+            "JEE is a battle of patience and persistence,",
+            "राधा-कृष्ण का प्रेम अनंत काल तक रहेगा,",
+            "Success is not for the lazy,",
+            "प्रेम में शक्ति है, जो हर दर्द को ठीक कर सकती है,",
+            "The best way to learn is to teach,",
+            "जीवन का हर संघर्ष एक नई सीख देता है,",
+            "Don’t let small minds convince you your dreams are too big,",
+            "समाज को सुधारने के लिए पहले अपने विचार बदलो,",
+            "Love is the light that guides us through darkness,",
+            "कृष्ण कहते हैं, जो मेरे साथ है, उसे डर किसका,",
+            "IIT is a dream that demands sacrifice,",
+            "राधा का प्रेम हमें सिखाता है कि प्रेम में सब कुछ समर्पण है,",
+            "Success is the best reply to your doubters,",
+            "प्रेम वो है जो आत्मा को शांति दे,",
+            "The only way to achieve the impossible is to believe it’s possible,",
+            "जीवन का हर दुख एक नई ताकत देता है,",
+            "JEE is not about intelligence, it’s about discipline,",
+            "कृष्ण की हर बात में जीवन का सच छुपा है,",
+            "Love is patient, love is kind,",
+            "राधा-कृष्ण का प्रेम हमें सिखाता है कि प्रेम में कोई सीमा नहीं,",
+            "Don’t fear failure, fear not trying,",
+            "समाज का सुधार तब होगा जब हम सब आवाज उठाएंगे,",
+            "You are stronger than you think,",
+            "प्रेम वो है जो बिना शब्दों के बोले,",
+            "IIT is the reward for years of hard work,",
+            "कृष्ण कहते हैं, जो सत्य के साथ है, वो कभी हारता नहीं,",
+            "Success comes to those who dare to begin,",
+            "राधा का प्रेम हमें सिखाता है कि प्रेम में दर्द भी सुंदर है,",
+            "Love is the music of the heart,",
+            "जीवन का हर कदम एक नई उम्मीद है,",
+            "The best way to succeed is to start failing,",
+            "समाज को सुधारने के लिए पहले अपने अंदर झांको,",
+            "JEE teaches you that effort never betrays,",
+            "कृष्ण की लीला हमें सिखाती है कि जीवन एक रहस्य है,",
+            "Dreams don’t work unless you do,",
+            "प्रेम वो है जो आत्मा को जोड़े,",
+            "IIT is a dream that builds nations,",
+            "राधा-कृष्ण का प्रेम हमें सिखाता है कि प्रेम में विश्वास जरूरी है,",
+            "Success is not a gift, it’s a garden cultivated,",
+            "जीवन का हर पल एक नया अवसर है,",
+            "Love is the only thing that grows when shared,",
+            "कृष्ण कहते हैं, जो मेरे साथ है, उसे कुछ नहीं चाहिए,",
+            "The harder the struggle, the sweeter the victory,",
+            "समाज का हर गलत काम खत्म करने की जिम्मेदारी हमारी है,",
+            "JEE is a test of will, not just skill,",
+            "राधा का प्रेम हमें सिखाता है कि प्रेम में सब कुछ माफ है,",
+            "You don’t need to be great to start, but you need to start to be great,",
+            "प्रेम वो है जो जीवन को रंग दे,",
+            "IIT is a symbol of perseverance,",
+            "कृष्ण की बांसुरी हमें सिखाती है कि जीवन में संगीत जरूरी है,",
+            "Love is the key to every locked heart,",
+            "जीवन का हर दर्द एक नई शुरुआत है,",
+            "Success is the echo of hard work,",
+            "राधा-कृष्ण का प्रेम हमें सिखाता है कि प्रेम अनंत है,",
+            "Don’t let yesterday take up too much of today,",
+            "समाज को सुधारने के लिए पहले अपने कर्म सुधारो,",
+            "JEE is a challenge that shapes your future,",
+            "प्रेम वो है जो आत्मा को शक्ति दे,",
+            "The only impossible journey is the one you never begin,",
+            "कृष्ण कहते हैं, जो मेरे साथ है, वो कभी अकेला नहीं,",
+            "Love is the courage to be vulnerable,",
+            "राधा का प्रेम हमें सिखाता है कि प्रेम में कोई डर नहीं,",
+            "Success is not about winning, it’s about growing,",
+            "जीवन का हर सबक एक नई ताकत देता है,",
+            "IIT dreams are forged in the fire of determination,",
+            "कृष्ण की लीला हमें सिखाती है कि जीवन एक पहेली है,",
+            "Love is the language every heart speaks,",
+            "समाज का सुधार तब होगा जब हम सब एकजुट होंगे,",
+            "JEE is not the end, it’s the doorway to greatness,",
+            "राधा-कृष्ण का प्रेम हमें सिखाता है कि प्रेम में शक्ति है,",
+            "The best way out is always through,",
+            "प्रेम वो है जो आत्मा को जोड़ता है,",
+            "Success is the result of preparation and opportunity meeting,",
+            "कृष्ण कहते हैं, जो सत्य के साथ है, वो कभी हारता नहीं,",
+            "Love is the heartbeat of life,",
+            "जीवन का हर पल एक नई सीख है,",
+            "IIT is not just a goal, it’s a legacy,",
+            "राधा का प्रेम हमें सिखाता है कि प्रेम में कोई शर्त नहीं,",
+            "Don’t count the days, make the days count,",
+            "समाज को बदलने के लिए पहले अपने विचार बदलो,",
+            "JEE is a journey of grit and glory,",
+            "कृष्ण की बांसुरी हमें सिखाती है कि जीवन में शांति जरूरी है,",
+            "Love is the only treasure worth seeking,",
+            "प्रेम वो है जो आत्मा को शांति दे,",
+            "Success is not about perfection, it’s about persistence,",
+            "राधा-कृष्ण का प्रेम हमें सिखाता है कि प्रेम में विश्वास ही सब कुछ है,",
+            "The only way to rise is to keep climbing,",
+            "जीवन का हर संघर्ष एक नई उम्मीद देता है,",
+            "IIT is a dream that demands everything,",
+            "कृष्ण कहते हैं, जो मेरे साथ है, उसे कुछ नहीं चाहिए,",
+            "Love is the strength to face any storm,",
+            "समाज का सुधार शिक्षा और प्रेम से शुरू होता है,",
+            "JEE is a test of your soul, not just your mind,",
+            "राधा का प्रेम हमें सिखाता है कि प्रेम में कोई स्वार्थ नहीं,",
+            "Success is the shadow of effort,",
+            "कृष्ण की लीला हमें सिखाती है कि जीवन एक नाटक है,",
+            "Love is the root of all happiness,",
+            "जीवन का हर दुख एक नई ताकत देता है,",
+            "The best dreams happen when you’re awake,",
+            "प्रेम वो है जो आत्मा को जोड़े,",
+            "IIT is a journey of a thousand steps,",
+            "राधा-कृष्ण का प्रेम हमें सिखाता है कि प्रेम में कोई सीमा नहीं,",
+            "Success is not a race, it’s a climb,",
+            "समाज को सुधारने के लिए पहले अपने अंदर झांको,",
+            "JEE teaches you that limits are illusions,",
+            "कृष्ण कहते हैं, जो सत्य के साथ है, वो कभी हारता नहीं,",
+            "Love is the flame that never fades,",
+            "जीवन का हर पल एक नई उम्मीद है,",
+            "IIT is a dream worth every sacrifice,",
+            "राधा का प्रेम हमें सिखाता है कि प्रेम में सब कुछ माफ है,",
+            "Success is the reward for those who persevere,",
+            "प्रेम वो है जो जीवन को रंग दे,"
+        ];
+        
+        function getQuoteOfTheDay() {
+            let startDate = new Date("2025-03-31"); // Start date of this script
+            let today = new Date();
+            let dayDiff = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
+            let quoteIndex = dayDiff % quotes.length;
+            document.getElementById("quote").innerText = quotes[quoteIndex];
+        }
+
+        function countdown() {
+            let targetDate = new Date("June 30, 2027 23:59:59").getTime();
+            let now = new Date().getTime();
+            let distance = targetDate - now;
+
+            let days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            let hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            let minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            let seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            document.getElementById("countdown").innerHTML = `Time Left: ${days} Days ${hours} Hours ${minutes} Minutes ${seconds} Seconds`;
+        }
+
+        function changeBackgroundColor() {
+            const colors = ["#09090b", "#111111", "#18181b", "#1f1f24", "#111827", "#1c1917"];
+            document.body.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        getQuoteOfTheDay();
+        countdown();
+        changeBackgroundColor();
+        setInterval(countdown, 1000); // Update countdown every second
+    </script>
+</body>
+  </html>

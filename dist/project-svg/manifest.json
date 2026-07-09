@@ -1,0 +1,38 @@
+{
+  "cursorVisual": [
+    "anchor-grid.svg",
+    "aurora-dart.svg",
+    "click-burst.svg",
+    "comet.svg",
+    "drag-node.svg",
+    "flare-triangle.svg",
+    "glass-arrow.svg",
+    "ink-beam.svg",
+    "input-beam.svg",
+    "magnet-drag.svg",
+    "neon-needle.svg",
+    "nova-click.svg",
+    "orbit.svg",
+    "prism-arrow.svg",
+    "pulse-core.svg",
+    "quantum-tip.svg",
+    "scribe.svg",
+    "selection-ring.svg",
+    "spark-lance.svg",
+    "vector-wing.svg"
+  ],
+  "cursorSystem": [
+    "action.svg",
+    "click.svg",
+    "default.svg",
+    "drag.svg",
+    "input.svg",
+    "select.svg",
+    "text.svg"
+  ],
+  "projectSvgBrand": [
+    "crown.svg",
+    "quicklink-logo.svg",
+    "verified.svg"
+  ]
+}
